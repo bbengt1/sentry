@@ -1,0 +1,134 @@
+"""OpenCV-based camera source for USB indices, files, and URL targets.
+
+Uses opencv-python-headless only. Targets are passed directly to
+``cv2.VideoCapture`` (no shell). Empty string paths are rejected (T-2-01).
+"""
+
+from __future__ import annotations
+
+import time
+from typing import Any
+
+import cv2
+import numpy as np
+
+from sentry_ai.capture.image_frame import ImageFrame
+from sentry_ai.schemas.frame import Frame
+from sentry_ai.sources.errors import SourceDisconnected, SourceError
+
+_URL_PREFIXES = ("rtsp://", "rtsps://", "http://", "https://")
+
+
+def _is_file_target(target: int | str) -> bool:
+    """True for filesystem paths; False for device indices and stream URLs."""
+    if not isinstance(target, str):
+        return False
+    return not target.lower().startswith(_URL_PREFIXES)
+
+
+class OpenCVSource:
+    """One adapter for USB index, file path, or future RTSP/HTTP URL targets."""
+
+    name: str = "opencv"
+
+    def __init__(
+        self,
+        target: int | str,
+        *,
+        camera_id: str,
+        name: str = "opencv",
+        loop_file: bool = True,
+    ) -> None:
+        if isinstance(target, str) and target.strip() == "":
+            raise ValueError("empty path target is not allowed")
+        self.target = target
+        self.camera_id = camera_id
+        self.name = name
+        self.loop_file = loop_file
+        self._cap: Any | None = None
+        self._next_frame_id = 0
+        self._is_file = _is_file_target(target)
+
+    def open(self) -> None:
+        # Path/index/url passed only to VideoCapture — never via shell (T-2-01).
+        self._cap = cv2.VideoCapture(self.target)
+        if not self._cap.isOpened():
+            self._cap.release()
+            self._cap = None
+            raise SourceError(f"failed to open source: {self.target!r}")
+        # Best-effort low latency (may be ignored by some backends).
+        self._cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        self._next_frame_id = 0
+
+    def read(self) -> ImageFrame:
+        if self._cap is None:
+            raise RuntimeError(f"{type(self).__name__} is not open; call open() first")
+
+        ok, bgr = self._cap.read()
+        if not ok or bgr is None:
+            if self._is_file and self.loop_file:
+                self._cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                ok, bgr = self._cap.read()
+            if not ok or bgr is None:
+                raise SourceDisconnected(f"no frame from {self.target!r}")
+
+        if not isinstance(bgr, np.ndarray):
+            raise SourceDisconnected(f"invalid frame from {self.target!r}")
+
+        h, w = bgr.shape[:2]
+        now = time.time()
+        meta = Frame(
+            frame_id=self._next_frame_id,
+            camera_id=self.camera_id,
+            t_capture=now,
+            t_ingest=now,
+            width=int(w),
+            height=int(h),
+        )
+        self._next_frame_id += 1
+        return ImageFrame(meta=meta, image_bgr=bgr)
+
+    def close(self) -> None:
+        if self._cap is not None:
+            self._cap.release()
+            self._cap = None
+
+
+class UsbSource(OpenCVSource):
+    """USB UVC source plugin (device index)."""
+
+    name: str = "usb"
+
+    def __init__(
+        self,
+        device: int = 0,
+        camera_id: str = "usb0",
+        *,
+        loop_file: bool = False,
+    ) -> None:
+        super().__init__(
+            target=device,
+            camera_id=camera_id,
+            name="usb",
+            loop_file=loop_file,
+        )
+
+
+class FileSource(OpenCVSource):
+    """Local video file source plugin."""
+
+    name: str = "file"
+
+    def __init__(
+        self,
+        path: str,
+        camera_id: str = "file0",
+        *,
+        loop_file: bool = True,
+    ) -> None:
+        super().__init__(
+            target=path,
+            camera_id=camera_id,
+            name="file",
+            loop_file=loop_file,
+        )

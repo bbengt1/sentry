@@ -15,6 +15,8 @@ def test_register_builtins_lists_synthetic_noop_null() -> None:
     register_builtins(registry)
 
     assert "synthetic" in registry.list_sources()
+    assert "usb" in registry.list_sources()
+    assert "file" in registry.list_sources()
     assert "noop" in registry.list_workers()
     assert "null" in registry.list_sinks()
 

@@ -33,6 +33,10 @@ class SourceConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     type: str = "synthetic"
+    device: int | None = None
+    path: str | None = None
+    url: str | None = None
+    camera_id: str | None = None
 
 
 class SentryConfig(BaseModel):

@@ -39,6 +39,8 @@ sentry = "sentry_ai.cli:main"
 
 [project.entry-points."sentry_ai.sources"]
 synthetic = "sentry_ai.plugins.builtins:SyntheticSource"
+usb = "sentry_ai.sources.opencv_source:UsbSource"
+file = "sentry_ai.sources.opencv_source:FileSource"
 
 [project.entry-points."sentry_ai.workers"]
 noop = "sentry_ai.plugins.builtins:NoopWorker"

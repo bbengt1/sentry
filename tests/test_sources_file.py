@@ -12,7 +12,12 @@ from sentry_ai.capture.image_frame import ImageFrame
 from sentry_ai.sources.opencv_source import FileSource, OpenCVSource
 
 
-def _write_sample_clip(path: Path, frames: int = 5, width: int = 32, height: int = 24) -> Path:
+def _write_sample_clip(
+    path: Path,
+    frames: int = 5,
+    width: int = 32,
+    height: int = 24,
+) -> Path:
     """Write a short BGR clip for file-source tests (no shell; pure OpenCV)."""
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     writer = cv2.VideoWriter(str(path), fourcc, 10.0, (width, height))
