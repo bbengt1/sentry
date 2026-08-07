@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sentry AI — Live Preview</title>
+  <style>
+    :root {
+      --bg: #121418;
+      --panel: #1a1d24;
+      --text: #e8eaed;
+      --muted: #9aa0a6;
+      --border: #2a2f3a;
+      --streaming: #2e7d32;
+      --reconnecting: #f9a825;
+      --error: #c62828;
+      --starting: #546e7a;
+      --stopped: #616161;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .wrap {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 1rem 1.25rem 2rem;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin: 0;
+      letter-spacing: 0.01em;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.25rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: lowercase;
+      background: var(--starting);
+      color: #fff;
+      border: 1px solid transparent;
+    }
+    .pill.streaming { background: var(--streaming); }
+    .pill.reconnecting { background: var(--reconnecting); color: #1a1a1a; }
+    .pill.error { background: var(--error); }
+    .pill.starting { background: var(--starting); }
+    .pill.stopped { background: var(--stopped); }
+    .video-panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      min-height: 240px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .video-panel img {
+      display: block;
+      width: 100%;
+      max-height: 70vh;
+      object-fit: contain;
+      background: #000;
+    }
+    footer {
+      margin-top: 0.9rem;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.35rem 1rem;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    footer strong { color: var(--text); font-weight: 500; }
+    #error-banner {
+      display: none;
+      margin: 0 0 0.75rem;
+      padding: 0.65rem 0.8rem;
+      border-radius: 6px;
+      background: rgba(198, 40, 40, 0.15);
+      border: 1px solid var(--error);
+      color: #ffcdd2;
+      font-size: 0.9rem;
+    }
+    #error-banner.visible { display: block; }
+    @media (max-width: 560px) {
+      footer { grid-template-columns: 1fr; }
+      header { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Sentry AI — Live Preview</h1>
+      <span id="status-pill" class="pill starting" role="status" aria-live="polite">starting</span>
+    </header>
+
+    <div id="error-banner" role="alert"></div>
+
+    <div class="video-panel">
+      <!-- Same-origin auto-connect MJPEG stream -->
+      <img id="preview" src="/preview/mjpeg" alt="Live camera preview stream" />
+    </div>
+
+    <footer>
+      <div>Source: <strong id="metric-source">—</strong></div>
+      <div>FPS: <strong id="metric-fps">—</strong></div>
+      <div>Drops: <strong id="metric-drops">—</strong></div>
+      <div>Bind: <strong id="metric-bind">—</strong></div>
+    </footer>
+  </div>
+
+  <script>
+    (function () {
+      var STATUS_POLL_MS = 500;
+      var pill = document.getElementById("status-pill");
+      var errBanner = document.getElementById("error-banner");
+      var elSource = document.getElementById("metric-source");
+      var elFps = document.getElementById("metric-fps");
+      var elDrops = document.getElementById("metric-drops");
+      var elBind = document.getElementById("metric-bind");
+      var preview = document.getElementById("preview");
+
+      var KNOWN = ["streaming", "reconnecting", "error", "starting", "stopped"];
+
+      function setError(msg) {
+        if (!msg) {
+          errBanner.classList.remove("visible");
+          errBanner.textContent = "";
+          return;
+        }
+        errBanner.textContent = msg;
+        errBanner.classList.add("visible");
+      }
+
+      function applyStatus(data) {
+        var status = (data && data.status) ? String(data.status) : "error";
+        if (KNOWN.indexOf(status) === -1) {
+          status = "error";
+        }
+        pill.textContent = status;
+        pill.className = "pill " + status;
+
+        var camera = (data && data.camera_id) || (data && data.source) || "—";
+        elSource.textContent = camera;
+        elFps.textContent = (data && typeof data.capture_fps === "number")
+          ? data.capture_fps.toFixed(1)
+          : "—";
+        elDrops.textContent = (data && typeof data.frames_dropped === "number")
+          ? String(data.frames_dropped)
+          : "—";
+        elBind.textContent = (data && data.bind) ? String(data.bind) : "—";
+
+        if (status === "error" || status === "reconnecting") {
+          var detail = (data && data.status_detail) ? String(data.status_detail) : "";
+          if (status === "reconnecting") {
+            setError(detail || "Camera reconnecting — last frame may be stale.");
+          } else {
+            setError(detail || "Camera source error. Check the source and refresh.");
+          }
+        } else {
+          setError("");
+        }
+      }
+
+      function pollStatus() {
+        fetch("/api/status", { cache: "no-store" })
+          .then(function (resp) {
+            if (!resp.ok) {
+              throw new Error("status HTTP " + resp.status);
+            }
+            return resp.json();
+          })
+          .then(function (data) {
+            applyStatus(data);
+          })
+          .catch(function () {
+            pill.textContent = "error";
+            pill.className = "pill error";
+            setError(
+              "Could not reach the preview server status endpoint. " +
+              "Is sentry serve running on this host?"
+            );
+          });
+      }
+
+      preview.addEventListener("error", function () {
+        // Do not blank the page — keep last status and show plain-language help.
+        setError(
+          "Live video stream interrupted. Refresh the page once the camera is streaming."
+        );
+      });
+
+      pollStatus();
+      setInterval(pollStatus, STATUS_POLL_MS);
+    })();
+  </script>
+</body>
+</html>

@@ -54,9 +54,10 @@ null = "sentry_ai.plugins.builtins:NullSink"
 [tool.hatch.build.targets.wheel]
 packages = ["src/sentry_ai"]
 
-# Include non-Python package data (runtime profile YAMLs) in wheels.
+# Include non-Python package data (runtime profiles + Live Preview HTML) in wheels.
 [tool.hatch.build.targets.wheel.force-include]
 "src/sentry_ai/config/profiles" = "sentry_ai/config/profiles"
+"src/sentry_ai/ui/static" = "sentry_ai/ui/static"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

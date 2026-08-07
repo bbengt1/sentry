@@ -8,16 +8,21 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import Any
 
 import cv2
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 
 BOUNDARY = "frame"
 JPEG_QUALITY = 80
 MJPEG_SLEEP_S = 0.033  # ~30 FPS UI path; independent of capture FPS
 
+# Packaged static Live Preview page (ui/static next to api/ package tree).
+_INDEX_HTML = (
+    Path(__file__).resolve().parents[1] / "ui" / "static" / "index.html"
+)
 
 router = APIRouter()
 
@@ -79,15 +84,23 @@ async def preview_mjpeg(request: Request) -> StreamingResponse:
     )
 
 
-@router.get("/", response_class=HTMLResponse)
-async def root_preview() -> HTMLResponse:
-    """Placeholder until Task 2 ships the full Live Preview page."""
+@router.get("/", response_model=None)
+async def root_preview() -> FileResponse | HTMLResponse:
+    """Serve the packaged Live Preview page at GET /."""
+    if _INDEX_HTML.is_file():
+        return FileResponse(
+            path=_INDEX_HTML,
+            media_type="text/html; charset=utf-8",
+        )
+    # Fallback if package data is missing (should not happen in wheels).
     return HTMLResponse(
         content=(
             "<!DOCTYPE html><html><head>"
             "<title>Sentry AI — Live Preview</title></head>"
             "<body><h1>Sentry AI — Live Preview</h1>"
+            "<p>Live Preview page is not packaged.</p>"
             '<img src="/preview/mjpeg" alt="Live camera preview" />'
             "</body></html>"
-        )
+        ),
+        status_code=500,
     )

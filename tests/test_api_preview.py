@@ -133,3 +133,22 @@ def test_mjpeg_generator_awaits_sleep() -> None:
     """Generator must await asyncio.sleep so CPU does not spin (T-2-02)."""
     source = inspect.getsource(routes_preview)
     assert "asyncio.sleep" in source
+
+
+def test_root_serves_live_preview_html() -> None:
+    """GET / returns UI-SPEC Live Preview page with MJPEG auto-connect."""
+    bus = FrameBus()
+    source = SyntheticSource(camera_id="synthetic0", fps=0.0)
+    loop = CaptureLoop(source, bus)
+    app = create_app(bus=bus, capture_loop=loop, bind="127.0.0.1:8000")
+    with TestClient(app) as client:
+        resp = client.get("/")
+        assert resp.status_code == 200
+        body = resp.text
+        assert "Sentry AI — Live Preview" in body
+        assert "preview/mjpeg" in body
+        assert "api/status" in body
+        # Copy constraints from UI-SPEC
+        lower = body.lower()
+        assert "autonomous" not in lower
+        assert "safe to drive" not in lower
