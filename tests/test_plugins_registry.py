@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from sentry_ai.capture.image_frame import ImageFrame
 from sentry_ai.plugins.builtins import NoopWorker, NullSink, SyntheticSource
 from sentry_ai.plugins.registry import PluginRegistry, register_builtins
 from sentry_ai.schemas import Frame
@@ -28,19 +29,19 @@ def test_get_source_synthetic_returns_class() -> None:
     assert registry.get_sink("null") is NullSink
 
 
-def test_synthetic_source_read_returns_valid_frame() -> None:
-    source = SyntheticSource(camera_id="synthetic0")
+def test_synthetic_source_read_returns_valid_image_frame() -> None:
+    source = SyntheticSource(camera_id="synthetic0", fps=0.0)
     source.open()
     try:
-        frame = source.read()
-        assert isinstance(frame, Frame)
-        assert frame.camera_id == "synthetic0"
-        assert frame.frame_id == 0
+        image = source.read()
+        assert isinstance(image, ImageFrame)
+        assert image.camera_id == "synthetic0"
+        assert image.frame_id == 0
 
-        frame2 = source.read()
-        assert frame2.frame_id == 1
-        # Round-trip through model_validate to prove schema validity
-        Frame.model_validate(frame.model_dump())
+        image2 = source.read()
+        assert image2.frame_id == 1
+        # Round-trip meta through model_validate to prove schema validity
+        Frame.model_validate(image.meta.model_dump())
     finally:
         source.close()
 

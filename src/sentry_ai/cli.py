@@ -1,7 +1,7 @@
 """Sentry AI CLI — health and synthetic smoke entry points.
 
-Smoke validates synthetic Frame → PerceptionFrame paths without camera,
-torch, OpenCV, or cloud API keys (MODEL-01 / FOUND-05).
+Smoke validates synthetic ImageFrame → PerceptionFrame paths without
+hardware cameras, torch, or cloud API keys (MODEL-01 / FOUND-05).
 """
 
 from __future__ import annotations
@@ -65,7 +65,7 @@ def smoke(
         help="Runtime profile name.",
     ),
 ) -> None:
-    """Build synthetic Frames, wrap as PerceptionFrames, validate, exit 0.
+    """Build synthetic ImageFrames, wrap as PerceptionFrames, validate, exit 0.
 
     Local OSS path only — loads profile, asserts allow_cloud is false, never
     calls cloud APIs or loads ML weights.
@@ -83,7 +83,7 @@ def smoke(
         )
         raise typer.Exit(code=1)
 
-    source = SyntheticSource(camera_id="synthetic0")
+    source = SyntheticSource(camera_id="synthetic0", fps=0.0)
     worker = NoopWorker()
     sink = NullSink()
     validated = 0
@@ -91,18 +91,19 @@ def smoke(
     source.open()
     try:
         for _ in range(frames):
-            frame = source.read()
+            image = source.read()
             # Optional pass-through stubs (no models).
-            _ = worker.process(frame)
+            _ = worker.process(image)
+            meta = image.meta
 
             try:
                 perception = PerceptionFrame.model_validate(
                     {
                         "schema_version": 1,
-                        "frame_id": frame.frame_id,
-                        "camera_id": frame.camera_id,
-                        "t_capture": frame.t_capture,
-                        "t_publish": frame.t_ingest,
+                        "frame_id": meta.frame_id,
+                        "camera_id": meta.camera_id,
+                        "t_capture": meta.t_capture,
+                        "t_publish": meta.t_ingest,
                         "completeness": Completeness(
                             depth=False,
                             detections=False,
