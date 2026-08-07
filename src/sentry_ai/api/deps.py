@@ -1,0 +1,19 @@
+"""App-state holders for injected bus + capture loop (no process globals)."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from sentry_ai.bus.frame_bus import FrameBus
+    from sentry_ai.capture.loop import CaptureLoop
+
+
+@dataclass
+class AppState:
+    """Runtime dependencies attached to ``app.state`` by ``create_app``."""
+
+    bus: FrameBus
+    capture_loop: CaptureLoop
+    bind: str

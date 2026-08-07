@@ -26,12 +26,15 @@ dependencies = [
   "typer>=0.27",
   "opencv-python-headless>=4.10,<6",
   "numpy>=2.0,<2.5",
+  "fastapi>=0.141,<1",
+  "uvicorn[standard]>=0.52,<1",
 ]
 
 [project.optional-dependencies]
 dev = [
   "pytest>=8",
   "ruff>=0.8",
+  "httpx>=0.28",
 ]
 
 [project.scripts]
@@ -64,3 +67,4 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
