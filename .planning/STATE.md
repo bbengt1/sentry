@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: ready_to_execute
-stopped_at: Phase 3 planned and plan-check passed — ready to execute
-last_updated: 2026-08-07T16:07:48.687Z
+status: executing
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-08-07T19:21:39.843Z"
 last_activity: 2026-08-07
 progress:
   total_phases: 7
   completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
-  percent: 29
+  total_plans: 8
+  completed_plans: 7
+  percent: 88
 ---
 
 # Project State
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-07)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots — without proprietary sensors or cloud AI.  
-**Current focus:** Phase 3 — Fixed-Class Detection (planned)
+**Current focus:** Phase 3 — Fixed-Class Detection
 
 ## Current Position
 
-Phase: 3
-Plan: 0 of 2 planned — ready to execute
+Phase: 3 (Fixed-Class Detection) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
 Last activity: 2026-08-07
 
-Progress: [██░░░░░░░░] 29% (Phase 2 of 7 complete)
+Progress: [█████████░] 88%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 6
+- Total plans completed: 7
 - Average duration: —
 - Total execution time: 0 hours
 
@@ -46,6 +46,7 @@ Progress: [██░░░░░░░░] 29% (Phase 2 of 7 complete)
 |-------|-------|-------|----------|
 | 1 | 3 | - | - |
 | 2 | 3 | - | - |
+| 3 | 1/2 | - | - |
 
 **Recent Trend:**
 
@@ -58,6 +59,7 @@ Progress: [██░░░░░░░░] 29% (Phase 2 of 7 complete)
 | Phase 02 P01 | 4min | 3 tasks | 25 files |
 | Phase 02 P02 | 4min | 3 tasks | 7 files |
 | Phase 02 P03 | 8min | 3 tasks | 16 files |
+| Phase 03 P01 | 6min | 3 tasks | 25 files |
 
 ## Accumulated Context
 
@@ -94,6 +96,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 02]: create_app injects bus+loop without starting capture (caller owns lifecycle)
 - [Phase 02]: RTSP is OpenCV URL best-effort; PyAV deferred with docs/camera-sources.md
 - [Phase 02]: sentry serve --host defaults to 127.0.0.1 (MODEL-03)
+- [Phase ?]: ultralytics-opencv-headless optional detect extra only
+- [Phase 03]: DetectionLoop on FrameBus; InferenceBackend stays stubs; overlays deferred to 03-02
+- [Phase 03]: desktop-gpu detector_tier m→s; thread-safe conf read each process()
 
 ### Pending Todos
 
@@ -111,6 +116,6 @@ None. Plan check passed with 4 non-blocking warnings (file count per plan, resea
 
 ## Session Continuity
 
-Last session: 2026-08-07T16:04:14.241Z
-Stopped at: Completed 02-03-PLAN.md
-Next: Run `/gsd:execute-phase 1` to implement foundations
+Last session: 2026-08-07T19:21:39.556Z
+Stopped at: Completed 03-01-PLAN.md
+Next: Execute 03-02-PLAN.md (overlays, snapshot JSON, runtime conf, serve wiring)

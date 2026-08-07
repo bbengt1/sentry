@@ -64,7 +64,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Detection worker (YOLO26) + backend protocol + model cache
+- [x] 03-01-PLAN.md — Detection worker (YOLO26) + backend protocol + model cache
 - [ ] 03-02-PLAN.md — Detection overlays, stream/snapshot JSON, runtime conf control, telemetry
 
 ### Phase 4: Monocular Depth
@@ -144,7 +144,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Foundations & Contracts | 3/3 | Complete   | 2026-08-07 |
 | 2. Camera Ingest & Live Preview | 3/3 | Complete   | 2026-08-07 |
-| 3. Fixed-Class Detection | 0/2 | Not started | - |
+| 3. Fixed-Class Detection | 1/2 | In Progress|  |
 | 4. Monocular Depth | 0/2 | Not started | - |
 | 5. Free-Space & Unified Stream | 0/3 | Not started | - |
 | 6. Developer Controls & Open-Vocab | 0/2 | Not started | - |

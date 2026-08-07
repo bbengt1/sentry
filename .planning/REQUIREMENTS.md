@@ -27,8 +27,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Fixed-Class Detection
 
-- [ ] **DET-01**: Fixed-class object detector runs locally (YOLO26 or equivalent OSS) on the live camera stream
-- [ ] **DET-02**: Detections include class, confidence, and bounding box in image coordinates
+- [x] **DET-01**: Fixed-class object detector runs locally (YOLO26 or equivalent OSS) on the live camera stream
+- [x] **DET-02**: Detections include class, confidence, and bounding box in image coordinates
 - [ ] **DET-03**: Confidence threshold is adjustable at runtime without restart
 - [ ] **DET-04**: Detections appear on the web dashboard overlay and in the perception stream (same truth)
 
@@ -80,7 +80,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Local Models & Privacy
 
 - [x] **MODEL-01**: Core inference path uses only local open-source models (no mandatory cloud)
-- [ ] **MODEL-02**: Models are cacheable for offline use after first download
+- [x] **MODEL-02**: Models are cacheable for offline use after first download
 - [x] **MODEL-03**: Default bind is localhost; remote exposure is opt-in and documented
 
 ## v2 Requirements
@@ -141,8 +141,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CAM-05 | Phase 2 | Complete |
 | CAM-06 | Phase 2 | Complete |
 | UI-01 | Phase 2 | Complete |
-| DET-01 | Phase 3 | Pending |
-| DET-02 | Phase 3 | Pending |
+| DET-01 | Phase 3 | Complete |
+| DET-02 | Phase 3 | Complete |
 | DET-03 | Phase 3 | Pending |
 | DET-04 | Phase 3 | Pending |
 | DEPTH-01 | Phase 4 | Pending |
@@ -172,7 +172,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EDGE-04 | Phase 7 | Pending |
 | EDGE-05 | Phase 7 | Pending |
 | MODEL-01 | Phase 1 | Complete |
-| MODEL-02 | Phase 3 | Pending |
+| MODEL-02 | Phase 3 | Complete |
 | MODEL-03 | Phase 2 | Complete |
 
 **Coverage:**
