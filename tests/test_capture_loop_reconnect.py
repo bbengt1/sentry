@@ -280,3 +280,34 @@ def test_start_never_called_status_stopped() -> None:
         max_backoff=0.05,
     )
     assert loop.status == SourceStatus.STOPPED
+
+
+def test_build_status_snapshot_after_streaming() -> None:
+    bus = FrameBus()
+    source = SyntheticSource(width=16, height=12, fps=0.0, camera_id="synthetic0")
+    loop = CaptureLoop(source, bus, initial_backoff=0.01, max_backoff=0.05)
+    try:
+        loop.start()
+        assert _wait_until(
+            lambda: loop.status == SourceStatus.STREAMING
+            and bus.get_latest() is not None,
+            timeout=2.0,
+        )
+        snap = loop.build_status()
+        assert snap.status == SourceStatus.STREAMING
+        assert snap.source == "synthetic"
+        assert snap.camera_id == "synthetic0"
+        assert snap.frame_id is not None
+        assert snap.capture_fps >= 0.0
+        assert snap.frames_dropped >= 0
+        assert snap.bind is None
+        assert snap.t_capture is not None
+        # Wire-friendly: JSON-serializable dump for future FastAPI
+        payload = snap.model_dump(mode="json")
+        assert payload["status"] == "streaming"
+        assert "frames_dropped" in payload
+
+        with_bind = loop.build_status(bind="127.0.0.1:8000")
+        assert with_bind.bind == "127.0.0.1:8000"
+    finally:
+        loop.stop()

@@ -5,12 +5,13 @@ from __future__ import annotations
 from typing import Any
 
 from sentry_ai.capture.image_frame import ImageFrame
-from sentry_ai.capture.status import SourceStatus
+from sentry_ai.capture.status import SourceStatus, StatusSnapshot
 
 __all__ = [
     "CaptureLoop",
     "ImageFrame",
     "SourceStatus",
+    "StatusSnapshot",
 ]
 
 

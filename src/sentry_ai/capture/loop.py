@@ -18,7 +18,7 @@ from typing import Any
 
 from sentry_ai.bus.frame_bus import FrameBus
 from sentry_ai.capture.image_frame import ImageFrame
-from sentry_ai.capture.status import SourceStatus
+from sentry_ai.capture.status import SourceStatus, StatusSnapshot
 from sentry_ai.sources.errors import SourceDisconnected
 
 logger = logging.getLogger(__name__)
@@ -77,6 +77,28 @@ class CaptureLoop:
     @property
     def bus(self) -> FrameBus:
         return self._bus
+
+    def build_status(self, *, bind: str | None = None) -> StatusSnapshot:
+        """Combine loop status + bus metrics + latest frame meta for API.
+
+        ``bind`` is filled by ``sentry serve`` in 02-03; leave ``None`` for
+        unit tests and non-HTTP use.
+        """
+        latest = self._bus.get_latest()
+        metrics = self._bus.metrics_snapshot()
+        frame_id = latest.frame_id if latest is not None else None
+        t_capture = latest.meta.t_capture if latest is not None else None
+        return StatusSnapshot(
+            source=self.source_name,
+            camera_id=self.camera_id,
+            status=self.status,
+            status_detail=self.status_detail,
+            frame_id=frame_id,
+            capture_fps=metrics.capture_fps,
+            frames_dropped=metrics.frames_dropped,
+            bind=bind,
+            t_capture=t_capture,
+        )
 
     # --- lifecycle -------------------------------------------------------------
 
