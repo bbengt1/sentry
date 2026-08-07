@@ -10,11 +10,11 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Foundations & Contracts
 
 - [x] **FOUND-01**: Project ships as an installable Python package with documented one-command local start
-- [ ] **FOUND-02**: Shared schemas define `Frame` and `PerceptionFrame` with `frame_id`, `camera_id`, and timestamps
-- [ ] **FOUND-03**: Depth outputs are typed (`relative` | `metric_estimated` | `metric_calibrated`); relative depth is never labeled as meters
+- [x] **FOUND-02**: Shared schemas define `Frame` and `PerceptionFrame` with `frame_id`, `camera_id`, and timestamps
+- [x] **FOUND-03**: Depth outputs are typed (`relative` | `metric_estimated` | `metric_calibrated`); relative depth is never labeled as meters
 - [ ] **FOUND-04**: Plugin registry stubs exist for camera sources, model workers, and sinks
 - [ ] **FOUND-05**: Default models are commercially friendly OSS weights; third-party licenses documented (`THIRD_PARTY_MODELS.md`)
-- [ ] **FOUND-06**: Device/backend abstraction supports desktop-gpu, jetson, and cpu-fallback profiles (stubs acceptable until edge phase)
+- [x] **FOUND-06**: Device/backend abstraction supports desktop-gpu, jetson, and cpu-fallback profiles (stubs acceptable until edge phase)
 
 ### Camera Ingest
 
@@ -79,7 +79,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Local Models & Privacy
 
-- [ ] **MODEL-01**: Core inference path uses only local open-source models (no mandatory cloud)
+- [x] **MODEL-01**: Core inference path uses only local open-source models (no mandatory cloud)
 - [ ] **MODEL-02**: Models are cacheable for offline use after first download
 - [ ] **MODEL-03**: Default bind is localhost; remote exposure is opt-in and documented
 
@@ -129,11 +129,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | FOUND-01 | Phase 1 | Complete |
-| FOUND-02 | Phase 1 | Pending |
-| FOUND-03 | Phase 1 | Pending |
+| FOUND-02 | Phase 1 | Complete |
+| FOUND-03 | Phase 1 | Complete |
 | FOUND-04 | Phase 1 | Pending |
 | FOUND-05 | Phase 1 | Pending |
-| FOUND-06 | Phase 1 | Pending |
+| FOUND-06 | Phase 1 | Complete |
 | CAM-01 | Phase 2 | Pending |
 | CAM-02 | Phase 2 | Pending |
 | CAM-03 | Phase 2 | Pending |
@@ -171,7 +171,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EDGE-03 | Phase 7 | Pending |
 | EDGE-04 | Phase 7 | Pending |
 | EDGE-05 | Phase 7 | Pending |
-| MODEL-01 | Phase 1 | Pending |
+| MODEL-01 | Phase 1 | Complete |
 | MODEL-02 | Phase 3 | Pending |
 | MODEL-03 | Phase 2 | Pending |
 
