@@ -50,10 +50,8 @@ def test_frame_rejects_empty_camera_id() -> None:
         Frame(frame_id=0, camera_id="", t_capture=time.time())
 
 
-def test_make_synthetic_frame_factory() -> None:
-    from tests.conftest import make_synthetic_frame
-
-    frame = make_synthetic_frame(frame_id=7)
+def test_make_synthetic_frame_factory(synthetic_frame_factory) -> None:
+    frame = synthetic_frame_factory(frame_id=7)
     assert frame.frame_id == 7
     assert frame.camera_id == "synthetic0"
     assert isinstance(frame.t_capture, float)
