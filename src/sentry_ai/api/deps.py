@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from sentry_ai.bus.frame_bus import FrameBus
@@ -17,3 +17,5 @@ class AppState:
     bus: FrameBus
     capture_loop: CaptureLoop
     bind: str
+    perception_store: Any | None = None
+    detection_worker: Any | None = None
