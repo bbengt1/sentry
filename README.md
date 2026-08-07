@@ -73,12 +73,42 @@ core install and unit tests do not require torch:
 ```bash
 # Dev + detection stack
 uv sync --extra dev --extra detect
+
+# Synthetic serve with boxes on Live Preview
+uv run sentry serve --source synthetic
 ```
 
-On first run, weights download once into the Sentry model cache
+Open **`http://127.0.0.1:8000/`** — MJPEG shows server-drawn boxes; footer
+shows detection count, det latency, and a confidence threshold control.
+
+Without the detect extra, `sentry serve` still starts capture + Live Preview
+and logs a clear install hint (`uv sync --extra detect`).
+
+### Detection API
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/snapshot` | Latest `PerceptionFrame` JSON (same detections as MJPEG overlay) |
+| `GET /api/detection/config` | Current conf (+ weights/device when available) |
+| `PATCH /api/detection/config` | Runtime conf update: `{"conf": 0.4}` without restart |
+| `GET /api/status` | Capture + optional det metrics (`detections_count`, `det_latency_ms`, `det_conf`, …) |
+
+### Model cache
+
+On first detection run, weights download once into the Sentry model cache
 (`SENTRY_MODEL_CACHE` or `~/.cache/sentry-ai/weights`). Subsequent runs are
-offline. Ultralytics/YOLO26 is **AGPL-3.0** — see
+offline. Profile `detector_tier` maps to YOLO26 weights (`n`/`s`/`m`).
+
+Ultralytics/YOLO26 is **AGPL-3.0** — see
 [`THIRD_PARTY_MODELS.md`](THIRD_PARTY_MODELS.md) before commercial use.
+
+## Phase 3 scope
+
+- Fixed-class YOLO26 worker + DetectionLoop on FrameBus
+- Keep-latest PerceptionStore (single truth for UI/API)
+- Server-side OpenCV overlays on MJPEG
+- `GET /api/snapshot` + runtime conf PATCH
+- Live Preview conf slider + det telemetry
 
 ## Phase 2 scope
 
@@ -88,8 +118,6 @@ Phase 2 ships the **camera ingest + live preview** vertical slice:
 - Capture thread with reconnect status
 - FastAPI localhost Live Preview (`GET /`, `/preview/mjpeg`, `/api/status`)
 - CLI `sentry serve` (default host `127.0.0.1`)
-
-Detection overlays and snapshot API land with Phase 3 plan 02.
 
 ## Phase 1 scope (still present)
 

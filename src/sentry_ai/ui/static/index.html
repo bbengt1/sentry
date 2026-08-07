@@ -16,6 +16,7 @@
       --error: #c62828;
       --starting: #546e7a;
       --stopped: #616161;
+      --accent: #00ffb4;
     }
     * { box-sizing: border-box; }
     body {
@@ -87,6 +88,33 @@
       color: var(--muted);
     }
     footer strong { color: var(--text); font-weight: 500; }
+    .conf-row {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.6rem 0.9rem;
+      margin-top: 0.25rem;
+    }
+    .conf-row label {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    #conf-slider {
+      flex: 1 1 160px;
+      max-width: 280px;
+      accent-color: var(--accent);
+    }
+    #metric-conf {
+      min-width: 2.5rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .note {
+      grid-column: 1 / -1;
+      margin-top: 0.35rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
     #error-banner {
       display: none;
       margin: 0 0 0.75rem;
@@ -114,7 +142,7 @@
     <div id="error-banner" role="alert"></div>
 
     <div class="video-panel">
-      <!-- Same-origin auto-connect MJPEG stream -->
+      <!-- Same-origin auto-connect MJPEG stream (server-drawn detection boxes) -->
       <img id="preview" src="/preview/mjpeg" alt="Live camera preview stream" />
     </div>
 
@@ -122,20 +150,46 @@
       <div>Source: <strong id="metric-source">—</strong></div>
       <div>FPS: <strong id="metric-fps">—</strong></div>
       <div>Drops: <strong id="metric-drops">—</strong></div>
+      <div>Detections: <strong id="metric-detections">—</strong></div>
+      <div>Det ms: <strong id="metric-det-ms">—</strong></div>
       <div>Bind: <strong id="metric-bind">—</strong></div>
+      <div class="conf-row">
+        <label for="conf-slider">Conf threshold:</label>
+        <input
+          id="conf-slider"
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value="0.25"
+          aria-label="Detection confidence threshold"
+        />
+        <strong id="metric-conf">0.25</strong>
+      </div>
+      <p class="note">
+        Model weights may download on first detection run; cached under
+        SENTRY_MODEL_CACHE / ~/.cache/sentry-ai thereafter.
+      </p>
     </footer>
   </div>
 
   <script>
     (function () {
       var STATUS_POLL_MS = 500;
+      var CONF_DEBOUNCE_MS = 150;
       var pill = document.getElementById("status-pill");
       var errBanner = document.getElementById("error-banner");
       var elSource = document.getElementById("metric-source");
       var elFps = document.getElementById("metric-fps");
       var elDrops = document.getElementById("metric-drops");
+      var elDetections = document.getElementById("metric-detections");
+      var elDetMs = document.getElementById("metric-det-ms");
       var elBind = document.getElementById("metric-bind");
+      var elConf = document.getElementById("metric-conf");
+      var confSlider = document.getElementById("conf-slider");
       var preview = document.getElementById("preview");
+      var confTimer = null;
+      var confFromServer = false;
 
       var KNOWN = ["streaming", "reconnecting", "error", "starting", "stopped"];
 
@@ -147,6 +201,11 @@
         }
         errBanner.textContent = msg;
         errBanner.classList.add("visible");
+      }
+
+      function formatNum(v, digits) {
+        if (typeof v !== "number" || !isFinite(v)) return "—";
+        return v.toFixed(digits);
       }
 
       function applyStatus(data) {
@@ -166,6 +225,22 @@
           ? String(data.frames_dropped)
           : "—";
         elBind.textContent = (data && data.bind) ? String(data.bind) : "—";
+
+        elDetections.textContent =
+          (data && typeof data.detections_count === "number")
+            ? String(data.detections_count)
+            : "—";
+        elDetMs.textContent =
+          (data && typeof data.det_latency_ms === "number")
+            ? formatNum(data.det_latency_ms, 1)
+            : "—";
+
+        if (data && typeof data.det_conf === "number") {
+          confFromServer = true;
+          confSlider.value = String(data.det_conf);
+          elConf.textContent = formatNum(data.det_conf, 2);
+          confFromServer = false;
+        }
 
         if (status === "error" || status === "reconnecting") {
           var detail = (data && data.status_detail) ? String(data.status_detail) : "";
@@ -199,6 +274,46 @@
             );
           });
       }
+
+      function patchConf(value) {
+        fetch("/api/detection/config", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conf: value }),
+        })
+          .then(function (resp) {
+            if (!resp.ok) {
+              if (resp.status === 503) {
+                // Detection worker not available — keep slider local only.
+                return null;
+              }
+              throw new Error("conf HTTP " + resp.status);
+            }
+            return resp.json();
+          })
+          .then(function (data) {
+            if (data && typeof data.conf === "number") {
+              elConf.textContent = formatNum(data.conf, 2);
+              confFromServer = true;
+              confSlider.value = String(data.conf);
+              confFromServer = false;
+            }
+          })
+          .catch(function () {
+            /* non-fatal: status poll will refresh conf when available */
+          });
+      }
+
+      confSlider.addEventListener("input", function () {
+        if (confFromServer) return;
+        var v = parseFloat(confSlider.value);
+        elConf.textContent = formatNum(v, 2);
+        if (confTimer) clearTimeout(confTimer);
+        confTimer = setTimeout(function () {
+          confTimer = null;
+          patchConf(v);
+        }, CONF_DEBOUNCE_MS);
+      });
 
       preview.addEventListener("error", function () {
         // Do not blank the page — keep last status and show plain-language help.

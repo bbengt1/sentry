@@ -231,7 +231,15 @@ def test_root_serves_live_preview_html() -> None:
         assert "Sentry AI — Live Preview" in body
         assert "preview/mjpeg" in body
         assert "api/status" in body
+        # Phase 3: conf control + det telemetry
+        assert "Conf" in body or "conf" in body
+        assert "Detections" in body
+        assert "Det ms" in body
+        assert "detection/config" in body
+        assert "conf-slider" in body or 'type="range"' in body
         # Copy constraints from UI-SPEC
         lower = body.lower()
         assert "autonomous" not in lower
         assert "safe to drive" not in lower
+        assert "motor" not in lower
+        assert "velocity" not in lower

@@ -56,8 +56,12 @@ def _app(
         "bind": "127.0.0.1:8000",
     }
     if inject:
-        kwargs["perception_store"] = store if store is not None else PerceptionStore()
-        kwargs["detection_worker"] = worker if worker is not None else FakeDetectionWorker()
+        kwargs["perception_store"] = (
+            store if store is not None else PerceptionStore()
+        )
+        kwargs["detection_worker"] = (
+            worker if worker is not None else FakeDetectionWorker()
+        )
     return create_app(**kwargs), loop
 
 
@@ -80,8 +84,8 @@ def test_snapshot_empty_store_returns_404() -> None:
             resp = client.get("/api/snapshot")
             assert resp.status_code == 404
             body = resp.json()
-            detail = body.get("detail", body)
-            assert "detection" in str(detail).lower() or "product" in str(detail).lower()
+            detail = str(body.get("detail", body)).lower()
+            assert "detection" in detail or "product" in detail
     finally:
         loop.stop()
 
@@ -122,8 +126,10 @@ def test_snapshot_returns_perception_frame_matching_store() -> None:
             product = store.snapshot()
             assert product is not None
             assert len(product.detections) == len(data["detections"])
-            assert product.detections[0].class_name == data["detections"][0]["class_name"]
-            assert product.detections[1].class_name == data["detections"][1]["class_name"]
+            wire0 = data["detections"][0]["class_name"]
+            wire1 = data["detections"][1]["class_name"]
+            assert product.detections[0].class_name == wire0
+            assert product.detections[1].class_name == wire1
             # Stats when available
             stats = data.get("stats") or {}
             assert stats.get("det_latency_ms") == 12.3
