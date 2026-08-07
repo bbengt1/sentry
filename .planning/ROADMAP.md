@@ -8,7 +8,7 @@ Build an open-source, camera-only perception product for maker robotics: start w
 
 - [x] **Phase 1: Foundations & Contracts** — Repo skeleton, schemas, plugins, licenses, device abstraction (completed 2026-08-07)
 - [x] **Phase 2: Camera Ingest & Live Preview** — USB/file/synthetic/RTSP sources, frame bus, web preview (completed 2026-08-07)
-- [ ] **Phase 3: Fixed-Class Detection** — Local YOLO detection worker, overlays, stream detections
+- [x] **Phase 3: Fixed-Class Detection** — Local YOLO detection worker, overlays, stream detections (completed 2026-08-07)
 - [ ] **Phase 4: Monocular Depth** — Depth Anything V2 pipeline with honest depth typing
 - [ ] **Phase 5: Free-Space & Unified Stream** — Spatial post, merged PerceptionFrame API, obstacle overlays
 - [ ] **Phase 6: Developer Controls & Open-Vocab** — Interactive console + promptable detection
@@ -65,7 +65,7 @@ Plans:
 
 Plans:
 - [x] 03-01-PLAN.md — Detection worker (YOLO26) + backend protocol + model cache
-- [ ] 03-02-PLAN.md — Detection overlays, stream/snapshot JSON, runtime conf control, telemetry
+- [x] 03-02-PLAN.md — Detection overlays, stream/snapshot JSON, runtime conf control, telemetry
 
 ### Phase 4: Monocular Depth
 **Goal**: Add the spatial awareness primitive with honest monocular depth semantics (relative by default).  
@@ -144,7 +144,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Foundations & Contracts | 3/3 | Complete   | 2026-08-07 |
 | 2. Camera Ingest & Live Preview | 3/3 | Complete   | 2026-08-07 |
-| 3. Fixed-Class Detection | 1/2 | In Progress|  |
+| 3. Fixed-Class Detection | 2/2 | Complete   | 2026-08-07 |
 | 4. Monocular Depth | 0/2 | Not started | - |
 | 5. Free-Space & Unified Stream | 0/3 | Not started | - |
 | 6. Developer Controls & Open-Vocab | 0/2 | Not started | - |

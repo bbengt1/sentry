@@ -29,8 +29,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **DET-01**: Fixed-class object detector runs locally (YOLO26 or equivalent OSS) on the live camera stream
 - [x] **DET-02**: Detections include class, confidence, and bounding box in image coordinates
-- [ ] **DET-03**: Confidence threshold is adjustable at runtime without restart
-- [ ] **DET-04**: Detections appear on the web dashboard overlay and in the perception stream (same truth)
+- [x] **DET-03**: Confidence threshold is adjustable at runtime without restart
+- [x] **DET-04**: Detections appear on the web dashboard overlay and in the perception stream (same truth)
 
 ### Monocular Depth
 
@@ -143,8 +143,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UI-01 | Phase 2 | Complete |
 | DET-01 | Phase 3 | Complete |
 | DET-02 | Phase 3 | Complete |
-| DET-03 | Phase 3 | Pending |
-| DET-04 | Phase 3 | Pending |
+| DET-03 | Phase 3 | Complete |
+| DET-04 | Phase 3 | Complete |
 | DEPTH-01 | Phase 4 | Pending |
 | DEPTH-02 | Phase 4 | Pending |
 | DEPTH-03 | Phase 4 | Pending |
