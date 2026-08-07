@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
@@ -93,7 +92,8 @@ def test_load_config_allow_cloud_env_default_false(
 
 def test_yaml_profiles_use_safe_load() -> None:
     """Config loader must use yaml.safe_load only (T-1-01)."""
-    load_src = Path(__file__).resolve().parents[1] / "src" / "sentry_ai" / "config" / "load.py"
+    root = Path(__file__).resolve().parents[1]
+    load_src = root / "src" / "sentry_ai" / "config" / "load.py"
     text = load_src.read_text(encoding="utf-8")
     assert "safe_load" in text
     # Disallow unsafe yaml.load( usage (but allow safe_load)

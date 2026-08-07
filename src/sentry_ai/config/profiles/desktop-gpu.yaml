@@ -1,0 +1,12 @@
+# Built-in runtime profile: desktop GPU (FOUND-06)
+profile: desktop-gpu
+device:
+  preferred_backend: torch
+  device_id: "cuda:0"  # advisory only; code must not assume CUDA is present
+models:
+  allow_cloud: false  # MODEL-01
+  defaults_commercially_friendly: true
+  detector_tier: m
+  depth_tier: small
+source:
+  type: synthetic

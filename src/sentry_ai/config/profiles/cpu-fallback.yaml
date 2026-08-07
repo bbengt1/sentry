@@ -1,0 +1,12 @@
+# Built-in runtime profile: CPU-only fallback (FOUND-06)
+profile: cpu-fallback
+device:
+  preferred_backend: onnxruntime
+  device_id: "cpu"
+models:
+  allow_cloud: false  # MODEL-01
+  defaults_commercially_friendly: true
+  detector_tier: n
+  depth_tier: small
+source:
+  type: synthetic

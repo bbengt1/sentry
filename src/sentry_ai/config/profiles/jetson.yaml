@@ -1,0 +1,12 @@
+# Built-in runtime profile: NVIDIA Jetson edge (FOUND-06)
+profile: jetson
+device:
+  preferred_backend: tensorrt
+  device_id: "0"
+models:
+  allow_cloud: false  # MODEL-01
+  defaults_commercially_friendly: true
+  detector_tier: n
+  depth_tier: small
+source:
+  type: synthetic
