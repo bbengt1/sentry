@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import sys
 
-import pytest
-
 from sentry_ai.backend import NullBackend
 from sentry_ai.backend.null import NullBackend as NullBackendDirect
 from sentry_ai.backend.protocols import DeviceInfo, InferenceBackend, probe_device
