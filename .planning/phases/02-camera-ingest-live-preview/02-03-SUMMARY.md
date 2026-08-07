@@ -91,7 +91,7 @@ Each task was committed atomically:
 2. **Task 2: Static Live Preview page + packaging** - `2d2b7bf` (feat)
 3. **Task 3: RTSP source + sentry serve + docs** - `141e4a8` (feat)
 
-**Plan metadata:** (pending final docs commit)
+**Plan metadata:** `6fd6deb` (docs: complete plan)
 
 ## Files Created/Modified
 
