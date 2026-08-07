@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sentry-ai"
+version = "0.1.0"
+description = "Camera-only perception for maker robotics"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{ name = "Sentry AI Contributors" }]
+keywords = ["robotics", "perception", "depth", "computer-vision", "makers"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+  "pydantic>=2.13,<3",
+  "pydantic-settings>=2.15,<3",
+  "pyyaml>=6.0.3",
+  "typer>=0.27",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+  "ruff>=0.8",
+]
+
+[project.scripts]
+sentry = "sentry_ai.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sentry_ai"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
