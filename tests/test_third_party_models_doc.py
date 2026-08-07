@@ -34,3 +34,16 @@ def test_doc_policy_local_oss_no_cloud_keys() -> None:
     lowered = text.lower()
     assert "local" in lowered
     assert "allow_cloud" in lowered or "cloud" in lowered
+
+
+def test_doc_yolo_phase3_active_agpl_and_cache() -> None:
+    """Phase 3: YOLO row is active + AGPL + offline cache wording (MODEL-02)."""
+    text = DOC_PATH.read_text(encoding="utf-8")
+    lowered = text.lower()
+    assert "yolo26" in lowered or "yolo" in lowered
+    assert "agpl" in lowered
+    assert "phase 3" in lowered
+    assert "planned phase 3" not in lowered  # no longer "Planned Phase 3" only
+    assert "sentry_model_cache" in lowered or "sentry-ai/weights" in lowered
+    assert "offline" in lowered
+    assert "cache" in lowered

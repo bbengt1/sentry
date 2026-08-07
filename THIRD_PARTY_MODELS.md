@@ -16,15 +16,31 @@ non-default and out of the v1 core path.
 | Depth Anything V2 **Small** | Depth | **Apache-2.0** | **Yes** | Commercially friendly default depth model |
 | Depth Anything V2 Base / Large / Giant | Depth | **CC-BY-NC-4.0** | **No** | Research-only; non-commercial (NC) weights |
 | DAV2 Metric indoor / outdoor heads | Depth (metric) | Check per weight | Optional | Domain-specific metric heads; verify before shipping |
-| YOLO26 (via Ultralytics) | Fixed-class detect | **AGPL-3.0** (Ultralytics) | **No** — Planned Phase 3 | AGPL commercial caution; non-default for commercial forks |
+| YOLO26 (via Ultralytics) | Fixed-class detect | **AGPL-3.0** (Ultralytics) | **No** — Phase 3 active (optional `detect` extra) | **AGPL commercial caution** — non-default for commercial forks. Weights download once into Sentry cache (`SENTRY_MODEL_CACHE` or `~/.cache/sentry-ai/weights`); offline re-run after first pull (MODEL-02). Install: `uv sync --extra detect`. |
 | YOLOE | Open-vocab detect | **AGPL-3.0** (Ultralytics) | **No** — Planned Phase 6 | Non-blocking for Phase 1; non-default |
+
+## Model cache (MODEL-02)
+
+Sentry points Ultralytics `weights_dir` at a project-owned cache:
+
+| Setting | Value |
+|---------|-------|
+| Env override | `SENTRY_MODEL_CACHE` |
+| Default root | `~/.cache/sentry-ai` |
+| Weights dir | `<cache_root>/weights` |
+| Ultralytics config | `YOLO_CONFIG_DIR` → `<cache_root>/ultralytics` (setdefault) |
+
+After the first download of `yolo26n.pt` / `yolo26s.pt` / `yolo26m.pt`, subsequent
+runs are **offline** (no network required). Unit tests mock YOLO and never
+download weights.
 
 ## Default selection rules
 
 1. **Depth:** Prefer Depth Anything V2 **Small** (Apache-2.0) on every profile.
 2. **Detection:** Ultralytics-packaged YOLO weights are **AGPL-3.0** — document
    carefully; commercial deployments must evaluate AGPL obligations or use
-   alternative commercially licensed detectors (future work).
+   alternative commercially licensed detectors (future work). Phase 3 ships
+   YOLO26 behind the optional `detect` extra (`ultralytics-opencv-headless`).
 3. **NC / CC-BY-NC weights:** Never default. Mark research-only in UI/docs when
    optionally enabled in later phases.
 4. **Cloud APIs:** Not on the core path. `allow_cloud: false` by default; smoke

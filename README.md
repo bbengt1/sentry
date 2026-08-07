@@ -65,6 +65,21 @@ validates the schema contracts, and exits 0 — **no camera, no GPU, no cloud AP
 `sentry health` prints version, runtime profile, registered plugins
 (sources / workers / sinks), and `schema_version`.
 
+## Optional detection (Phase 3)
+
+Fixed-class object detection (YOLO26 via Ultralytics) is an **optional extra** —
+core install and unit tests do not require torch:
+
+```bash
+# Dev + detection stack
+uv sync --extra dev --extra detect
+```
+
+On first run, weights download once into the Sentry model cache
+(`SENTRY_MODEL_CACHE` or `~/.cache/sentry-ai/weights`). Subsequent runs are
+offline. Ultralytics/YOLO26 is **AGPL-3.0** — see
+[`THIRD_PARTY_MODELS.md`](THIRD_PARTY_MODELS.md) before commercial use.
+
 ## Phase 2 scope
 
 Phase 2 ships the **camera ingest + live preview** vertical slice:
@@ -74,7 +89,7 @@ Phase 2 ships the **camera ingest + live preview** vertical slice:
 - FastAPI localhost Live Preview (`GET /`, `/preview/mjpeg`, `/api/status`)
 - CLI `sentry serve` (default host `127.0.0.1`)
 
-No ML models, detection overlays, or robot control.
+Detection overlays and snapshot API land with Phase 3 plan 02.
 
 ## Phase 1 scope (still present)
 

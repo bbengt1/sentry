@@ -36,6 +36,11 @@ dev = [
   "ruff>=0.8",
   "httpx>=0.28",
 ]
+# Fixed-class detection (Phase 3). Headless OpenCV variant avoids GUI conflict
+# with core opencv-python-headless. Install: uv sync --extra dev --extra detect
+detect = [
+  "ultralytics-opencv-headless>=8.4.33,<9",
+]
 
 [project.scripts]
 sentry = "sentry_ai.cli:main"
