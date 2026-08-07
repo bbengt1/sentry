@@ -19,6 +19,8 @@ def test_register_builtins_lists_synthetic_noop_null() -> None:
     assert "file" in registry.list_sources()
     assert "noop" in registry.list_workers()
     assert "null" in registry.list_sinks()
+    # yolo-fixed registers when importable (no ultralytics required for class import)
+    assert "yolo-fixed" in registry.list_workers()
 
 
 def test_get_source_synthetic_returns_class() -> None:
@@ -76,7 +78,16 @@ def test_discover_is_idempotent_with_builtins() -> None:
 
     assert "synthetic" in registry.list_sources()
     assert "noop" in registry.list_workers()
+    assert "yolo-fixed" in registry.list_workers()
     assert "null" in registry.list_sinks()
+
+
+def test_yolo_fixed_worker_class_from_registry() -> None:
+    from sentry_ai.models.detection.yolo_worker import YoloDetectionWorker
+
+    registry = PluginRegistry()
+    register_builtins(registry)
+    assert registry.get_worker("yolo-fixed") is YoloDetectionWorker
 
 
 def test_noop_worker_and_null_sink_lifecycle() -> None:

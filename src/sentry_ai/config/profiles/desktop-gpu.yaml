@@ -6,7 +6,7 @@ device:
 models:
   allow_cloud: false  # MODEL-01
   defaults_commercially_friendly: true
-  detector_tier: m
+  detector_tier: s
   depth_tier: small
 source:
   type: synthetic

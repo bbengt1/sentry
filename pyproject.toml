@@ -53,6 +53,7 @@ rtsp = "sentry_ai.sources.opencv_source:RtspSource"
 
 [project.entry-points."sentry_ai.workers"]
 noop = "sentry_ai.plugins.builtins:NoopWorker"
+yolo-fixed = "sentry_ai.models.detection.yolo_worker:YoloDetectionWorker"
 
 [project.entry-points."sentry_ai.sinks"]
 null = "sentry_ai.plugins.builtins:NullSink"

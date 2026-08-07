@@ -4,14 +4,17 @@ from __future__ import annotations
 
 import inspect
 import time
-from typing import Any
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from sentry_ai.bus.frame_bus import FrameBus
 from sentry_ai.models.detection import loop as loop_mod
 from sentry_ai.models.detection.loop import DetectionLoop
 from sentry_ai.schemas.perception import Detection
 from sentry_ai.state.perception_store import PerceptionStore
-from tests.conftest import make_image_frame
+
+if TYPE_CHECKING:
+    from sentry_ai.capture.image_frame import ImageFrame
 
 
 def _wait_until(
@@ -40,13 +43,17 @@ class FakeDetectionWorker:
         conf: float = 0.25,
         raise_once: bool = False,
     ) -> None:
-        self._detections = detections if detections is not None else [
-            Detection(
-                class_name="person",
-                confidence=0.9,
-                bbox_xyxy=(1.0, 2.0, 3.0, 4.0),
-            )
-        ]
+        self._detections = (
+            detections
+            if detections is not None
+            else [
+                Detection(
+                    class_name="person",
+                    confidence=0.9,
+                    bbox_xyxy=(1.0, 2.0, 3.0, 4.0),
+                )
+            ]
+        )
         self._conf = conf
         self._raise_once = raise_once
         self.process_calls = 0
@@ -64,14 +71,16 @@ class FakeDetectionWorker:
         return list(self._detections)
 
 
-def test_loop_processes_published_frame_into_store() -> None:
+def test_loop_processes_published_frame_into_store(
+    image_frame_factory: Callable[..., ImageFrame],
+) -> None:
     bus = FrameBus()
     store = PerceptionStore()
     worker = FakeDetectionWorker()
     loop = DetectionLoop(bus, worker, store)
     try:
         loop.start()
-        frame = make_image_frame(frame_id=7, camera_id="camA")
+        frame = image_frame_factory(frame_id=7, camera_id="camA")
         bus.publish(frame)
         assert _wait_until(
             lambda: (s := store.snapshot()) is not None and s.frame_id == 7,
@@ -84,49 +93,47 @@ def test_loop_processes_published_frame_into_store() -> None:
         assert len(snap.detections) == 1
         assert snap.detections[0].class_name == "person"
         assert snap.latency_ms >= 0.0
-        assert snap.conf == pytest_approx_conf(worker)
+        assert snap.conf == 0.25
         assert snap.model_name == "fake-det"
         assert worker.process_calls >= 1
     finally:
         loop.stop()
 
 
-def pytest_approx_conf(worker: FakeDetectionWorker) -> float:
-    return worker.get_conf()
-
-
-def test_loop_skips_same_frame_id() -> None:
+def test_loop_skips_same_frame_id(
+    image_frame_factory: Callable[..., ImageFrame],
+) -> None:
     bus = FrameBus()
     store = PerceptionStore()
     worker = FakeDetectionWorker()
     loop = DetectionLoop(bus, worker, store)
     try:
         loop.start()
-        frame = make_image_frame(frame_id=1)
+        frame = image_frame_factory(frame_id=1)
         bus.publish(frame)
         assert _wait_until(lambda: store.snapshot() is not None, timeout=2.0)
         calls_after_first = worker.process_calls
-        # Re-publish same frame identity (or same id) — should not reprocess forever
         time.sleep(0.05)
-        # same frame still on bus
         assert worker.process_calls == calls_after_first
     finally:
         loop.stop()
 
 
-def test_loop_newer_frame_overwrites_product() -> None:
+def test_loop_newer_frame_overwrites_product(
+    image_frame_factory: Callable[..., ImageFrame],
+) -> None:
     bus = FrameBus()
     store = PerceptionStore()
     worker = FakeDetectionWorker()
     loop = DetectionLoop(bus, worker, store)
     try:
         loop.start()
-        bus.publish(make_image_frame(frame_id=1))
+        bus.publish(image_frame_factory(frame_id=1))
         assert _wait_until(
             lambda: (s := store.snapshot()) is not None and s.frame_id == 1,
             timeout=2.0,
         )
-        bus.publish(make_image_frame(frame_id=2))
+        bus.publish(image_frame_factory(frame_id=2))
         assert _wait_until(
             lambda: (s := store.snapshot()) is not None and s.frame_id == 2,
             timeout=2.0,
@@ -139,17 +146,18 @@ def test_loop_newer_frame_overwrites_product() -> None:
         loop.stop()
 
 
-def test_loop_survives_worker_exception() -> None:
+def test_loop_survives_worker_exception(
+    image_frame_factory: Callable[..., ImageFrame],
+) -> None:
     bus = FrameBus()
     store = PerceptionStore()
     worker = FakeDetectionWorker(raise_once=True)
     loop = DetectionLoop(bus, worker, store)
     try:
         loop.start()
-        bus.publish(make_image_frame(frame_id=1))
-        # After error, next frame should still process
+        bus.publish(image_frame_factory(frame_id=1))
         assert _wait_until(lambda: worker.process_calls >= 1, timeout=2.0)
-        bus.publish(make_image_frame(frame_id=2))
+        bus.publish(image_frame_factory(frame_id=2))
         assert _wait_until(
             lambda: (s := store.snapshot()) is not None and s.frame_id == 2,
             timeout=2.0,
@@ -157,7 +165,7 @@ def test_loop_survives_worker_exception() -> None:
         snap = store.snapshot()
         assert snap is not None
         assert snap.frame_id == 2
-        assert snap.error is None  # success path cleared error
+        assert snap.error is None
     finally:
         loop.stop()
 
@@ -170,7 +178,7 @@ def test_loop_start_stop_idempotent() -> None:
     loop.stop()
     loop.stop()
     loop.start()
-    loop.start()  # second start no-op
+    loop.start()
     loop.stop()
     loop.stop()
 

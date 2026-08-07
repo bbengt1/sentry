@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
-from typing import Any
+import inspect
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
 from sentry_ai.models.detection.yolo_worker import YoloDetectionWorker
 from sentry_ai.plugins.protocols import ModelWorker
 from sentry_ai.schemas.perception import Detection
-from tests.conftest import make_fake_yolo_result, make_image_frame
+
+if TYPE_CHECKING:
+    from sentry_ai.capture.image_frame import ImageFrame
 
 
 class FakeModel:
@@ -23,13 +27,29 @@ class FakeModel:
         self.calls.append(kwargs)
         if self._results is not None:
             return self._results
-        boxes_result = make_fake_yolo_result(
+        from types import SimpleNamespace
+
+        boxes = _FakeBoxes(
             xyxy=[[10.0, 20.0, 30.0, 40.0]],
             conf=[0.88],
             cls=[0],
-            names={0: "person"},
         )
-        return [boxes_result]
+        return [SimpleNamespace(boxes=boxes, names={0: "person"})]
+
+
+class _FakeBoxes:
+    def __init__(
+        self,
+        xyxy: list[list[float]],
+        conf: list[float],
+        cls: list[int],
+    ) -> None:
+        self.xyxy = xyxy
+        self.conf = conf
+        self.cls = cls
+
+    def __len__(self) -> int:
+        return len(self.xyxy)
 
 
 def test_worker_name_and_protocol() -> None:
@@ -38,10 +58,12 @@ def test_worker_name_and_protocol() -> None:
     assert isinstance(worker, ModelWorker)
 
 
-def test_process_returns_detections_from_fake_model() -> None:
+def test_process_returns_detections_from_fake_model(
+    image_frame_factory: Callable[..., ImageFrame],
+) -> None:
     model = FakeModel()
     worker = YoloDetectionWorker(model=model, conf=0.25)
-    frame = make_image_frame(frame_id=1)
+    frame = image_frame_factory(frame_id=1)
     dets = worker.process(frame)
     assert isinstance(dets, list)
     assert len(dets) == 1
@@ -49,7 +71,6 @@ def test_process_returns_detections_from_fake_model() -> None:
     assert dets[0].class_name == "person"
     assert dets[0].confidence == pytest.approx(0.88)
     assert dets[0].bbox_xyxy == (10.0, 20.0, 30.0, 40.0)
-    # predict received BGR source and conf
     assert len(model.calls) == 1
     call = model.calls[0]
     assert call["source"] is frame.image_bgr
@@ -59,10 +80,12 @@ def test_process_returns_detections_from_fake_model() -> None:
     assert call["save"] is False
 
 
-def test_set_conf_applies_on_next_process() -> None:
+def test_set_conf_applies_on_next_process(
+    image_frame_factory: Callable[..., ImageFrame],
+) -> None:
     model = FakeModel()
     worker = YoloDetectionWorker(model=model, conf=0.25)
-    frame = make_image_frame(frame_id=2)
+    frame = image_frame_factory(frame_id=2)
     worker.set_conf(0.5)
     worker.process(frame)
     assert model.calls[-1]["conf"] == pytest.approx(0.5)
@@ -75,23 +98,24 @@ def test_set_conf_out_of_range_raises() -> None:
         worker.set_conf(-0.1)
     with pytest.raises(ValueError, match="conf"):
         worker.set_conf(1.01)
-    # boundaries ok
     worker.set_conf(0.0)
     worker.set_conf(1.0)
 
 
-def test_empty_predict_returns_empty_list() -> None:
-    empty = make_fake_yolo_result(xyxy=[], conf=[], cls=[])
+def test_empty_predict_returns_empty_list(
+    image_frame_factory: Callable[..., ImageFrame],
+) -> None:
+    from types import SimpleNamespace
+
+    empty = SimpleNamespace(boxes=_FakeBoxes([], [], []), names={})
     model = FakeModel(results=[empty])
     worker = YoloDetectionWorker(model=model)
-    dets = worker.process(make_image_frame(frame_id=0))
+    dets = worker.process(image_frame_factory(frame_id=0))
     assert dets == []
 
 
 def test_process_does_not_open_camera() -> None:
     """Worker must only use frame.image_bgr — no VideoCapture."""
-    import inspect
-
     import sentry_ai.models.detection.yolo_worker as mod
 
     source = inspect.getsource(mod)

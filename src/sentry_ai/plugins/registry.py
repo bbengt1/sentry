@@ -100,5 +100,13 @@ def register_builtins(registry: PluginRegistry) -> None:
         registry.register_source("rtsp", RtspSource)
     if "noop" not in registry.list_workers():
         registry.register_worker("noop", NoopWorker)
+    # yolo-fixed: only when import succeeds (graceful without detect extra).
+    if "yolo-fixed" not in registry.list_workers():
+        try:
+            from sentry_ai.models.detection.yolo_worker import YoloDetectionWorker
+        except ImportError:
+            pass
+        else:
+            registry.register_worker("yolo-fixed", YoloDetectionWorker)
     if "null" not in registry.list_sinks():
         registry.register_sink("null", NullSink)
