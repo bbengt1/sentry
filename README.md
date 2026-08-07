@@ -21,35 +21,69 @@ This project is **not** the [getsentry](https://sentry.io) error-tracking produc
 
 ```bash
 uv sync --extra dev
-uv run sentry smoke
+uv run sentry serve --source synthetic
 ```
 
-`sentry smoke` builds synthetic camera Frames, wraps each as a `PerceptionFrame`,
-validates the schema contracts, and exits 0 — **no camera, no GPU, no cloud API keys**.
+Then open **`http://127.0.0.1:8000/`** for the Live Preview (MJPEG + status).
 
-Also available:
+Default bind is **localhost only** (`127.0.0.1`). Binding a remote interface is an
+**explicit opt-in** and exposes the live camera stream **without authentication**:
 
 ```bash
+# Privacy risk — LAN exposure, no auth:
+uv run sentry serve --source synthetic --host 0.0.0.0
+```
+
+### Other sources
+
+```bash
+# USB UVC camera
+uv run sentry serve --source usb --device 0
+
+# Local video file (loops by default)
+uv run sentry serve --source file --path tests/fixtures/sample_clip.mp4
+
+# Network / IP camera (OpenCV best-effort — see docs)
+uv run sentry serve --source rtsp --url "rtsp://camera.local/stream"
+```
+
+Camera source matrix, RTSP known limits, and manual checks:
+[`docs/camera-sources.md`](docs/camera-sources.md).
+
+### Smoke / health (no server)
+
+```bash
+uv run sentry smoke
 uv run sentry health
 python -m sentry_ai health
 python -m sentry_ai smoke
 ```
 
+`sentry smoke` builds synthetic camera frames, wraps each as a `PerceptionFrame`,
+validates the schema contracts, and exits 0 — **no camera, no GPU, no cloud API keys**.
+
 `sentry health` prints version, runtime profile, registered plugins
 (sources / workers / sinks), and `schema_version`.
 
-## Phase 1 scope
+## Phase 2 scope
 
-Phase 1 ships **contracts and stubs**:
+Phase 2 ships the **camera ingest + live preview** vertical slice:
 
-- Installable package + Typer CLI (`health`, `smoke`)
+- USB / file / synthetic / RTSP (OpenCV) sources → keep-latest Frame Bus
+- Capture thread with reconnect status
+- FastAPI localhost Live Preview (`GET /`, `/preview/mjpeg`, `/api/status`)
+- CLI `sentry serve` (default host `127.0.0.1`)
+
+No ML models, detection overlays, or robot control.
+
+## Phase 1 scope (still present)
+
+- Installable package + Typer CLI (`health`, `smoke`, `serve`)
 - Shared `Frame` / `PerceptionFrame` schemas with honest `DepthKind`
 - Runtime profiles: `desktop-gpu`, `jetson`, `cpu-fallback`
-- Plugin registry stubs (`synthetic` source, `noop` worker, `null` sink)
+- Plugin registry (`synthetic`, `usb`, `file`, `rtsp`, `noop`, `null`)
 - InferenceBackend + `NullBackend` stubs (no torch)
 - Model license documentation in [`THIRD_PARTY_MODELS.md`](THIRD_PARTY_MODELS.md)
-
-No real camera capture, model inference, or web UI yet.
 
 ## Model licenses
 

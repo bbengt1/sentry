@@ -132,3 +132,29 @@ class FileSource(OpenCVSource):
             name="file",
             loop_file=loop_file,
         )
+
+
+class RtspSource(OpenCVSource):
+    """Network/IP camera source via OpenCV URL (CAM-04 best-effort).
+
+    OpenCV FFmpeg backend only — no PyAV/GStreamer in Phase 2.
+    See docs/camera-sources.md for known latency and reliability limits.
+    """
+
+    name: str = "rtsp"
+
+    def __init__(
+        self,
+        url: str,
+        camera_id: str = "rtsp0",
+        *,
+        loop_file: bool = False,
+    ) -> None:
+        if not isinstance(url, str) or url.strip() == "":
+            raise ValueError("empty RTSP/url target is not allowed")
+        super().__init__(
+            target=url,
+            camera_id=camera_id,
+            name="rtsp",
+            loop_file=loop_file,
+        )

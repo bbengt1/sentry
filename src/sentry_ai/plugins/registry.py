@@ -86,7 +86,7 @@ class PluginRegistry:
 def register_builtins(registry: PluginRegistry) -> None:
     """Register in-tree sources/workers/sinks without requiring entry points."""
     from sentry_ai.plugins.builtins import NoopWorker, NullSink, SyntheticSource
-    from sentry_ai.sources.opencv_source import FileSource, UsbSource
+    from sentry_ai.sources.opencv_source import FileSource, RtspSource, UsbSource
 
     # Manual register raises on duplicate; only register if missing so this
     # helper is also safe to call after discover().
@@ -96,6 +96,8 @@ def register_builtins(registry: PluginRegistry) -> None:
         registry.register_source("usb", UsbSource)
     if "file" not in registry.list_sources():
         registry.register_source("file", FileSource)
+    if "rtsp" not in registry.list_sources():
+        registry.register_source("rtsp", RtspSource)
     if "noop" not in registry.list_workers():
         registry.register_worker("noop", NoopWorker)
     if "null" not in registry.list_sinks():

@@ -1,12 +1,15 @@
-"""Sentry AI CLI — health and synthetic smoke entry points.
+"""Sentry AI CLI — health, synthetic smoke, and localhost serve.
 
 Smoke validates synthetic ImageFrame → PerceptionFrame paths without
 hardware cameras, torch, or cloud API keys (MODEL-01 / FOUND-05).
+
+``sentry serve`` starts capture + FastAPI Live Preview (UI-01 / MODEL-03).
 """
 
 from __future__ import annotations
 
 import sys
+from typing import Any
 
 import typer
 from pydantic import ValidationError
@@ -29,6 +32,64 @@ def _build_registry() -> PluginRegistry:
     register_builtins(registry)
     registry.discover()
     return registry
+
+
+def _build_serve_source(
+    *,
+    source: str,
+    device: int,
+    path: str | None,
+    url: str | None,
+    camera_id: str | None,
+) -> Any:
+    """Construct a camera source instance for ``sentry serve``."""
+    name = source.strip().lower()
+    if name == "synthetic":
+        return SyntheticSource(
+            camera_id=camera_id or "synthetic0",
+            fps=30.0,
+        )
+    if name == "usb":
+        from sentry_ai.sources.opencv_source import UsbSource
+
+        return UsbSource(
+            device=device,
+            camera_id=camera_id or f"usb{device}",
+        )
+    if name == "file":
+        if not path:
+            typer.echo(
+                "serve failed: --source file requires --path",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+        from sentry_ai.sources.opencv_source import FileSource
+
+        return FileSource(
+            path=path,
+            camera_id=camera_id or "file0",
+            loop_file=True,
+        )
+    if name == "rtsp":
+        if not url:
+            typer.echo(
+                "serve failed: --source rtsp requires --url",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+        from sentry_ai.sources.opencv_source import RtspSource
+
+        return RtspSource(
+            url=url,
+            camera_id=camera_id or "rtsp0",
+            loop_file=False,
+        )
+    typer.echo(
+        f"serve failed: unknown source {source!r} "
+        "(expected synthetic|usb|file|rtsp)",
+        err=True,
+    )
+    raise typer.Exit(code=1)
 
 
 @app.command()
@@ -125,6 +186,99 @@ def smoke(
         f"smoke ok: validated {validated} synthetic PerceptionFrame(s) "
         f"(profile={profile}, allow_cloud={cfg.models.allow_cloud})"
     )
+
+
+@app.command()
+def serve(
+    source: str = typer.Option(
+        "synthetic",
+        help="Source plugin: synthetic | usb | file | rtsp.",
+    ),
+    host: str = typer.Option(
+        "127.0.0.1",
+        help=(
+            "Bind host (default localhost — MODEL-03). "
+            "Setting 0.0.0.0 exposes the live camera on the LAN without auth "
+            "(opt-in only)."
+        ),
+    ),
+    port: int = typer.Option(
+        8000,
+        help="Bind port.",
+    ),
+    device: int = typer.Option(
+        0,
+        help="USB device index for --source usb.",
+    ),
+    path: str | None = typer.Option(
+        None,
+        help="Filesystem path for --source file.",
+    ),
+    url: str | None = typer.Option(
+        None,
+        help="RTSP/HTTP URL for --source rtsp.",
+    ),
+    profile: str = typer.Option(
+        "cpu-fallback",
+        help="Runtime profile name (loaded for consistency; no ML).",
+    ),
+    camera_id: str | None = typer.Option(
+        None,
+        help="Optional camera_id override for Frame identity.",
+    ),
+) -> None:
+    """Start capture + localhost Live Preview (MJPEG + status).
+
+    Default bind is 127.0.0.1 (not 0.0.0.0). Open
+    http://127.0.0.1:8000/ in a browser when using defaults.
+    """
+    # Validate profile early (same local-OSS constraint as smoke).
+    try:
+        cfg = load_config(profile=profile)
+    except (ValueError, FileNotFoundError, ValidationError) as exc:
+        typer.echo(f"serve failed: config error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    if cfg.models.allow_cloud:
+        typer.echo(
+            "serve failed: allow_cloud is true; default path must stay local OSS",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    from sentry_ai.api.app import create_app
+    from sentry_ai.bus.frame_bus import FrameBus
+    from sentry_ai.capture.loop import CaptureLoop
+
+    src = _build_serve_source(
+        source=source,
+        device=device,
+        path=path,
+        url=url,
+        camera_id=camera_id,
+    )
+    bus = FrameBus()
+    loop = CaptureLoop(src, bus)
+    bind = f"{host}:{port}"
+    app_asgi = create_app(bus=bus, capture_loop=loop, bind=bind)
+
+    typer.echo(f"sentry-ai {__version__} serve")
+    typer.echo(f"source: {src.name} camera_id={getattr(src, 'camera_id', src.name)}")
+    typer.echo(f"bind: http://{bind}/  (Live Preview)")
+    if host not in ("127.0.0.1", "localhost", "::1"):
+        typer.echo(
+            "warning: non-localhost bind exposes the live camera stream "
+            "without authentication",
+            err=True,
+        )
+
+    loop.start()
+    try:
+        import uvicorn
+
+        uvicorn.run(app_asgi, host=host, port=port, log_level="info")
+    finally:
+        loop.stop()
 
 
 def main() -> None:
