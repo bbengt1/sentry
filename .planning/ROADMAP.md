@@ -80,8 +80,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 04-01: Depth worker (DAV2 Small) + preprocess contract + golden tests
-- [ ] 04-02: Depth stream payload, colormap UI, optional metric mode labeling
+- [ ] 04-01-PLAN.md — Depth worker (DAV2 Small) + preprocess contract + golden tests + DepthLoop + store extension + cache
+- [ ] 04-02-PLAN.md — Depth stream payload, colormap UI, optional metric mode labeling, telemetry, serve wiring
 
 ### Phase 5: Free-Space & Unified Stream
 **Goal**: Deliver the core product thesis — free-space/obstacles from depth plus a unified, versioned perception stream robots can consume.  
