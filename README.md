@@ -24,6 +24,9 @@ uv sync --extra dev
 uv run sentry smoke
 ```
 
+`sentry smoke` builds synthetic camera Frames, wraps each as a `PerceptionFrame`,
+validates the schema contracts, and exits 0 — **no camera, no GPU, no cloud API keys**.
+
 Also available:
 
 ```bash
@@ -32,14 +35,31 @@ python -m sentry_ai health
 python -m sentry_ai smoke
 ```
 
+`sentry health` prints version, runtime profile, registered plugins
+(sources / workers / sinks), and `schema_version`.
+
 ## Phase 1 scope
 
-Phase 1 ships **contracts and smoke skeleton** only:
+Phase 1 ships **contracts and stubs**:
 
 - Installable package + Typer CLI (`health`, `smoke`)
-- Shared schemas, config profiles, plugin registry stubs (subsequent plans)
-- No real camera capture, model inference, or web UI yet
+- Shared `Frame` / `PerceptionFrame` schemas with honest `DepthKind`
+- Runtime profiles: `desktop-gpu`, `jetson`, `cpu-fallback`
+- Plugin registry stubs (`synthetic` source, `noop` worker, `null` sink)
+- InferenceBackend + `NullBackend` stubs (no torch)
+- Model license documentation in [`THIRD_PARTY_MODELS.md`](THIRD_PARTY_MODELS.md)
+
+No real camera capture, model inference, or web UI yet.
+
+## Model licenses
+
+Default depth weights are **Depth Anything V2 Small (Apache-2.0)**. AGPL and
+CC-BY-NC weights are **non-default**. See [`THIRD_PARTY_MODELS.md`](THIRD_PARTY_MODELS.md).
+
+Core path is **local OSS only** (`allow_cloud: false` by default).
 
 ## License
 
-Application code is licensed under [Apache-2.0](LICENSE). Third-party model licenses will be documented in `THIRD_PARTY_MODELS.md` (plan 01-03).
+Application code is licensed under [Apache-2.0](LICENSE). Third-party model
+weight licenses are documented separately in
+[`THIRD_PARTY_MODELS.md`](THIRD_PARTY_MODELS.md).

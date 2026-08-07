@@ -2,6 +2,8 @@
 
 No network calls. Weight names are documentation / allowlist hooks only;
 downloads and inference land in later phases.
+
+See also repo-root ``THIRD_PARTY_MODELS.md`` for the full license table.
 """
 
 from __future__ import annotations
@@ -16,4 +18,11 @@ DEFAULT_COMMERCIALLY_FRIENDLY_WEIGHTS: frozenset[str] = frozenset(
     {
         "depth-anything-v2-small",
     }
+)
+
+# License tags that must never be the default commercial selection.
+# Hooks for later phases — no enforcement of downloads here.
+NON_DEFAULT_LICENSE_TAGS: tuple[str, ...] = (
+    "AGPL-3.0",
+    "CC-BY-NC-4.0",
 )
