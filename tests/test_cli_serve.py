@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import inspect
+
 from typer.testing import CliRunner
 
+from sentry_ai import cli as cli_mod
 from sentry_ai.cli import _build_serve_source, app
 from sentry_ai.sources.opencv_source import FileSource, RtspSource, UsbSource
 from sentry_ai.sources.synthetic import SyntheticSource
@@ -98,3 +101,24 @@ def test_health_lists_rtsp_source() -> None:
     result = runner.invoke(app, ["health"])
     assert result.exit_code == 0
     assert "rtsp" in result.stdout
+
+
+def test_serve_source_wires_detection_loop_lifecycle() -> None:
+    """serve constructs PerceptionStore + DetectionLoop when available."""
+    source = inspect.getsource(cli_mod.serve)
+    assert "PerceptionStore" in source
+    assert "DetectionLoop" in source
+    assert "create_app" in source
+    assert "perception_store" in source
+    assert "detection_worker" in source
+    # Graceful degrade path when detect extra missing
+    assert "uv sync --extra detect" in source or "detect extra" in source.lower()
+    # Stop detection before capture in finally
+    assert "det_loop" in source
+
+
+def test_serve_does_not_import_torch_at_module_level() -> None:
+    """Bare smoke path: cli module must not hard-import torch."""
+    source = inspect.getsource(cli_mod)
+    # Top of module / unconditional imports should not pull torch.
+    assert "import torch" not in source.split("def serve")[0]

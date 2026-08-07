@@ -109,7 +109,7 @@ def test_mjpeg_generator_emits_jpeg_boundary() -> None:
     bus.publish(_make_frame())
 
     async def _one_part() -> bytes:
-        gen = _mjpeg_generator(bus)
+        gen = _mjpeg_generator(bus, store=None)
         try:
             return await gen.__anext__()
         finally:
@@ -121,12 +121,95 @@ def test_mjpeg_generator_emits_jpeg_boundary() -> None:
     assert b"\xff\xd8" in chunk  # JPEG SOI
 
 
+def test_mjpeg_generator_with_store_overlay_still_jpeg() -> None:
+    """Store detections are drawn before encode; stream remains multipart JPEG."""
+    from sentry_ai.schemas.perception import Detection
+    from sentry_ai.state.perception_store import PerceptionStore
+
+    bus = FrameBus()
+    bus.publish(_make_frame())
+    store = PerceptionStore()
+    store.set_detections(
+        frame_id=0,
+        camera_id="synthetic0",
+        t_capture=time.time(),
+        detections=[
+            Detection(
+                class_name="person",
+                confidence=0.9,
+                bbox_xyxy=(2.0, 2.0, 20.0, 20.0),
+            )
+        ],
+        latency_ms=8.0,
+        conf=0.25,
+    )
+
+    async def _one_part() -> bytes:
+        gen = _mjpeg_generator(bus, store=store)
+        try:
+            return await gen.__anext__()
+        finally:
+            await gen.aclose()
+
+    chunk = asyncio.run(_one_part())
+    assert b"--frame" in chunk
+    assert b"\xff\xd8" in chunk
+
+
+def test_api_status_includes_det_fields_when_store_present() -> None:
+    from sentry_ai.schemas.perception import Detection
+    from sentry_ai.state.perception_store import PerceptionStore
+
+    class _Worker:
+        def get_conf(self) -> float:
+            return 0.33
+
+    source = SyntheticSource(camera_id="synthetic0", fps=0.0)
+    bus = FrameBus()
+    loop = CaptureLoop(source, bus)
+    store = PerceptionStore()
+    store.set_detections(
+        frame_id=3,
+        camera_id="synthetic0",
+        t_capture=time.time(),
+        detections=[
+            Detection(class_name="cup", confidence=0.7, bbox_xyxy=(1, 1, 5, 5))
+        ],
+        latency_ms=15.5,
+        conf=0.33,
+    )
+    loop.start()
+    try:
+        _wait_for_frame(bus)
+        app = create_app(
+            bus=bus,
+            capture_loop=loop,
+            bind="127.0.0.1:8000",
+            perception_store=store,
+            detection_worker=_Worker(),
+        )
+        with TestClient(app) as client:
+            resp = client.get("/api/status")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["detections_count"] == 1
+            assert data["det_latency_ms"] == 15.5
+            assert data["det_conf"] == 0.33
+            assert data["det_frame_id"] == 3
+            assert "det_fps" in data
+    finally:
+        loop.stop()
+
+
 def test_routes_preview_has_no_videocapture() -> None:
     """Architecture: handlers never open cameras (only bus/status)."""
     source = inspect.getsource(routes_preview)
     # Reject OpenCV capture API usage (docstring mentions alone are not enough).
     assert "cv2.VideoCapture" not in source
     assert "VideoCapture(" not in source
+    # Never run inference on the MJPEG path.
+    assert "worker.process" not in source
+    assert ".predict(" not in source
 
 
 def test_mjpeg_generator_awaits_sleep() -> None:
