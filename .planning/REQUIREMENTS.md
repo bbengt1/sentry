@@ -9,7 +9,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Foundations & Contracts
 
-- [ ] **FOUND-01**: Project ships as an installable Python package with documented one-command local start
+- [x] **FOUND-01**: Project ships as an installable Python package with documented one-command local start
 - [ ] **FOUND-02**: Shared schemas define `Frame` and `PerceptionFrame` with `frame_id`, `camera_id`, and timestamps
 - [ ] **FOUND-03**: Depth outputs are typed (`relative` | `metric_estimated` | `metric_calibrated`); relative depth is never labeled as meters
 - [ ] **FOUND-04**: Plugin registry stubs exist for camera sources, model workers, and sinks
@@ -128,7 +128,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FOUND-01 | Phase 1 | Pending |
+| FOUND-01 | Phase 1 | Complete |
 | FOUND-02 | Phase 1 | Pending |
 | FOUND-03 | Phase 1 | Pending |
 | FOUND-04 | Phase 1 | Pending |

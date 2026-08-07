@@ -29,7 +29,7 @@ Build an open-source, camera-only perception product for maker robotics: start w
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: Project scaffold (package layout, tooling, CI smoke, one-command start skeleton)
+- [x] 01-01: Project scaffold (package layout, tooling, CI smoke, one-command start skeleton)
 - [ ] 01-02: Core schemas + PerceptionFrame contracts + config system
 - [ ] 01-03: Plugin registry stubs, device/backend protocols, model license policy docs
 
@@ -142,7 +142,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundations & Contracts | 0/3 | Not started | - |
+| 1. Foundations & Contracts | 1/3 | In Progress|  |
 | 2. Camera Ingest & Live Preview | 0/3 | Not started | - |
 | 3. Fixed-Class Detection | 0/2 | Not started | - |
 | 4. Monocular Depth | 0/2 | Not started | - |
