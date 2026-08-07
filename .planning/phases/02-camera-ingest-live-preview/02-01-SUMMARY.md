@@ -94,7 +94,7 @@ Each task was committed atomically:
 2. **Task 2: Real SyntheticSource (CAM-03) + migrate consumers** - `99e2103` (test RED) → `ddb92f1` (feat GREEN)
 3. **Task 3: OpenCVSource USB + file (CAM-01/02) + registry** - `7b9943b` (test RED) → `f7e7e15` (feat GREEN)
 
-**Plan metadata:** (pending final docs commit)
+**Plan metadata:** `824450a` (docs: complete plan)
 
 _Note: TDD tasks produced RED then GREEN commits._
 
