@@ -48,7 +48,7 @@ Plans:
 
 Plans:
 - [x] 02-01-PLAN.md — Camera source adapters (USB, file, synthetic) + reconnect policy foundation
-- [ ] 02-02-PLAN.md — Frame bus (keep-latest), timestamps, drop metrics + capture loop
+- [x] 02-02-PLAN.md — Frame bus (keep-latest), timestamps, drop metrics + capture loop
 - [ ] 02-03-PLAN.md — FastAPI shell + MJPEG preview + static Live Preview + RTSP + localhost serve CLI
 
 ### Phase 3: Fixed-Class Detection
@@ -143,7 +143,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundations & Contracts | 3/3 | Complete   | 2026-08-07 |
-| 2. Camera Ingest & Live Preview | 1/3 | In Progress|  |
+| 2. Camera Ingest & Live Preview | 2/3 | In Progress|  |
 | 3. Fixed-Class Detection | 0/2 | Not started | - |
 | 4. Monocular Depth | 0/2 | Not started | - |
 | 5. Free-Space & Unified Stream | 0/3 | Not started | - |

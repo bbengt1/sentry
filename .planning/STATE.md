@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-08-07T15:43:51.220Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-08-07T15:52:40.945Z"
 last_activity: 2026-08-07
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 6
-  completed_plans: 4
+  completed_plans: 5
   percent: 14
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-08-07)
 ## Current Position
 
 Phase: 2 (Camera Ingest & Live Preview) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-08-07
 
-Progress: [███████░░░] 67%
+Progress: [████████░░] 83%
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ Progress: [███████░░░] 67%
 | Phase 01 P02 | 4min | 3 tasks | 19 files |
 | Phase 01 P03 | 4min | 3 tasks | 17 files |
 | Phase 02 P01 | 4min | 3 tasks | 25 files |
+| Phase 02 P02 | 4min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -83,6 +84,10 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase ?]: ImageFrame runtime dataclass (meta Frame + image_bgr); Frame stays identity-only
 - [Phase ?]: SyntheticSource re-exported from plugins.builtins for entry-point stability
 - [Phase ?]: UsbSource/FileSource thin subclasses of OpenCVSource with BUFFERSIZE=1
+- [Phase 02]: frames_dropped is overwrite-count (publish while slot occupied)
+- [Phase 02]: get_latest is non-consuming keep-latest; CaptureLoop owns source lifecycle
+- [Phase 02]: Lazy CaptureLoop export avoids bus↔capture circular import
+- [Phase 02]: StatusSnapshot.bind defaults None until 02-03 serve
 
 ### Pending Todos
 
@@ -100,6 +105,6 @@ None. Plan check passed with 4 non-blocking warnings (file count per plan, resea
 
 ## Session Continuity
 
-Last session: 2026-08-07T15:43:51.213Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-08-07T15:52:40.937Z
+Stopped at: Completed 02-02-PLAN.md
 Next: Run `/gsd:execute-phase 1` to implement foundations

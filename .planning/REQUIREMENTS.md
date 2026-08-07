@@ -22,8 +22,8 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **CAM-02**: System captures from file / video sources for local development and CI
 - [x] **CAM-03**: System supports synthetic frame source for automated tests
 - [ ] **CAM-04**: System supports network/IP cameras (RTSP) for external camera development
-- [ ] **CAM-05**: Frame bus uses keep-latest drop policy with drop/FPS metrics (no unbounded capture queues)
-- [ ] **CAM-06**: Camera disconnect / reconnect is handled with clear error state in UI and API (no silent freeze)
+- [x] **CAM-05**: Frame bus uses keep-latest drop policy with drop/FPS metrics (no unbounded capture queues)
+- [x] **CAM-06**: Camera disconnect / reconnect is handled with clear error state in UI and API (no silent freeze)
 
 ### Fixed-Class Detection
 
@@ -138,8 +138,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CAM-02 | Phase 2 | Complete |
 | CAM-03 | Phase 2 | Complete |
 | CAM-04 | Phase 2 | Pending |
-| CAM-05 | Phase 2 | Pending |
-| CAM-06 | Phase 2 | Pending |
+| CAM-05 | Phase 2 | Complete |
+| CAM-06 | Phase 2 | Complete |
 | UI-01 | Phase 2 | Pending |
 | DET-01 | Phase 3 | Pending |
 | DET-02 | Phase 3 | Pending |
