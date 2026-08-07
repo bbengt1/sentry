@@ -6,7 +6,7 @@ Build an open-source, camera-only perception product for maker robotics: start w
 
 ## Phases
 
-- [ ] **Phase 1: Foundations & Contracts** — Repo skeleton, schemas, plugins, licenses, device abstraction
+- [x] **Phase 1: Foundations & Contracts** — Repo skeleton, schemas, plugins, licenses, device abstraction (completed 2026-08-07)
 - [ ] **Phase 2: Camera Ingest & Live Preview** — USB/file/synthetic/RTSP sources, frame bus, web preview
 - [ ] **Phase 3: Fixed-Class Detection** — Local YOLO detection worker, overlays, stream detections
 - [ ] **Phase 4: Monocular Depth** — Depth Anything V2 pipeline with honest depth typing
@@ -31,7 +31,7 @@ Build an open-source, camera-only perception product for maker robotics: start w
 Plans:
 - [x] 01-01: Project scaffold (package layout, tooling, CI smoke, one-command start skeleton)
 - [x] 01-02: Core schemas + PerceptionFrame contracts + config system
-- [ ] 01-03: Plugin registry stubs, device/backend protocols, model license policy docs
+- [x] 01-03: Plugin registry stubs, device/backend protocols, model license policy docs
 
 ### Phase 2: Camera Ingest & Live Preview
 **Goal**: Prove “any camera works” with a realtime capture loop, keep-latest frame bus, and browser preview — no models yet.  
@@ -142,7 +142,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundations & Contracts | 2/3 | In Progress|  |
+| 1. Foundations & Contracts | 3/3 | Complete   | 2026-08-07 |
 | 2. Camera Ingest & Live Preview | 0/3 | Not started | - |
 | 3. Fixed-Class Detection | 0/2 | Not started | - |
 | 4. Monocular Depth | 0/2 | Not started | - |

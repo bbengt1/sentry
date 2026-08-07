@@ -12,8 +12,8 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **FOUND-01**: Project ships as an installable Python package with documented one-command local start
 - [x] **FOUND-02**: Shared schemas define `Frame` and `PerceptionFrame` with `frame_id`, `camera_id`, and timestamps
 - [x] **FOUND-03**: Depth outputs are typed (`relative` | `metric_estimated` | `metric_calibrated`); relative depth is never labeled as meters
-- [ ] **FOUND-04**: Plugin registry stubs exist for camera sources, model workers, and sinks
-- [ ] **FOUND-05**: Default models are commercially friendly OSS weights; third-party licenses documented (`THIRD_PARTY_MODELS.md`)
+- [x] **FOUND-04**: Plugin registry stubs exist for camera sources, model workers, and sinks
+- [x] **FOUND-05**: Default models are commercially friendly OSS weights; third-party licenses documented (`THIRD_PARTY_MODELS.md`)
 - [x] **FOUND-06**: Device/backend abstraction supports desktop-gpu, jetson, and cpu-fallback profiles (stubs acceptable until edge phase)
 
 ### Camera Ingest
@@ -131,8 +131,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FOUND-01 | Phase 1 | Complete |
 | FOUND-02 | Phase 1 | Complete |
 | FOUND-03 | Phase 1 | Complete |
-| FOUND-04 | Phase 1 | Pending |
-| FOUND-05 | Phase 1 | Pending |
+| FOUND-04 | Phase 1 | Complete |
+| FOUND-05 | Phase 1 | Complete |
 | FOUND-06 | Phase 1 | Complete |
 | CAM-01 | Phase 2 | Pending |
 | CAM-02 | Phase 2 | Pending |
