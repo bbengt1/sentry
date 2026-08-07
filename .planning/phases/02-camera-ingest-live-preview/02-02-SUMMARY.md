@@ -80,7 +80,7 @@ Each task was committed atomically:
 2. **Task 2: CaptureLoop thread + reconnect (CAM-06)** - `2c3b5f6` (test RED) → `3ef3e98` (feat GREEN)
 3. **Task 3: StatusSnapshot + build_status** - `678c311` (feat)
 
-**Plan metadata:** _(pending final docs commit)_
+**Plan metadata:** `08e31b9` (docs: complete plan)
 
 _Note: TDD tasks produced RED then GREEN commits._
 
