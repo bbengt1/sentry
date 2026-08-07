@@ -99,7 +99,7 @@ Each task was committed atomically:
 2. **Task 2: CLI skeleton, README, and Wave 0 test stubs** - `23032a9` (feat)
 3. **Task 3: CI workflow for ruff + pytest on Python 3.11** - `3f900b1` (ci)
 
-**Plan metadata:** (pending docs commit)
+**Plan metadata:** `d362490` (docs: complete plan)
 
 ## Files Created/Modified
 
