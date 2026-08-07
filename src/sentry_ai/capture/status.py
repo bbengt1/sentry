@@ -38,4 +38,10 @@ class StatusSnapshot(BaseModel):
     frames_dropped: int = Field(ge=0)
     bind: str | None = None
     t_capture: float | None = None
+    # Optional detection telemetry (Phase 3); defaults keep Phase 2 callers valid.
+    detections_count: int | None = None
+    det_latency_ms: float | None = None
+    det_conf: float | None = None
+    det_fps: float | None = None
+    det_frame_id: int | None = None
 

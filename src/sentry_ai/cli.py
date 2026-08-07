@@ -249,6 +249,7 @@ def serve(
     from sentry_ai.api.app import create_app
     from sentry_ai.bus.frame_bus import FrameBus
     from sentry_ai.capture.loop import CaptureLoop
+    from sentry_ai.state.perception_store import PerceptionStore
 
     src = _build_serve_source(
         source=source,
@@ -259,12 +260,45 @@ def serve(
     )
     bus = FrameBus()
     loop = CaptureLoop(src, bus)
+    store = PerceptionStore()
     bind = f"{host}:{port}"
-    app_asgi = create_app(bus=bus, capture_loop=loop, bind=bind)
+
+    # Optional fixed-class detection (requires `uv sync --extra detect`).
+    worker: Any | None = None
+    det_loop: Any | None = None
+    try:
+        from sentry_ai.models.cache import configure_model_cache, tier_to_weight
+        from sentry_ai.models.detection.loop import DetectionLoop
+        from sentry_ai.models.detection.yolo_worker import YoloDetectionWorker
+
+        configure_model_cache()
+        weights = tier_to_weight(cfg.models.detector_tier)
+        worker = YoloDetectionWorker(weights=weights, conf=0.25)
+        det_loop = DetectionLoop(bus, worker, store)
+    except ImportError as exc:
+        typer.echo(
+            "detection disabled: detect extra not installed "
+            f"({exc}). Install with: uv sync --extra detect",
+            err=True,
+        )
+        worker = None
+        det_loop = None
+
+    app_asgi = create_app(
+        bus=bus,
+        capture_loop=loop,
+        bind=bind,
+        perception_store=store,
+        detection_worker=worker,
+    )
 
     typer.echo(f"sentry-ai {__version__} serve")
     typer.echo(f"source: {src.name} camera_id={getattr(src, 'camera_id', src.name)}")
     typer.echo(f"bind: http://{bind}/  (Live Preview)")
+    if det_loop is not None:
+        typer.echo("detection: enabled (fixed-class YOLO)")
+    else:
+        typer.echo("detection: disabled (capture-only preview)")
     if host not in ("127.0.0.1", "localhost", "::1"):
         typer.echo(
             "warning: non-localhost bind exposes the live camera stream "
@@ -273,11 +307,15 @@ def serve(
         )
 
     loop.start()
+    if det_loop is not None:
+        det_loop.start()
     try:
         import uvicorn
 
         uvicorn.run(app_asgi, host=host, port=port, log_level="info")
     finally:
+        if det_loop is not None:
+            det_loop.stop()
         loop.stop()
 
 
