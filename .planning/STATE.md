@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-08-07T15:27:45.370Z"
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-08-07T15:43:51.220Z"
 last_activity: 2026-08-07
 progress:
   total_phases: 7
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 6
+  completed_plans: 4
   percent: 14
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-07)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots — without proprietary sensors or cloud AI.  
-**Current focus:** Phase 2 — Camera Ingest & Live Preview (planned)
+**Current focus:** Phase 2 — Camera Ingest & Live Preview
 
 ## Current Position
 
-Phase: 2
-Plan: 0 of 3 planned — ready to execute
+Phase: 2 (Camera Ingest & Live Preview) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
 Last activity: 2026-08-07
 
-Progress: [█░░░░░░░░░] 14% (Phase 1 of 7 complete)
+Progress: [███████░░░] 67%
 
 ## Performance Metrics
 
@@ -54,6 +54,7 @@ Progress: [█░░░░░░░░░] 14% (Phase 1 of 7 complete)
 | Phase 01 P01 | 3min | 3 tasks | 19 files |
 | Phase 01 P02 | 4min | 3 tasks | 19 files |
 | Phase 01 P03 | 4min | 3 tasks | 17 files |
+| Phase 02 P01 | 4min | 3 tasks | 25 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 01]: discover() skip-if-present for entry-point re-declarations of builtins
 - [Phase 01]: NullBackend.name = BackendName.CPU; probe_device always available=False
 - [Phase 01]: Smoke asserts allow_cloud false before validating synthetic PerceptionFrames
+- [Phase ?]: ImageFrame runtime dataclass (meta Frame + image_bgr); Frame stays identity-only
+- [Phase ?]: SyntheticSource re-exported from plugins.builtins for entry-point stability
+- [Phase ?]: UsbSource/FileSource thin subclasses of OpenCVSource with BUFFERSIZE=1
 
 ### Pending Todos
 
@@ -96,6 +100,6 @@ None. Plan check passed with 4 non-blocking warnings (file count per plan, resea
 
 ## Session Continuity
 
-Last session: 2026-08-07T14:36:35.984Z
-Stopped at: Completed 01-03-PLAN.md
+Last session: 2026-08-07T15:43:51.213Z
+Stopped at: Completed 02-01-PLAN.md
 Next: Run `/gsd:execute-phase 1` to implement foundations

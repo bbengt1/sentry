@@ -18,9 +18,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Camera Ingest
 
-- [ ] **CAM-01**: System captures from USB UVC cameras via OpenCV (or equivalent)
-- [ ] **CAM-02**: System captures from file / video sources for local development and CI
-- [ ] **CAM-03**: System supports synthetic frame source for automated tests
+- [x] **CAM-01**: System captures from USB UVC cameras via OpenCV (or equivalent)
+- [x] **CAM-02**: System captures from file / video sources for local development and CI
+- [x] **CAM-03**: System supports synthetic frame source for automated tests
 - [ ] **CAM-04**: System supports network/IP cameras (RTSP) for external camera development
 - [ ] **CAM-05**: Frame bus uses keep-latest drop policy with drop/FPS metrics (no unbounded capture queues)
 - [ ] **CAM-06**: Camera disconnect / reconnect is handled with clear error state in UI and API (no silent freeze)
@@ -134,9 +134,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FOUND-04 | Phase 1 | Complete |
 | FOUND-05 | Phase 1 | Complete |
 | FOUND-06 | Phase 1 | Complete |
-| CAM-01 | Phase 2 | Pending |
-| CAM-02 | Phase 2 | Pending |
-| CAM-03 | Phase 2 | Pending |
+| CAM-01 | Phase 2 | Complete |
+| CAM-02 | Phase 2 | Complete |
+| CAM-03 | Phase 2 | Complete |
 | CAM-04 | Phase 2 | Pending |
 | CAM-05 | Phase 2 | Pending |
 | CAM-06 | Phase 2 | Pending |
