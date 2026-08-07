@@ -7,7 +7,7 @@ Build an open-source, camera-only perception product for maker robotics: start w
 ## Phases
 
 - [x] **Phase 1: Foundations & Contracts** — Repo skeleton, schemas, plugins, licenses, device abstraction (completed 2026-08-07)
-- [ ] **Phase 2: Camera Ingest & Live Preview** — USB/file/synthetic/RTSP sources, frame bus, web preview
+- [x] **Phase 2: Camera Ingest & Live Preview** — USB/file/synthetic/RTSP sources, frame bus, web preview (completed 2026-08-07)
 - [ ] **Phase 3: Fixed-Class Detection** — Local YOLO detection worker, overlays, stream detections
 - [ ] **Phase 4: Monocular Depth** — Depth Anything V2 pipeline with honest depth typing
 - [ ] **Phase 5: Free-Space & Unified Stream** — Spatial post, merged PerceptionFrame API, obstacle overlays
@@ -49,7 +49,7 @@ Plans:
 Plans:
 - [x] 02-01-PLAN.md — Camera source adapters (USB, file, synthetic) + reconnect policy foundation
 - [x] 02-02-PLAN.md — Frame bus (keep-latest), timestamps, drop metrics + capture loop
-- [ ] 02-03-PLAN.md — FastAPI shell + MJPEG preview + static Live Preview + RTSP + localhost serve CLI
+- [x] 02-03-PLAN.md — FastAPI shell + MJPEG preview + static Live Preview + RTSP + localhost serve CLI
 
 ### Phase 3: Fixed-Class Detection
 **Goal**: Deliver the first robot-usable AI signal — local fixed-class detection on the live stream with UI/API parity.  
@@ -143,7 +143,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundations & Contracts | 3/3 | Complete   | 2026-08-07 |
-| 2. Camera Ingest & Live Preview | 2/3 | In Progress|  |
+| 2. Camera Ingest & Live Preview | 3/3 | Complete   | 2026-08-07 |
 | 3. Fixed-Class Detection | 0/2 | Not started | - |
 | 4. Monocular Depth | 0/2 | Not started | - |
 | 5. Free-Space & Unified Stream | 0/3 | Not started | - |

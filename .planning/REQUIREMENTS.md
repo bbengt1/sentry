@@ -21,7 +21,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **CAM-01**: System captures from USB UVC cameras via OpenCV (or equivalent)
 - [x] **CAM-02**: System captures from file / video sources for local development and CI
 - [x] **CAM-03**: System supports synthetic frame source for automated tests
-- [ ] **CAM-04**: System supports network/IP cameras (RTSP) for external camera development
+- [x] **CAM-04**: System supports network/IP cameras (RTSP) for external camera development
 - [x] **CAM-05**: Frame bus uses keep-latest drop policy with drop/FPS metrics (no unbounded capture queues)
 - [x] **CAM-06**: Camera disconnect / reconnect is handled with clear error state in UI and API (no silent freeze)
 
@@ -56,7 +56,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Developer Web Interface
 
-- [ ] **UI-01**: Web dashboard shows live camera video in realtime
+- [x] **UI-01**: Web dashboard shows live camera video in realtime
 - [ ] **UI-02**: Dashboard overlays detections, depth colormap, and free-space/obstacles
 - [ ] **UI-03**: Developer can toggle perception stages (detection, depth, free-space) at runtime
 - [ ] **UI-04**: Developer can adjust thresholds (detection conf, depth/free-space cutoffs) interactively
@@ -81,7 +81,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **MODEL-01**: Core inference path uses only local open-source models (no mandatory cloud)
 - [ ] **MODEL-02**: Models are cacheable for offline use after first download
-- [ ] **MODEL-03**: Default bind is localhost; remote exposure is opt-in and documented
+- [x] **MODEL-03**: Default bind is localhost; remote exposure is opt-in and documented
 
 ## v2 Requirements
 
@@ -137,10 +137,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CAM-01 | Phase 2 | Complete |
 | CAM-02 | Phase 2 | Complete |
 | CAM-03 | Phase 2 | Complete |
-| CAM-04 | Phase 2 | Pending |
+| CAM-04 | Phase 2 | Complete |
 | CAM-05 | Phase 2 | Complete |
 | CAM-06 | Phase 2 | Complete |
-| UI-01 | Phase 2 | Pending |
+| UI-01 | Phase 2 | Complete |
 | DET-01 | Phase 3 | Pending |
 | DET-02 | Phase 3 | Pending |
 | DET-03 | Phase 3 | Pending |
@@ -173,7 +173,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EDGE-05 | Phase 7 | Pending |
 | MODEL-01 | Phase 1 | Complete |
 | MODEL-02 | Phase 3 | Pending |
-| MODEL-03 | Phase 2 | Pending |
+| MODEL-03 | Phase 2 | Complete |
 
 **Coverage:**
 - v1 requirements: 42 total
