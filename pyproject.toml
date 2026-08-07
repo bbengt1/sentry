@@ -35,6 +35,15 @@ dev = [
 [project.scripts]
 sentry = "sentry_ai.cli:main"
 
+[project.entry-points."sentry_ai.sources"]
+synthetic = "sentry_ai.plugins.builtins:SyntheticSource"
+
+[project.entry-points."sentry_ai.workers"]
+noop = "sentry_ai.plugins.builtins:NoopWorker"
+
+[project.entry-points."sentry_ai.sinks"]
+null = "sentry_ai.plugins.builtins:NullSink"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/sentry_ai"]
 
