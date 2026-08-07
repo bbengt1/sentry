@@ -47,9 +47,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 02-01: Camera source adapters (USB, file, synthetic) + reconnect policy
-- [ ] 02-02: Frame bus (keep-latest), timestamps, drop metrics
-- [ ] 02-03: FastAPI shell + MJPEG/WS preview + minimal web page + RTSP path
+- [ ] 02-01-PLAN.md — Camera source adapters (USB, file, synthetic) + reconnect policy foundation
+- [ ] 02-02-PLAN.md — Frame bus (keep-latest), timestamps, drop metrics + capture loop
+- [ ] 02-03-PLAN.md — FastAPI shell + MJPEG preview + static Live Preview + RTSP + localhost serve CLI
 
 ### Phase 3: Fixed-Class Detection
 **Goal**: Deliver the first robot-usable AI signal — local fixed-class detection on the live stream with UI/API parity.  
