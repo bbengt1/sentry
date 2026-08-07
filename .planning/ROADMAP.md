@@ -64,8 +64,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: Detection worker (YOLO26) + backend protocol + model cache
-- [ ] 03-02: Detection overlays, stream JSON, runtime conf control, telemetry
+- [ ] 03-01-PLAN.md — Detection worker (YOLO26) + backend protocol + model cache
+- [ ] 03-02-PLAN.md — Detection overlays, stream/snapshot JSON, runtime conf control, telemetry
 
 ### Phase 4: Monocular Depth
 **Goal**: Add the spatial awareness primitive with honest monocular depth semantics (relative by default).  
