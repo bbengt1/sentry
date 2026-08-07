@@ -7,7 +7,6 @@ import time
 from typing import Any
 
 import numpy as np
-import pytest
 
 from sentry_ai.bus.frame_bus import FrameBus
 from sentry_ai.capture.image_frame import ImageFrame
