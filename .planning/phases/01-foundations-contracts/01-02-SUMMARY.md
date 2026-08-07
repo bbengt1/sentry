@@ -100,7 +100,7 @@ Each task was committed atomically (TDD RED → GREEN):
 5. **Task 3 RED: config/profile tests** - `78935de` (test)
 6. **Task 3 GREEN: multi-profile config + MODEL-01** - `1c58f3e` (feat)
 
-**Plan metadata:** (pending final docs commit)
+**Plan metadata:** `c1e990a` (docs: complete plan)
 
 ## Files Created/Modified
 
