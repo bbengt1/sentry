@@ -2,4 +2,8 @@
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from sentry_ai.models.detection.mapping import results_to_detections
+
+__all__ = [
+    "results_to_detections",
+]

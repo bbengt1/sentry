@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pytest
@@ -67,3 +68,48 @@ def synthetic_frame_factory() -> Callable[..., Frame]:
 def image_frame_factory() -> Callable[..., ImageFrame]:
     """Pytest-accessible factory for runtime ImageFrames."""
     return make_image_frame
+
+
+class FakeYoloBoxes:
+    """Minimal Ultralytics Boxes stand-in for unit tests (no torch)."""
+
+    def __init__(
+        self,
+        xyxy: list[list[float]],
+        conf: list[float],
+        cls: list[int],
+    ) -> None:
+        self.xyxy = xyxy
+        self.conf = conf
+        self.cls = cls
+
+    def __len__(self) -> int:
+        return len(self.xyxy)
+
+
+def make_fake_yolo_result(
+    *,
+    xyxy: list[list[float]] | None = None,
+    conf: list[float] | None = None,
+    cls: list[int] | None = None,
+    names: dict[int, str] | None = None,
+    boxes: Any = ...,
+) -> SimpleNamespace:
+    """Build a duck-typed Ultralytics Results object (never downloads weights)."""
+    if boxes is ...:
+        xyxy = xyxy if xyxy is not None else []
+        conf = conf if conf is not None else []
+        cls = cls if cls is not None else []
+        box_obj: Any = FakeYoloBoxes(xyxy, conf, cls)
+    else:
+        box_obj = boxes
+    return SimpleNamespace(
+        boxes=box_obj,
+        names=names if names is not None else {0: "person", 1: "bicycle", 2: "car"},
+    )
+
+
+@pytest.fixture
+def fake_yolo_result_factory() -> Callable[..., SimpleNamespace]:
+    """Pytest-accessible factory for fake YOLO results."""
+    return make_fake_yolo_result

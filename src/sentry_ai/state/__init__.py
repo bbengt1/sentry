@@ -2,4 +2,14 @@
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from sentry_ai.state.perception_store import (
+    DetectionProduct,
+    PerceptionStore,
+    StoreMetrics,
+)
+
+__all__ = [
+    "DetectionProduct",
+    "PerceptionStore",
+    "StoreMetrics",
+]

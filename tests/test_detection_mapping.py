@@ -97,23 +97,6 @@ def test_tensor_like_cpu_numpy_path() -> None:
         def numpy(self) -> list:
             return self._data
 
-    boxes = SimpleNamespace(
-        xyxy=_TensorLike([[5.0, 6.0, 7.0, 8.0]]),
-        conf=_TensorLike([0.77]),
-        cls=_TensorLike([1]),
-    )
-    # len(boxes) via __len__ on SimpleNamespace fails — wrap
-    boxes.__class__ = type(
-        "Boxes",
-        (),
-        {
-            "__len__": lambda self: 1,
-            "xyxy": boxes.xyxy,
-            "conf": boxes.conf,
-            "cls": boxes.cls,
-        },
-    )
-    # Rebuild cleanly
     class Boxes:
         def __init__(self) -> None:
             self.xyxy = _TensorLike([[5.0, 6.0, 7.0, 8.0]])
