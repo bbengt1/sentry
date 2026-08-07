@@ -103,7 +103,7 @@ Each task was committed atomically (TDD RED → GREEN):
 5. **Task 3 RED: Licenses doc + full smoke tests** - `4de4b2a` (test)
 6. **Task 3 GREEN: THIRD_PARTY_MODELS, policy, smoke CLI** - `c3e7dec` (feat)
 
-**Plan metadata:** _(pending final docs commit)_
+**Plan metadata:** `76b1f38` (docs: complete plan)
 
 ## Files Created/Modified
 
