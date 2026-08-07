@@ -6,6 +6,7 @@ build-backend = "hatchling.build"
 name = "sentry-ai"
 version = "0.1.0"
 description = "Camera-only perception for maker robotics"
+readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
 authors = [{ name = "Sentry AI Contributors" }]
