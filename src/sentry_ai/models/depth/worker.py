@@ -17,6 +17,7 @@ from sentry_ai.capture.image_frame import ImageFrame
 from sentry_ai.models.cache import configure_model_cache
 from sentry_ai.models.depth.mapping import MODE_TO_MODEL, kind_for_mode
 from sentry_ai.models.depth.preprocess import bgr_to_rgb_uint8
+from sentry_ai.models.device import resolve_device
 from sentry_ai.schemas.enums import DepthKind
 
 logger = logging.getLogger(__name__)
@@ -38,23 +39,6 @@ class DepthResult:
     width: int = 0
     height: int = 0
     error: str | None = None
-
-
-def resolve_device(device: str | None = None) -> str:
-    """Pick inference device: explicit arg, else cuda > mps > cpu."""
-    if device is not None:
-        return device
-    try:
-        import torch
-
-        if torch.cuda.is_available():
-            return "cuda"
-        mps = getattr(getattr(torch, "backends", None), "mps", None)
-        if mps is not None and getattr(mps, "is_available", lambda: False)():
-            return "mps"
-    except ImportError:
-        pass
-    return "cpu"
 
 
 class DepthAnythingWorker:

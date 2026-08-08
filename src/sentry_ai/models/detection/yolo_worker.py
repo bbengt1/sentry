@@ -13,6 +13,7 @@ from typing import Any
 from sentry_ai.capture.image_frame import ImageFrame
 from sentry_ai.models.cache import configure_model_cache
 from sentry_ai.models.detection.mapping import results_to_detections
+from sentry_ai.models.device import resolve_device
 from sentry_ai.schemas.perception import Detection
 
 logger = logging.getLogger(__name__)
@@ -21,24 +22,7 @@ DEFAULT_CONF = 0.25
 DEFAULT_IMGSZ = 640
 DEFAULT_WEIGHTS = "yolo26n.pt"
 
-__all__ = ["YoloDetectionWorker"]
-
-
-def resolve_device(device: str | None = None) -> str:
-    """Pick inference device: explicit arg, else cuda > mps > cpu."""
-    if device is not None:
-        return device
-    try:
-        import torch
-
-        if torch.cuda.is_available():
-            return "cuda"
-        mps = getattr(getattr(torch, "backends", None), "mps", None)
-        if mps is not None and getattr(mps, "is_available", lambda: False)():
-            return "mps"
-    except ImportError:
-        pass
-    return "cpu"
+__all__ = ["YoloDetectionWorker", "resolve_device"]
 
 
 class YoloDetectionWorker:
