@@ -231,6 +231,21 @@ with connect("ws://127.0.0.1:8000/v1/stream") as ws:
 Install remains **core** + optional `detect` / `depth` extras. Free-space needs
 no new package — only a depth product for the loop to consume.
 
+## Export (ONNX / TensorRT)
+
+Offline edge packaging recipes — **not** a live TensorRT runtime in Sentry v1.
+Live `sentry serve` stays on **PyTorch** profiles (`desktop-gpu`, `jetson`,
+`cpu-fallback`). Build TensorRT engines **on-device**; never copy `.engine`
+across JetPack SKUs.
+
+```bash
+uv sync --extra detect
+uv run python scripts/export/export_yolo.py --weights yolo26n.pt --format onnx
+```
+
+Full honesty notes (Jetson packaging, YOLOE experimental export, depth
+feasibility, AGPL): [`docs/export/README.md`](docs/export/README.md).
+
 ## Phase 5 scope
 
 - FreeSpaceLoop Spatial Post (near-field bands) + FreeSpaceProduct in store
