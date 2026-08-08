@@ -377,6 +377,12 @@ def serve(
         depth_worker = None
         depth_loop = None
 
+    # Free-space Spatial Post always runs when store exists (CPU; no ML extra).
+    # Idles until a good depth product appears — no ImportError gate.
+    from sentry_ai.spatial.loop import FreeSpaceLoop
+
+    free_space_loop = FreeSpaceLoop(store)
+
     app_asgi = create_app(
         bus=bus,
         capture_loop=loop,
@@ -397,6 +403,7 @@ def serve(
         typer.echo("depth: enabled (DAV2 Small relative)")
     else:
         typer.echo("depth: disabled (install: uv sync --extra depth)")
+    typer.echo("free-space: enabled (near-field bands Spatial Post)")
     if host not in ("127.0.0.1", "localhost", "::1"):
         typer.echo(
             "warning: non-localhost bind exposes the live camera stream "
@@ -404,21 +411,23 @@ def serve(
             err=True,
         )
 
-    # Start order: capture → det → depth; stop reverse.
+    # Start order: capture → det → depth → free_space; stop reverse.
     loop.start()
     if det_loop is not None:
         det_loop.start()
     if depth_loop is not None:
         depth_loop.start()
+    free_space_loop.start()
 
     def _signal_shutdown() -> None:
-        """Wake MJPEG generators immediately (before connection drain)."""
+        """Wake MJPEG/WS generators immediately (before connection drain)."""
         flag = getattr(app_asgi.state, "shutdown_flag", None)
         if flag is not None:
             flag.set()
 
     def _stop_workers() -> None:
         _signal_shutdown()
+        free_space_loop.stop()
         if depth_loop is not None:
             depth_loop.stop()
         if det_loop is not None:

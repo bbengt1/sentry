@@ -150,6 +150,33 @@ def test_serve_source_wires_depth_loop_lifecycle() -> None:
     assert "DAV2" in source or "relative" in source
 
 
+def test_serve_source_wires_free_space_loop_lifecycle() -> None:
+    """serve always constructs FreeSpaceLoop (CPU Spatial Post; no ML extra)."""
+    source = inspect.getsource(cli_mod.serve)
+    assert "FreeSpaceLoop" in source
+    assert "free_space_loop" in source
+    assert "free_space_loop.start()" in source
+    assert "free_space_loop.stop()" in source
+    # Always-on banner — no ImportError / extra gate for free-space
+    assert "near-field bands" in source.lower() or "free-space: enabled" in source
+    # No ML extra install hint for free-space (CPU Spatial Post only)
+    assert "uv sync --extra free" not in source
+    # Start free_space after depth start (when depth present); stop free_space
+    # before depth stop.
+    free_start = source.index("free_space_loop.start()")
+    free_stop = source.index("free_space_loop.stop()")
+    depth_start = source.index("depth_loop.start()")
+    depth_stop = source.index("depth_loop.stop()")
+    bare_stop = None
+    for line in source.splitlines():
+        if line.strip() == "loop.stop()":
+            bare_stop = source.index(line)
+            break
+    assert bare_stop is not None
+    assert depth_start < free_start
+    assert free_stop < depth_stop < bare_stop
+
+
 def test_serve_does_not_import_torch_at_module_level() -> None:
     """Bare smoke path: cli module must not hard-import torch."""
     source = inspect.getsource(cli_mod)

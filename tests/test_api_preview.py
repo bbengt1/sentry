@@ -511,3 +511,149 @@ def test_routes_preview_uses_blend_depth() -> None:
     assert source.index("blend_depth") < source.index("draw_detections(")
     assert "worker.process" not in source
     assert "cv2.VideoCapture" not in source
+
+
+def test_routes_preview_draw_order_includes_free_space() -> None:
+    """SPACE-03 / UI-06: blend_depth → draw_free_space → draw_detections.
+
+    Free-space comes from store product only — never compute_free_space in
+    the preview route module.
+    """
+    source = inspect.getsource(routes_preview)
+    assert "draw_free_space" in source
+    assert "snapshot_free_space" in source
+    assert "compute_free_space" not in source
+    blend_i = source.index("blend_depth")
+    free_i = source.index("draw_free_space(")
+    det_i = source.index("draw_detections(")
+    assert blend_i < free_i < det_i
+
+
+def test_api_status_includes_free_space_fields_when_store_present() -> None:
+    """SPACE-03 / UI-02: free_space_* + obstacle_count on /api/status."""
+    from sentry_ai.schemas.enums import DepthKind
+    from sentry_ai.schemas.perception import ObstacleCue
+    from sentry_ai.state.perception_store import PerceptionStore
+
+    source = SyntheticSource(camera_id="synthetic0", fps=0.0)
+    bus = FrameBus()
+    loop = CaptureLoop(source, bus)
+    store = PerceptionStore()
+    store.set_free_space(
+        frame_id=11,
+        camera_id="synthetic0",
+        t_capture=time.time(),
+        latency_ms=5.5,
+        depth_kind=DepthKind.RELATIVE,
+        obstacle_count=2,
+        obstacles=[
+            ObstacleCue(
+                bbox_xyxy=(1.0, 1.0, 5.0, 5.0),
+                nearness_mean=0.8,
+                nearness_max=0.9,
+                area_px=16,
+                band="near",
+            )
+        ],
+        bands={"near_frac": 0.1},
+    )
+    loop.start()
+    try:
+        _wait_for_frame(bus)
+        app = create_app(
+            bus=bus,
+            capture_loop=loop,
+            bind="127.0.0.1:8000",
+            perception_store=store,
+        )
+        with TestClient(app) as client:
+            resp = client.get("/api/status")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["free_space_latency_ms"] == 5.5
+            assert data["free_space_frame_id"] == 11
+            assert data["obstacle_count"] == 2
+            assert "free_space_fps" in data
+            assert "free_space_age_ms" in data
+            assert isinstance(data["free_space_stale"], bool)
+            assert data.get("free_space_error") in (None, "")
+    finally:
+        loop.stop()
+
+
+def test_api_status_free_space_error_field() -> None:
+    from sentry_ai.schemas.enums import DepthKind
+    from sentry_ai.state.perception_store import PerceptionStore
+
+    source = SyntheticSource(camera_id="synthetic0", fps=0.0)
+    bus = FrameBus()
+    loop = CaptureLoop(source, bus)
+    store = PerceptionStore()
+    store.set_free_space(
+        frame_id=2,
+        camera_id="synthetic0",
+        t_capture=time.time(),
+        latency_ms=1.0,
+        depth_kind=DepthKind.RELATIVE,
+        obstacle_count=0,
+        error="free-space failed",
+    )
+    loop.start()
+    try:
+        _wait_for_frame(bus)
+        app = create_app(
+            bus=bus,
+            capture_loop=loop,
+            bind="127.0.0.1:8000",
+            perception_store=store,
+        )
+        with TestClient(app) as client:
+            data = client.get("/api/status").json()
+            assert data.get("free_space_error") == "free-space failed"
+    finally:
+        loop.stop()
+
+
+def test_mjpeg_generator_with_free_space_product_still_jpeg() -> None:
+    """Free-space overlay path still yields decodable multipart JPEG."""
+    from sentry_ai.schemas.enums import DepthKind
+    from sentry_ai.schemas.perception import ObstacleCue
+    from sentry_ai.state.perception_store import PerceptionStore
+
+    bus = FrameBus()
+    bus.publish(_make_frame())
+    store = PerceptionStore()
+    free_mask = np.ones((48, 64), dtype=np.uint8)
+    free_mask[:10, :] = 0
+    occ = np.zeros((48, 64), dtype=np.uint8)
+    occ[:10, :10] = 1
+    store.set_free_space(
+        frame_id=0,
+        camera_id="synthetic0",
+        t_capture=time.time(),
+        latency_ms=3.0,
+        depth_kind=DepthKind.RELATIVE,
+        obstacle_count=1,
+        obstacles=[
+            ObstacleCue(
+                bbox_xyxy=(2.0, 2.0, 12.0, 12.0),
+                nearness_mean=0.7,
+                nearness_max=0.9,
+                area_px=100,
+                band="near",
+            )
+        ],
+        free_mask=free_mask,
+        occupied_mask=occ,
+    )
+
+    async def _one_part() -> bytes:
+        gen = _mjpeg_generator(bus, store=store)
+        try:
+            return await gen.__anext__()
+        finally:
+            await gen.aclose()
+
+    chunk = asyncio.run(_one_part())
+    assert b"--frame" in chunk
+    assert b"\xff\xd8" in chunk

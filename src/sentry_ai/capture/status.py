@@ -51,3 +51,11 @@ class StatusSnapshot(BaseModel):
     depth_kind: str | None = None
     depth_unit: str | None = None
     depth_error: str | None = None
+    # Optional free-space telemetry (Phase 5); defaults keep Phase 2–4 callers valid.
+    free_space_latency_ms: float | None = None
+    free_space_fps: float | None = None
+    free_space_frame_id: int | None = None
+    obstacle_count: int | None = None
+    free_space_error: str | None = None
+    free_space_age_ms: float | None = None
+    free_space_stale: bool | None = None
