@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 07-01-PLAN.md
-last_updated: "2026-08-08T17:10:16.224Z"
+stopped_at: Completed 07-02-PLAN.md
+last_updated: "2026-08-08T17:15:46.694Z"
 last_activity: 2026-08-08
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 18
-  completed_plans: 16
-  percent: 86
+  completed_plans: 17
+  percent: 94
 ---
 
 # Project State
@@ -26,17 +26,17 @@ See: .planning/PROJECT.md (updated 2026-08-07)
 ## Current Position
 
 Phase: 7
-Plan: 07-02 (next)
+Plan: 3 of 3 in current phase
 Status: Ready to execute
 Last activity: 2026-08-08
 
-Progress: [█████████░] 89%
+Progress: [█████████░] 94%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 16
+- Total plans completed: 17
 - Average duration: —
 - Total execution time: 0 hours
 
@@ -50,7 +50,7 @@ Progress: [█████████░] 89%
 | 4 | 2 | - | - |
 | 5 | 3 | - | - |
 | 6 | 2 | - | - |
-| 7 | 1/3 | - | - |
+| 7 | 2/3 | - | - |
 
 **Recent Trend:**
 
@@ -74,6 +74,7 @@ Progress: [█████████░] 89%
 | Phase 06 P01 | 6min | 3 tasks | 18 files |
 | Phase 06 P02 | 8min | 3 tasks | 24 files |
 | Phase 07 P01 | 6min | 3 tasks | 18 files |
+| Phase 07 P02 | 3min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -146,6 +147,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 07]: Headless via create_app(serve_ui=False) + sentry serve --no-ui (not separate api cmd)
 - [Phase 07]: Open-vocab weights derive from detector_tier; depth_tier Small-only allowlist
 - [Phase 07]: probe_device light non-raising CUDA check; never hard-fails serve
+- [Phase 07]: EDGE-03 docs+scripts only; on-device TRT; no prebuilt engines; no tensorrt extra
+- [Phase 07]: YOLOE export experimental; PyTorch on-demand OV remains supported edge path
+- [Phase 07]: export_yolo validates KNOWN_WEIGHTS basenames only (path traversal rejected)
 
 ### Pending Todos
 
@@ -163,6 +167,6 @@ Phase 7 plan-check: **PASS_WITH_FLAGS** (non-blocking). Flags: 07-01 file count,
 
 ## Session Continuity
 
-Last session: 2026-08-08T17:10:00Z
-Stopped at: Completed 07-01-PLAN.md
-Next: Execute 07-02 (export recipes) then 07-03 (stubs + docs)
+Last session: 2026-08-08T17:15:09.754Z
+Stopped at: Completed 07-02-PLAN.md
+Next: Execute 07-03 (extension stubs + desktop GPU + safety/privacy docs)

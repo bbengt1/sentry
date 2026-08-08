@@ -132,7 +132,7 @@ Plans:
 
 Plans:
 - [x] 07-01-PLAN.md — Runtime profiles + edge model tiers + headless mode (EDGE-02, EDGE-05)
-- [ ] 07-02-PLAN.md — ONNX/TensorRT export recipes + Jetson packaging notes (EDGE-03)
+- [x] 07-02-PLAN.md — ONNX/TensorRT export recipes + Jetson packaging notes (EDGE-03)
 - [ ] 07-03-PLAN.md — Extension stubs + desktop GPU docs + safety/privacy (EDGE-04, EDGE-01)
 
 ## Progress
@@ -148,7 +148,7 @@ Plans:
 | 4. Monocular Depth | 2/2 | Complete   | 2026-08-08 |
 | 5. Free-Space & Unified Stream | 3/3 | Complete   | 2026-08-08 |
 | 6. Developer Controls & Open-Vocab | 2/2 | Complete   | 2026-08-08 |
-| 7. Edge Profiles & Extension Stubs | 1/3 | In Progress|  |
+| 7. Edge Profiles & Extension Stubs | 2/3 | In Progress|  |
 
 ## Architecture Spine (reference)
 
