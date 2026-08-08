@@ -411,11 +411,14 @@ def serve(
     if depth_loop is not None:
         depth_loop.start()
 
-    def _stop_workers() -> None:
-        # Signal streams first so MJPEG generators exit promptly.
+    def _signal_shutdown() -> None:
+        """Wake MJPEG generators immediately (before connection drain)."""
         flag = getattr(app_asgi.state, "shutdown_flag", None)
         if flag is not None:
             flag.set()
+
+    def _stop_workers() -> None:
+        _signal_shutdown()
         if depth_loop is not None:
             depth_loop.stop()
         if det_loop is not None:
@@ -425,21 +428,29 @@ def serve(
     try:
         import uvicorn
 
-        # timeout_graceful_shutdown: do not hang forever on open MJPEG
-        # browser connections ("Waiting for connections to close").
+        # Lifespan sets shutdown_flag only *after* connections close — too late
+        # for open MJPEG. handle_exit sets the flag on the first Ctrl+C so
+        # generators exit during the graceful drain window.
         config = uvicorn.Config(
             app_asgi,
             host=host,
             port=port,
             log_level="info",
-            timeout_graceful_shutdown=2,
+            timeout_graceful_shutdown=1,
         )
         server = uvicorn.Server(config)
+        _orig_handle_exit = server.handle_exit
+
+        def _handle_exit(sig: int, frame: Any) -> None:  # noqa: ANN401
+            _signal_shutdown()
+            _orig_handle_exit(sig, frame)
+
+        server.handle_exit = _handle_exit  # type: ignore[method-assign]
         try:
             server.run()
         except KeyboardInterrupt:
-            # Second Ctrl+C / race with uvicorn signal handling.
-            typer.echo("sentry serve: interrupted", err=True)
+            # Race with uvicorn signal handling; keep output quiet.
+            pass
     finally:
         _stop_workers()
         typer.echo("sentry serve: stopped")

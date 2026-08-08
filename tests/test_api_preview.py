@@ -5,13 +5,18 @@ from __future__ import annotations
 import asyncio
 import inspect
 import time
+from typing import Any
 
 import numpy as np
 from fastapi.testclient import TestClient
 
 from sentry_ai.api import routes_preview
 from sentry_ai.api.app import create_app
-from sentry_ai.api.routes_preview import BOUNDARY, _mjpeg_generator
+from sentry_ai.api.routes_preview import (
+    BOUNDARY,
+    QuietStreamingResponse,
+    _mjpeg_generator,
+)
 from sentry_ai.bus.frame_bus import FrameBus
 from sentry_ai.capture.image_frame import ImageFrame
 from sentry_ai.capture.loop import CaptureLoop
@@ -142,6 +147,38 @@ def test_mjpeg_generator_stops_on_shutdown_flag() -> None:
     # Already set → zero or immediate exit (no infinite stream)
     n = asyncio.run(_drain())
     assert n == 0
+
+
+def test_quiet_streaming_response_swallows_cancelled() -> None:
+    async def _body() -> Any:
+        yield b"x"
+        raise asyncio.CancelledError
+
+    resp = QuietStreamingResponse(_body(), media_type="text/plain")
+
+    async def _run() -> None:
+        messages: list[Any] = []
+
+        async def receive() -> dict[str, str]:
+            return {"type": "http.disconnect"}
+
+        async def send(message: dict[str, Any]) -> None:
+            messages.append(message)
+
+        scope = {
+            "type": "http",
+            "asgi": {"version": "3.0"},
+            "http_version": "1.1",
+            "method": "GET",
+            "path": "/",
+            "raw_path": b"/",
+            "query_string": b"",
+            "headers": [],
+        }
+        # Should not raise CancelledError to caller
+        await resp(scope, receive, send)
+
+    asyncio.run(_run())
 
 
 def test_create_app_has_shutdown_flag() -> None:

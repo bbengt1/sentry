@@ -27,6 +27,7 @@ from sentry_ai.models.detection.overlay import draw_detections
 BOUNDARY = "frame"
 JPEG_QUALITY = 80
 MJPEG_SLEEP_S = 0.033  # ~30 FPS UI path; independent of capture FPS
+MJPEG_POLL_S = 0.01  # interruptible sleep slice for fast Ctrl+C
 DEPTH_BLEND_ALPHA = 0.45
 
 # Packaged static Live Preview page (ui/static next to api/ package tree).
@@ -35,6 +36,20 @@ _INDEX_HTML = (
 )
 
 router = APIRouter()
+
+
+class QuietStreamingResponse(StreamingResponse):
+    """StreamingResponse that treats cancel-on-shutdown as normal exit.
+
+    Uvicorn cancels open MJPEG tasks after graceful timeout; without this,
+    Starlette logs a full ERROR traceback for asyncio.CancelledError.
+    """
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        try:
+            await super().__call__(scope, receive, send)
+        except asyncio.CancelledError:
+            return
 
 
 def _bus(request: Request) -> Any:
@@ -124,6 +139,18 @@ async def _mjpeg_generator(
     - or the task is cancelled (uvicorn graceful shutdown).
     """
     boundary = BOUNDARY.encode()
+
+    async def _interruptible_sleep(seconds: float) -> bool:
+        """Sleep in slices; return True if shutdown requested mid-sleep."""
+        remaining = seconds
+        while remaining > 0:
+            if shutdown_flag is not None and shutdown_flag.is_set():
+                return True
+            step = min(MJPEG_POLL_S, remaining)
+            await asyncio.sleep(step)
+            remaining -= step
+        return shutdown_flag is not None and shutdown_flag.is_set()
+
     try:
         while True:
             if shutdown_flag is not None and shutdown_flag.is_set():
@@ -170,19 +197,20 @@ async def _mjpeg_generator(
                         + chunk
                         + b"\r\n"
                     )
-            await asyncio.sleep(MJPEG_SLEEP_S)
+            if await _interruptible_sleep(MJPEG_SLEEP_S):
+                break
     except asyncio.CancelledError:
         # Normal path when uvicorn cancels streaming tasks on shutdown.
         return
 
 
 @router.get("/preview/mjpeg")
-async def preview_mjpeg(request: Request) -> StreamingResponse:
+async def preview_mjpeg(request: Request) -> QuietStreamingResponse:
     """MJPEG multipart stream of the latest bus frame (subscriber only)."""
     bus = _bus(request)
     store = _perception_store(request)
     shutdown_flag = getattr(request.app.state, "shutdown_flag", None)
-    return StreamingResponse(
+    return QuietStreamingResponse(
         _mjpeg_generator(
             bus,
             store=store,

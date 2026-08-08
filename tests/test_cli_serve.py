@@ -122,7 +122,8 @@ def test_serve_uses_graceful_shutdown_timeout() -> None:
     source = inspect.getsource(cli_mod.serve)
     assert "timeout_graceful_shutdown" in source
     assert "shutdown_flag" in source
-    assert "_stop_workers" in source or "stop()" in source
+    assert "_signal_shutdown" in source
+    assert "handle_exit" in source
 
 
 def test_serve_source_wires_depth_loop_lifecycle() -> None:
