@@ -9,12 +9,14 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-# Known YOLO26 weight filenames only (T-03-01). No arbitrary paths in v1.
+# Known YOLO / YOLOE weight filenames only (T-03-01 / T-06-13). No arbitrary paths.
 KNOWN_WEIGHTS: frozenset[str] = frozenset(
     {
         "yolo26n.pt",
         "yolo26s.pt",
         "yolo26m.pt",
+        "yoloe-26s-seg.pt",  # Phase 6 open-vocab default
+        "yoloe-26n-seg.pt",  # edge / smaller OV path
     }
 )
 

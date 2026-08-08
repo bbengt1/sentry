@@ -53,6 +53,8 @@ class Detection(BaseModel):
     class_name: str
     confidence: float
     bbox_xyxy: tuple[float, float, float, float] | list[float]
+    # Additive: fixed-class (default) vs open-vocab YOLOE path (OVD-01/03).
+    source: Literal["fixed", "open_vocab"] = "fixed"
 
 
 class ObstacleCue(BaseModel):

@@ -62,3 +62,21 @@ def test_doc_depth_phase4_active_apache_small_and_hf_cache() -> None:
     assert "sentry_model_cache" in lowered or "sentry-ai" in lowered
     assert "offline" in lowered
     assert "extra depth" in lowered or "--extra depth" in lowered
+
+
+def test_doc_yoloe_phase6_active_agpl_and_default_weight() -> None:
+    """Phase 6: YOLOE row is active + AGPL + default weight + offline cache."""
+    text = DOC_PATH.read_text(encoding="utf-8")
+    lowered = text.lower()
+    assert "yoloe" in lowered
+    assert "agpl" in lowered
+    assert "phase 6" in lowered
+    assert "planned phase 6" not in lowered
+    assert "yoloe-26s-seg.pt" in lowered
+    assert "offline" in lowered
+    assert "sentry_model_cache" in lowered or "sentry-ai/weights" in lowered
+    # Must not claim Apache for YOLOE
+    yoloe_lines = [ln for ln in text.splitlines() if "YOLOE" in ln or "yoloe" in ln]
+    for ln in yoloe_lines:
+        if "Apache" in ln and "AGPL" not in ln:
+            raise AssertionError(f"YOLOE line must not claim Apache: {ln}")

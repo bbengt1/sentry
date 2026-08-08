@@ -1,8 +1,13 @@
-"""Keep-latest perception product store (detection + depth + free-space).
+"""Keep-latest perception product store (detection + depth + free-space + OV).
 
 Depth-1 mailbox mirroring FrameBus: set overwrites; snapshot returns an
 isolated copy. Full float depth_map and free/occupied masks stay in-process
 only (not wire JSON).
+
+Writer ownership:
+  - DetectionLoop owns ``set_detections`` only
+  - OpenVocabLoop owns ``set_open_vocab`` only (never dual-write detections)
+  - DepthLoop / FreeSpaceLoop own their slots
 """
 
 from __future__ import annotations
@@ -20,6 +25,7 @@ __all__ = [
     "DepthProduct",
     "DetectionProduct",
     "FreeSpaceProduct",
+    "OpenVocabProduct",
     "PerceptionStore",
     "StoreMetrics",
 ]
@@ -87,8 +93,27 @@ class FreeSpaceProduct:
 
 
 @dataclass
+class OpenVocabProduct:
+    """Latest open-vocab detection product (separate from fixed-class).
+
+    OpenVocabLoop is the sole writer via ``set_open_vocab`` — never
+    ``set_detections`` (dual-writer anti-pattern).
+    """
+
+    frame_id: int
+    camera_id: str
+    t_capture: float
+    detections: list[Detection]
+    latency_ms: float
+    conf: float | None = None
+    model_name: str | None = None
+    prompt: str | None = None  # optional audit of last prompt
+    error: str | None = None
+
+
+@dataclass
 class StoreMetrics:
-    """Plain metrics for detection + depth + free-space paths (no numpy)."""
+    """Plain metrics for detection + depth + free-space + OV paths (no numpy)."""
 
     det_frames: int = 0
     det_frames_dropped: int = 0
@@ -102,14 +127,18 @@ class StoreMetrics:
     free_space_frames_dropped: int = 0
     free_space_fps: float = 0.0
     last_free_space_latency_ms: float | None = None
+    ov_frames: int = 0
+    ov_frames_dropped: int = 0
+    ov_fps: float = 0.0
+    last_ov_latency_ms: float | None = None
 
 
 class PerceptionStore:
-    """Thread-safe depth-1 keep-latest store for det / depth / free-space.
+    """Thread-safe depth-1 keep-latest store for det / depth / free-space / OV.
 
-    DetectionLoop / DepthLoop / FreeSpaceLoop are the intended sole producers;
-    API/UI only snapshot. Triple products share one lock; keep-latest
-    independently.
+    DetectionLoop owns ``set_detections``; OpenVocabLoop owns ``set_open_vocab``
+    only. DepthLoop / FreeSpaceLoop own their slots. API/UI only snapshot.
+    Products share one lock; keep-latest independently.
     """
 
     def __init__(self) -> None:
@@ -117,6 +146,7 @@ class PerceptionStore:
         self._latest: DetectionProduct | None = None
         self._latest_depth: DepthProduct | None = None
         self._latest_free_space: FreeSpaceProduct | None = None
+        self._latest_open_vocab: OpenVocabProduct | None = None
         self._metrics = StoreMetrics()
         self._fps_window_t0 = time.monotonic()
         self._fps_count = 0
@@ -124,6 +154,8 @@ class PerceptionStore:
         self._depth_fps_count = 0
         self._free_space_fps_window_t0 = time.monotonic()
         self._free_space_fps_count = 0
+        self._ov_fps_window_t0 = time.monotonic()
+        self._ov_fps_count = 0
 
     def set_detections(
         self,
@@ -366,8 +398,75 @@ class PerceptionStore:
         with self._lock:
             self._latest_free_space = None
 
+    def set_open_vocab(
+        self,
+        frame_id: int,
+        camera_id: str,
+        t_capture: float,
+        detections: list[Detection],
+        latency_ms: float,
+        conf: float | None = None,
+        model_name: str | None = None,
+        prompt: str | None = None,
+        error: str | None = None,
+    ) -> None:
+        """Store a copy of open-vocab detections as latest product (keep-latest).
+
+        Sole writer should be OpenVocabLoop — never call from DetectionLoop.
+        """
+        product = OpenVocabProduct(
+            frame_id=frame_id,
+            camera_id=camera_id,
+            t_capture=t_capture,
+            detections=list(detections),
+            latency_ms=latency_ms,
+            conf=conf,
+            model_name=model_name,
+            prompt=prompt,
+            error=error,
+        )
+        with self._lock:
+            self._latest_open_vocab = product
+            self._metrics.ov_frames += 1
+            self._metrics.last_ov_latency_ms = latency_ms
+            self._ov_fps_count += 1
+            now = time.monotonic()
+            dt = now - self._ov_fps_window_t0
+            if dt >= 1.0:
+                self._metrics.ov_fps = self._ov_fps_count / dt
+                self._ov_fps_count = 0
+                self._ov_fps_window_t0 = now
+
+    def record_open_vocab_drop(self, n: int = 1) -> None:
+        """Increment skipped intermediate open-vocab frame counter."""
+        with self._lock:
+            self._metrics.ov_frames_dropped += max(0, n)
+
+    def snapshot_open_vocab(self) -> OpenVocabProduct | None:
+        """Return an isolated copy of the latest open-vocab product, or None."""
+        with self._lock:
+            if self._latest_open_vocab is None:
+                return None
+            p = self._latest_open_vocab
+            return OpenVocabProduct(
+                frame_id=p.frame_id,
+                camera_id=p.camera_id,
+                t_capture=p.t_capture,
+                detections=list(p.detections),
+                latency_ms=p.latency_ms,
+                conf=p.conf,
+                model_name=p.model_name,
+                prompt=p.prompt,
+                error=p.error,
+            )
+
+    def clear_open_vocab(self) -> None:
+        """Clear latest open-vocab product (mode off). Does not reset FPS."""
+        with self._lock:
+            self._latest_open_vocab = None
+
     def metrics_snapshot(self) -> StoreMetrics:
-        """Return an isolated copy of store metrics (det + depth + free-space)."""
+        """Return an isolated copy of store metrics (det + depth + free-space + OV)."""
         with self._lock:
             return StoreMetrics(
                 det_frames=self._metrics.det_frames,
@@ -382,4 +481,8 @@ class PerceptionStore:
                 free_space_frames_dropped=self._metrics.free_space_frames_dropped,
                 free_space_fps=self._metrics.free_space_fps,
                 last_free_space_latency_ms=self._metrics.last_free_space_latency_ms,
+                ov_frames=self._metrics.ov_frames,
+                ov_frames_dropped=self._metrics.ov_frames_dropped,
+                ov_fps=self._metrics.ov_fps,
+                last_ov_latency_ms=self._metrics.last_ov_latency_ms,
             )

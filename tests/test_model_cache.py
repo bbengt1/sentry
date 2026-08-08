@@ -34,9 +34,18 @@ def test_tier_to_weight_default_and_unknown() -> None:
 
 
 def test_known_weights_allowlist() -> None:
-    assert KNOWN_WEIGHTS == frozenset({"yolo26n.pt", "yolo26s.pt", "yolo26m.pt"})
+    assert "yolo26n.pt" in KNOWN_WEIGHTS
+    assert "yolo26s.pt" in KNOWN_WEIGHTS
+    assert "yolo26m.pt" in KNOWN_WEIGHTS
+    # Phase 6 open-vocab YOLOE weights
+    assert "yoloe-26s-seg.pt" in KNOWN_WEIGHTS
+    assert "yoloe-26n-seg.pt" in KNOWN_WEIGHTS
     for name in (tier_to_weight(t) for t in ("n", "s", "m", None)):
         assert name in KNOWN_WEIGHTS
+        assert ".." not in name
+        assert "/" not in name
+        assert "\\" not in name
+    for name in KNOWN_WEIGHTS:
         assert ".." not in name
         assert "/" not in name
         assert "\\" not in name

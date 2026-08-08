@@ -17,7 +17,7 @@ non-default and out of the v1 core path.
 | Depth Anything V2 Base / Large / Giant | Depth | **CC-BY-NC-4.0** | **No** | Research-only; non-commercial (NC) weights. **Never default** in Sentry. |
 | DAV2 Metric indoor / outdoor heads | Depth (metric) | Check per weight | Optional | Small metric HF heads only; labeled `metric_estimated` + `unit="m"`. Verify license before shipping commercial products. |
 | YOLO26 (via Ultralytics) | Fixed-class detect | **AGPL-3.0** (Ultralytics) | **No** — Phase 3 active (optional `detect` extra) | **AGPL commercial caution** — non-default for commercial forks. Weights download once into Sentry cache (`SENTRY_MODEL_CACHE` or `~/.cache/sentry-ai/weights`); offline re-run after first pull (MODEL-02). Install: `uv sync --extra detect`. |
-| YOLOE | Open-vocab detect | **AGPL-3.0** (Ultralytics) | **No** — Planned Phase 6 | Non-blocking for Phase 1; non-default |
+| YOLOE (via Ultralytics) | Open-vocab detect | **AGPL-3.0** (Ultralytics) | **No** — Phase 6 active (optional `detect` extra) | **AGPL commercial caution** — non-default. Default weights `yoloe-26s-seg.pt` (desktop); `yoloe-26n-seg.pt` for edge. Text-prompt open-vocab path; default mode **off**. Weights download once into Sentry cache (`SENTRY_MODEL_CACHE` or `~/.cache/sentry-ai/weights`); offline re-run after first pull (MODEL-02). Install: `uv sync --extra detect`. |
 
 ## Model cache (MODEL-02)
 
@@ -31,10 +31,10 @@ Sentry points Ultralytics `weights_dir` and Hugging Face cache at a project-owne
 | HF home (depth) | `<cache_root>/hf` (`HF_HOME`; hub under `hf/hub`) |
 | Ultralytics config | `YOLO_CONFIG_DIR` → `<cache_root>/ultralytics` (setdefault) |
 
-After the first download of YOLO (`yolo26n.pt` / `yolo26s.pt` / `yolo26m.pt`) or
-Depth Anything V2 Small (HF hub under `hf/`), subsequent runs are **offline**
-(no network required). Unit tests mock YOLO/depth models and never download
-weights.
+After the first download of YOLO (`yolo26n.pt` / `yolo26s.pt` / `yolo26m.pt`),
+YOLOE (`yoloe-26s-seg.pt` / `yoloe-26n-seg.pt`), or Depth Anything V2 Small
+(HF hub under `hf/`), subsequent runs are **offline** (no network required).
+Unit tests mock YOLO/YOLOE/depth models and never download weights.
 
 ## Default selection rules
 
