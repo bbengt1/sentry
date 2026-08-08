@@ -93,7 +93,7 @@ Each task was committed atomically:
 2. **Task 2: OpenVocabLoop + open-vocab API + assemble merge + overlay + serve wiring** - `9aaaa0c` (feat)
 3. **Task 3: Live Preview open-vocab prompt UX + telemetry + docs note** - `f16a565` (feat)
 
-**Plan metadata:** (pending final docs commit)
+**Plan metadata:** `e3e9ace` (docs: complete plan)
 
 ## Files Created/Modified
 
