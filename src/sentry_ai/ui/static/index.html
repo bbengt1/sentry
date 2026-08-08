@@ -105,24 +105,46 @@
       color: var(--muted);
     }
     footer strong { color: var(--text); font-weight: 500; }
-    .conf-row {
+    .control-row {
       grid-column: 1 / -1;
       display: flex;
       align-items: center;
       flex-wrap: wrap;
       gap: 0.6rem 0.9rem;
-      margin-top: 0.25rem;
+      margin-top: 0.35rem;
     }
-    .conf-row label {
+    .control-row label {
       color: var(--muted);
       font-size: 0.9rem;
     }
-    #conf-slider {
-      flex: 1 1 160px;
-      max-width: 280px;
+    .stage-toggles {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.55rem 1rem;
+    }
+    .stage-toggles label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      cursor: pointer;
+      user-select: none;
+    }
+    .stage-toggles input[type="checkbox"] {
+      accent-color: var(--accent);
+      width: 1rem;
+      height: 1rem;
+    }
+    #conf-slider,
+    #near-cut-slider,
+    #mid-cut-slider {
+      flex: 1 1 120px;
+      max-width: 220px;
       accent-color: var(--accent);
     }
-    #metric-conf {
+    #metric-conf,
+    #metric-near-cut,
+    #metric-mid-cut {
       min-width: 2.5rem;
       font-variant-numeric: tabular-nums;
     }
@@ -132,6 +154,12 @@
       font-size: 0.8rem;
       color: var(--muted);
     }
+    .cut-warn {
+      color: #ffc107;
+      font-size: 0.8rem;
+      display: none;
+    }
+    .cut-warn.visible { display: inline; }
     #error-banner {
       display: none;
       margin: 0 0 0.75rem;
@@ -169,18 +197,43 @@
 
     <footer>
       <div>Source: <strong id="metric-source">—</strong></div>
-      <div>FPS: <strong id="metric-fps">—</strong></div>
+      <div>Cap FPS: <strong id="metric-fps">—</strong></div>
       <div>Drops: <strong id="metric-drops">—</strong></div>
       <div>Detections: <strong id="metric-detections">—</strong></div>
       <div>Det ms: <strong id="metric-det-ms">—</strong></div>
+      <div>Det FPS: <strong id="metric-det-fps">—</strong></div>
       <div>Depth: <strong id="metric-depth-kind">—</strong></div>
       <div>Depth ms: <strong id="metric-depth-ms">—</strong></div>
+      <div>Depth FPS: <strong id="metric-depth-fps">—</strong></div>
       <div>Free-space: <strong id="metric-free-space">—</strong></div>
       <div>Obstacles: <strong id="metric-obstacles">—</strong></div>
       <div>Free-space age: <strong id="metric-free-age">—</strong></div>
       <div>Free-space ms: <strong id="metric-free-ms">—</strong></div>
+      <div>FS FPS: <strong id="metric-free-fps">—</strong></div>
       <div>Bind: <strong id="metric-bind">—</strong></div>
-      <div class="conf-row">
+
+      <div class="control-row" id="stage-controls">
+        <span>Stages:</span>
+        <div class="stage-toggles">
+          <label>
+            <input type="checkbox" id="toggle-detection" checked
+              aria-label="Enable detection stage" />
+            detection
+          </label>
+          <label>
+            <input type="checkbox" id="toggle-depth" checked
+              aria-label="Enable depth stage" />
+            depth
+          </label>
+          <label>
+            <input type="checkbox" id="toggle-free-space" checked
+              aria-label="Enable free-space stage" />
+            free-space
+          </label>
+        </div>
+      </div>
+
+      <div class="control-row">
         <label for="conf-slider">Conf threshold:</label>
         <input
           id="conf-slider"
@@ -193,11 +246,39 @@
         />
         <strong id="metric-conf">0.25</strong>
       </div>
+
+      <div class="control-row" id="free-space-cuts">
+        <label for="near-cut-slider">Near cut:</label>
+        <input
+          id="near-cut-slider"
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value="0.72"
+          aria-label="Free-space near band cutoff"
+        />
+        <strong id="metric-near-cut">0.72</strong>
+        <label for="mid-cut-slider">Mid cut:</label>
+        <input
+          id="mid-cut-slider"
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value="0.45"
+          aria-label="Free-space mid band cutoff"
+        />
+        <strong id="metric-mid-cut">0.45</strong>
+        <span id="cut-warn" class="cut-warn">near must be &gt; mid</span>
+      </div>
+
       <p class="note">
         Model weights may download on first detection/depth run; cached under
         SENTRY_MODEL_CACHE / ~/.cache/sentry-ai thereafter. Relative depth is
         never meters — metric modes are labeled when enabled. Free-space uses
-        ordinal near-field bands (not a navigation interlock).
+        ordinal near-field bands (not a navigation interlock). Stage toggles
+        pause compute without restarting serve.
       </p>
     </footer>
   </div>
@@ -206,6 +287,7 @@
     (function () {
       var STATUS_POLL_MS = 500;
       var CONF_DEBOUNCE_MS = 150;
+      var CUT_DEBOUNCE_MS = 150;
       var pill = document.getElementById("status-pill");
       var stalePill = document.getElementById("stale-pill");
       var incompletePill = document.getElementById("incomplete-pill");
@@ -215,18 +297,31 @@
       var elDrops = document.getElementById("metric-drops");
       var elDetections = document.getElementById("metric-detections");
       var elDetMs = document.getElementById("metric-det-ms");
+      var elDetFps = document.getElementById("metric-det-fps");
       var elDepthKind = document.getElementById("metric-depth-kind");
       var elDepthMs = document.getElementById("metric-depth-ms");
+      var elDepthFps = document.getElementById("metric-depth-fps");
       var elFreeSpace = document.getElementById("metric-free-space");
       var elObstacles = document.getElementById("metric-obstacles");
       var elFreeAge = document.getElementById("metric-free-age");
       var elFreeMs = document.getElementById("metric-free-ms");
+      var elFreeFps = document.getElementById("metric-free-fps");
       var elBind = document.getElementById("metric-bind");
       var elConf = document.getElementById("metric-conf");
       var confSlider = document.getElementById("conf-slider");
+      var toggleDet = document.getElementById("toggle-detection");
+      var toggleDepth = document.getElementById("toggle-depth");
+      var toggleFree = document.getElementById("toggle-free-space");
+      var nearSlider = document.getElementById("near-cut-slider");
+      var midSlider = document.getElementById("mid-cut-slider");
+      var elNearCut = document.getElementById("metric-near-cut");
+      var elMidCut = document.getElementById("metric-mid-cut");
+      var cutWarn = document.getElementById("cut-warn");
       var preview = document.getElementById("preview");
       var confTimer = null;
+      var cutTimer = null;
       var confFromServer = false;
+      var pipelineFromServer = false;
 
       var KNOWN = ["streaming", "reconnecting", "error", "starting", "stopped"];
 
@@ -252,6 +347,16 @@
           if (text) el.textContent = text;
         } else {
           el.hidden = true;
+        }
+      }
+
+      function updateCutWarn() {
+        var near = parseFloat(nearSlider.value);
+        var mid = parseFloat(midSlider.value);
+        if (near <= mid) {
+          cutWarn.classList.add("visible");
+        } else {
+          cutWarn.classList.remove("visible");
         }
       }
 
@@ -281,6 +386,10 @@
           (data && typeof data.det_latency_ms === "number")
             ? formatNum(data.det_latency_ms, 1)
             : "—";
+        elDetFps.textContent =
+          (data && typeof data.det_fps === "number")
+            ? formatNum(data.det_fps, 1)
+            : "—";
 
         // Depth kind honesty: relative never labeled as meters (DEPTH-04).
         if (data && data.depth_kind) {
@@ -303,6 +412,10 @@
         elDepthMs.textContent =
           (data && typeof data.depth_latency_ms === "number")
             ? formatNum(data.depth_latency_ms, 1)
+            : "—";
+        elDepthFps.textContent =
+          (data && typeof data.depth_fps === "number")
+            ? formatNum(data.depth_fps, 1)
             : "—";
 
         // Free-space / obstacles footer (SPACE-03 / UI-02) — perception cues only.
@@ -331,6 +444,10 @@
           (data && typeof data.free_space_latency_ms === "number")
             ? formatNum(data.free_space_latency_ms, 1)
             : "—";
+        elFreeFps.textContent =
+          (data && typeof data.free_space_fps === "number")
+            ? formatNum(data.free_space_fps, 1)
+            : "—";
 
         // STALE / incomplete honesty badges (SPACE-04) — never safe-to-drive copy.
         var isStale =
@@ -340,8 +457,6 @@
           hasFree === false &&
           status === "streaming" &&
           !(data && typeof data.depth_frame_id === "number");
-        // Show incomplete when free-space product missing while streaming with depth
-        // (depth present but free-space not yet) or explicit free_space_error.
         if (
           status === "streaming" &&
           data &&
@@ -360,6 +475,28 @@
           confSlider.value = String(data.det_conf);
           elConf.textContent = formatNum(data.det_conf, 2);
           confFromServer = false;
+        }
+
+        // Sync stage toggles + free-space cuts from server (UI-03/UI-04).
+        if (data && typeof data.detection_enabled === "boolean") {
+          pipelineFromServer = true;
+          toggleDet.checked = data.detection_enabled;
+          if (typeof data.depth_enabled === "boolean") {
+            toggleDepth.checked = data.depth_enabled;
+          }
+          if (typeof data.free_space_enabled === "boolean") {
+            toggleFree.checked = data.free_space_enabled;
+          }
+          if (typeof data.near_cut === "number") {
+            nearSlider.value = String(data.near_cut);
+            elNearCut.textContent = formatNum(data.near_cut, 2);
+          }
+          if (typeof data.mid_cut === "number") {
+            midSlider.value = String(data.mid_cut);
+            elMidCut.textContent = formatNum(data.mid_cut, 2);
+          }
+          updateCutWarn();
+          pipelineFromServer = false;
         }
 
         if (status === "error" || status === "reconnecting") {
@@ -424,6 +561,51 @@
           });
       }
 
+      function patchPipeline(body) {
+        fetch("/api/pipeline/config", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+          .then(function (resp) {
+            if (!resp.ok) {
+              if (resp.status === 503) {
+                // Capture-only path — pipeline control plane unavailable.
+                return null;
+              }
+              // 422 (invalid cuts) is non-fatal; status poll refreshes.
+              return null;
+            }
+            return resp.json();
+          })
+          .then(function (data) {
+            if (!data) return;
+            pipelineFromServer = true;
+            if (typeof data.detection_enabled === "boolean") {
+              toggleDet.checked = data.detection_enabled;
+            }
+            if (typeof data.depth_enabled === "boolean") {
+              toggleDepth.checked = data.depth_enabled;
+            }
+            if (typeof data.free_space_enabled === "boolean") {
+              toggleFree.checked = data.free_space_enabled;
+            }
+            if (typeof data.near_cut === "number") {
+              nearSlider.value = String(data.near_cut);
+              elNearCut.textContent = formatNum(data.near_cut, 2);
+            }
+            if (typeof data.mid_cut === "number") {
+              midSlider.value = String(data.mid_cut);
+              elMidCut.textContent = formatNum(data.mid_cut, 2);
+            }
+            updateCutWarn();
+            pipelineFromServer = false;
+          })
+          .catch(function () {
+            /* non-fatal: status poll refreshes */
+          });
+      }
+
       confSlider.addEventListener("input", function () {
         if (confFromServer) return;
         var v = parseFloat(confSlider.value);
@@ -434,6 +616,42 @@
           patchConf(v);
         }, CONF_DEBOUNCE_MS);
       });
+
+      function onStageChange(key, checkbox) {
+        if (pipelineFromServer) return;
+        var body = {};
+        body[key] = !!checkbox.checked;
+        patchPipeline(body);
+      }
+
+      toggleDet.addEventListener("change", function () {
+        onStageChange("detection_enabled", toggleDet);
+      });
+      toggleDepth.addEventListener("change", function () {
+        onStageChange("depth_enabled", toggleDepth);
+      });
+      toggleFree.addEventListener("change", function () {
+        onStageChange("free_space_enabled", toggleFree);
+      });
+
+      function onCutInput() {
+        if (pipelineFromServer) return;
+        var near = parseFloat(nearSlider.value);
+        var mid = parseFloat(midSlider.value);
+        elNearCut.textContent = formatNum(near, 2);
+        elMidCut.textContent = formatNum(mid, 2);
+        updateCutWarn();
+        if (cutTimer) clearTimeout(cutTimer);
+        cutTimer = setTimeout(function () {
+          cutTimer = null;
+          // Client may warn if near<=mid; server 422 is source of truth.
+          if (near <= mid) return;
+          patchPipeline({ near_cut: near, mid_cut: mid });
+        }, CUT_DEBOUNCE_MS);
+      }
+
+      nearSlider.addEventListener("input", onCutInput);
+      midSlider.addEventListener("input", onCutInput);
 
       preview.addEventListener("error", function () {
         // Do not blank the page — keep last status and show plain-language help.

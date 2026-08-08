@@ -128,8 +128,14 @@ class FreeSpaceLoop:
     ) -> None:
         """Update near and/or mid cutoffs atomically. Does not reset smoother."""
         with self._lock:
-            near = self._near_cut if near_cut is None else _validate_cut("near_cut", near_cut)
-            mid = self._mid_cut if mid_cut is None else _validate_cut("mid_cut", mid_cut)
+            if near_cut is None:
+                near = self._near_cut
+            else:
+                near = _validate_cut("near_cut", near_cut)
+            if mid_cut is None:
+                mid = self._mid_cut
+            else:
+                mid = _validate_cut("mid_cut", mid_cut)
             if near <= mid:
                 raise ValueError(
                     f"near_cut must be > mid_cut (got near_cut={near}, mid_cut={mid})"

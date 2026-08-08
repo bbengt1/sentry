@@ -11,8 +11,8 @@ import numpy as np
 
 from sentry_ai.bus.frame_bus import FrameBus
 from sentry_ai.control.pipeline_state import PipelineState
-from sentry_ai.models.detection.loop import DetectionLoop
 from sentry_ai.models.depth.loop import DepthLoop
+from sentry_ai.models.detection.loop import DetectionLoop
 from sentry_ai.schemas.enums import DepthKind
 from sentry_ai.schemas.perception import Detection
 from sentry_ai.spatial.free_space import DEFAULT_MID_CUT, DEFAULT_NEAR_CUT
@@ -234,7 +234,10 @@ def test_detection_loop_skips_process_when_disabled(
 
         loop.set_enabled(True)
         bus.publish(image_frame_factory(frame_id=3))
-        assert _wait_until(lambda: worker.process_calls > calls_after_disable, timeout=2.0)
+        assert _wait_until(
+            lambda: worker.process_calls > calls_after_disable,
+            timeout=2.0,
+        )
         assert store.snapshot() is not None
         assert store.snapshot().frame_id == 3  # type: ignore[union-attr]
     finally:

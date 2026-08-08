@@ -318,6 +318,21 @@ def test_root_serves_live_preview_html() -> None:
         assert "stale-pill" in body
         assert "incomplete-pill" in body
         assert "obstacle_count" in body or "Obstacles" in body
+        # Phase 6: stage toggles + free-space cuts + stage FPS (UI-03/04/05)
+        assert "pipeline/config" in body
+        assert "toggle-detection" in body
+        assert "toggle-depth" in body
+        assert "toggle-free-space" in body
+        assert "near-cut-slider" in body
+        assert "mid-cut-slider" in body
+        assert "metric-det-fps" in body
+        assert "metric-depth-fps" in body
+        assert "metric-free-fps" in body
+        assert "detection_enabled" in body
+        assert "near_cut" in body
+        # No open-vocab UI yet (06-02)
+        assert "open-vocab" not in body.lower()
+        assert "open_vocab" not in body.lower()
         # Copy constraints from UI-SPEC (T-05-06)
         lower = body.lower()
         assert "autonomous" not in lower
