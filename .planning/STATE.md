@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: ready_to_plan
-stopped_at: Phase 4 complete (2/2) — ready to discuss Phase 5
+status: ready_to_execute
+stopped_at: Phase 5 planned and plan-check passed — ready to execute
 last_updated: 2026-08-08T10:27:28.347Z
 last_activity: 2026-08-08
 progress:
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-07)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots — without proprietary sensors or cloud AI.  
-**Current focus:** Phase 5 — free space & unified stream
+**Current focus:** Phase 5 — Free-Space & Unified Stream (planned)
 
 ## Current Position
 
 Phase: 5
-Plan: Not started
-Status: Ready to plan
+Plan: 0 of 3 planned — ready to execute
+Status: Ready to execute
 Last activity: 2026-08-08
 
 Progress: [████░░░░░░] 57% (Phase 4 of 7 complete)
