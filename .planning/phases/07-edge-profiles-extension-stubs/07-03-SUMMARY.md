@@ -96,7 +96,7 @@ Each task was committed atomically (TDD RED → GREEN):
 3. **Task 2 RED:** `cba5e3e` — `test(07-03): add failing desktop GPU and safety doc content tests`
 4. **Task 2 GREEN:** `e70c025` — `docs(07-03): desktop GPU primary path and safety/privacy release docs`
 
-**Plan metadata:** (final docs commit after state update)
+**Plan metadata:** `b3e6c77` — `docs(07-03): complete extension stubs and release docs plan`
 
 ## Files Created/Modified
 
