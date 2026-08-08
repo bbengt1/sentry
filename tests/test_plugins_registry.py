@@ -5,7 +5,12 @@ from __future__ import annotations
 import pytest
 
 from sentry_ai.capture.image_frame import ImageFrame
-from sentry_ai.plugins.builtins import NoopWorker, NullSink, SyntheticSource
+from sentry_ai.plugins.builtins import (
+    NoopWorker,
+    NullSink,
+    SyntheticSource,
+    VoiceNullSink,
+)
 from sentry_ai.plugins.registry import PluginRegistry, register_builtins
 from sentry_ai.schemas import Frame
 
@@ -19,6 +24,8 @@ def test_register_builtins_lists_synthetic_noop_null() -> None:
     assert "file" in registry.list_sources()
     assert "noop" in registry.list_workers()
     assert "null" in registry.list_sinks()
+    # EDGE-04: voice-null no-op sink (no ASR/TTS)
+    assert "voice-null" in registry.list_sinks()
     # yolo-fixed registers when importable (no ultralytics required for class import)
     assert "yolo-fixed" in registry.list_workers()
     # depth-anything-v2-small registers when importable (torch only on real load)
@@ -33,6 +40,7 @@ def test_get_source_synthetic_returns_class() -> None:
     assert source_cls is SyntheticSource
     assert registry.get_worker("noop") is NoopWorker
     assert registry.get_sink("null") is NullSink
+    assert registry.get_sink("voice-null") is VoiceNullSink
 
 
 def test_synthetic_source_read_returns_valid_image_frame() -> None:
@@ -83,6 +91,16 @@ def test_discover_is_idempotent_with_builtins() -> None:
     assert "yolo-fixed" in registry.list_workers()
     assert "depth-anything-v2-small" in registry.list_workers()
     assert "null" in registry.list_sinks()
+    assert "voice-null" in registry.list_sinks()
+    assert registry.get_sink("voice-null") is VoiceNullSink
+
+
+def test_voice_null_discover_without_prior_register() -> None:
+    """Entry point voice-null is discoverable when builtins not pre-registered."""
+    registry = PluginRegistry()
+    registry.discover()
+    assert "voice-null" in registry.list_sinks()
+    assert registry.get_sink("voice-null") is VoiceNullSink
 
 
 def test_yolo_fixed_worker_class_from_registry() -> None:
