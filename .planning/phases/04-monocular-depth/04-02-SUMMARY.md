@@ -101,7 +101,7 @@ Each task was committed atomically:
 4. **Task 2 GREEN: routes_preview blend + StatusSnapshot depth fields** - `f053db4` (feat)
 5. **Task 3: serve DepthLoop + UI labels + README** - `2fa4d57` (feat)
 
-**Plan metadata:** (pending final docs commit)
+**Plan metadata:** `72fd476` (docs: complete plan)
 
 _Note: TDD tasks used separate RED/GREEN commits for Tasks 1–2._
 
