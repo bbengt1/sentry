@@ -142,6 +142,44 @@
       max-width: 220px;
       accent-color: var(--accent);
     }
+    #ov-prompt {
+      flex: 1 1 180px;
+      min-width: 140px;
+      max-width: 360px;
+      padding: 0.35rem 0.5rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: #0e1014;
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+    #ov-run {
+      padding: 0.35rem 0.75rem;
+      border-radius: 4px;
+      border: 1px solid var(--accent);
+      background: transparent;
+      color: var(--accent);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    #ov-run:hover { background: rgba(0, 255, 180, 0.1); }
+    #ov-run:disabled {
+      opacity: 0.5;
+      cursor: wait;
+    }
+    .ov-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      cursor: pointer;
+      user-select: none;
+    }
+    .ov-toggle input[type="checkbox"] {
+      accent-color: var(--accent);
+      width: 1rem;
+      height: 1rem;
+    }
     #metric-conf,
     #metric-near-cut,
     #metric-mid-cut {
@@ -210,6 +248,8 @@
       <div>Free-space age: <strong id="metric-free-age">—</strong></div>
       <div>Free-space ms: <strong id="metric-free-ms">—</strong></div>
       <div>FS FPS: <strong id="metric-free-fps">—</strong></div>
+      <div>OV ms: <strong id="metric-ov-ms">—</strong></div>
+      <div>OV FPS: <strong id="metric-ov-fps">—</strong></div>
       <div>Bind: <strong id="metric-bind">—</strong></div>
 
       <div class="control-row" id="stage-controls">
@@ -273,12 +313,32 @@
         <span id="cut-warn" class="cut-warn">near must be &gt; mid</span>
       </div>
 
+      <div class="control-row" id="open-vocab-controls">
+        <label for="ov-prompt">Open-vocab:</label>
+        <input
+          id="ov-prompt"
+          type="text"
+          placeholder="person, red cup, toolbox"
+          aria-label="Open-vocab text prompts"
+          autocomplete="off"
+        />
+        <button type="button" id="ov-run" aria-label="Run open-vocab once">Run</button>
+        <label class="ov-toggle">
+          <input type="checkbox" id="ov-continuous"
+            aria-label="Enable continuous open-vocab at lower rate" />
+          continuous (lower rate)
+        </label>
+      </div>
+
       <p class="note">
-        Model weights may download on first detection/depth run; cached under
-        SENTRY_MODEL_CACHE / ~/.cache/sentry-ai thereafter. Relative depth is
-        never meters — metric modes are labeled when enabled. Free-space uses
-        ordinal near-field bands (not a navigation interlock). Stage toggles
-        pause compute without restarting serve.
+        Model weights may download on first detection/depth/open-vocab run;
+        cached under SENTRY_MODEL_CACHE / ~/.cache/sentry-ai thereafter.
+        First open-vocab Run may download YOLOE weights (AGPL Ultralytics) —
+        see THIRD_PARTY_MODELS.md. Open-vocab boxes are magenta (ov: prefix);
+        fixed-class boxes are cyan. Relative depth is never meters — metric
+        modes are labeled when enabled. Free-space uses ordinal near-field
+        bands (not a navigation interlock). Stage toggles pause compute
+        without restarting serve. Open-vocab default is off.
       </p>
     </footer>
   </div>
@@ -306,6 +366,8 @@
       var elFreeAge = document.getElementById("metric-free-age");
       var elFreeMs = document.getElementById("metric-free-ms");
       var elFreeFps = document.getElementById("metric-free-fps");
+      var elOvMs = document.getElementById("metric-ov-ms");
+      var elOvFps = document.getElementById("metric-ov-fps");
       var elBind = document.getElementById("metric-bind");
       var elConf = document.getElementById("metric-conf");
       var confSlider = document.getElementById("conf-slider");
@@ -317,11 +379,15 @@
       var elNearCut = document.getElementById("metric-near-cut");
       var elMidCut = document.getElementById("metric-mid-cut");
       var cutWarn = document.getElementById("cut-warn");
+      var ovPrompt = document.getElementById("ov-prompt");
+      var ovRun = document.getElementById("ov-run");
+      var ovContinuous = document.getElementById("ov-continuous");
       var preview = document.getElementById("preview");
       var confTimer = null;
       var cutTimer = null;
       var confFromServer = false;
       var pipelineFromServer = false;
+      var ovFromServer = false;
 
       var KNOWN = ["streaming", "reconnecting", "error", "starting", "stopped"];
 
@@ -448,6 +514,21 @@
           (data && typeof data.free_space_fps === "number")
             ? formatNum(data.free_space_fps, 1)
             : "—";
+
+        // Open-vocab telemetry (OVD-03).
+        elOvMs.textContent =
+          (data && typeof data.ov_latency_ms === "number")
+            ? formatNum(data.ov_latency_ms, 1)
+            : "—";
+        elOvFps.textContent =
+          (data && typeof data.ov_fps === "number")
+            ? formatNum(data.ov_fps, 1)
+            : "—";
+        if (data && typeof data.ov_mode === "string") {
+          ovFromServer = true;
+          ovContinuous.checked = data.ov_mode === "continuous";
+          ovFromServer = false;
+        }
 
         // STALE / incomplete honesty badges (SPACE-04) — never safe-to-drive copy.
         var isStale =
@@ -652,6 +733,106 @@
 
       nearSlider.addEventListener("input", onCutInput);
       midSlider.addEventListener("input", onCutInput);
+
+      function runOpenVocab() {
+        var prompt = (ovPrompt.value || "").trim();
+        ovRun.disabled = true;
+        fetch("/api/open-vocab/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(prompt ? { prompt: prompt } : {}),
+        })
+          .then(function (resp) {
+            if (!resp.ok) {
+              if (resp.status === 503) {
+                setError(
+                  "Open-vocab unavailable — install detect extra: uv sync --extra detect"
+                );
+                return null;
+              }
+              if (resp.status === 422) {
+                setError("Open-vocab prompt rejected (max 32 classes, 64 chars each).");
+                return null;
+              }
+              throw new Error("open-vocab run HTTP " + resp.status);
+            }
+            return resp.json();
+          })
+          .then(function (data) {
+            if (!data) return;
+            // Keep continuous checkbox honest after one-shot run.
+            ovFromServer = true;
+            ovContinuous.checked = data.mode === "continuous";
+            ovFromServer = false;
+          })
+          .catch(function () {
+            /* non-fatal */
+          })
+          .finally(function () {
+            ovRun.disabled = false;
+          });
+      }
+
+      function patchOpenVocabMode(mode) {
+        fetch("/api/open-vocab/config", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: mode }),
+        })
+          .then(function (resp) {
+            if (!resp.ok) {
+              if (resp.status === 503) return null;
+              return null;
+            }
+            return resp.json();
+          })
+          .then(function (data) {
+            if (!data) return;
+            ovFromServer = true;
+            ovContinuous.checked = data.mode === "continuous";
+            ovFromServer = false;
+          })
+          .catch(function () {
+            /* non-fatal: status poll refreshes */
+          });
+      }
+
+      ovRun.addEventListener("click", function () {
+        runOpenVocab();
+      });
+      ovPrompt.addEventListener("keydown", function (ev) {
+        if (ev.key === "Enter") {
+          ev.preventDefault();
+          runOpenVocab();
+        }
+      });
+      ovContinuous.addEventListener("change", function () {
+        if (ovFromServer) return;
+        if (ovContinuous.checked) {
+          // Apply prompt if present, then continuous every_n=3.
+          var prompt = (ovPrompt.value || "").trim();
+          var body = { mode: "continuous", every_n: 3 };
+          if (prompt) body.prompt = prompt;
+          fetch("/api/open-vocab/config", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          })
+            .then(function (resp) {
+              if (!resp.ok && resp.status === 503) {
+                setError(
+                  "Open-vocab unavailable — install detect extra: uv sync --extra detect"
+                );
+                ovFromServer = true;
+                ovContinuous.checked = false;
+                ovFromServer = false;
+              }
+            })
+            .catch(function () { /* non-fatal */ });
+        } else {
+          patchOpenVocabMode("off");
+        }
+      });
 
       preview.addEventListener("error", function () {
         // Do not blank the page — keep last status and show plain-language help.

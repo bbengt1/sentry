@@ -105,6 +105,41 @@ offline. Profile `detector_tier` maps to YOLO26 weights (`n`/`s`/`m`).
 Ultralytics/YOLO26 is **AGPL-3.0** — see
 [`THIRD_PARTY_MODELS.md`](THIRD_PARTY_MODELS.md) before commercial use.
 
+## Optional open-vocab detection (Phase 6)
+
+Text-prompt open-vocabulary detection (YOLOE via the same `detect` extra)
+runs as a **secondary** path alongside fixed-class YOLO. Default mode is
+**off** — it does not block fixed-class, depth, or capture.
+
+```bash
+# Same detect extra as fixed-class YOLO
+uv sync --extra dev --extra detect
+uv run sentry serve --source synthetic
+```
+
+On Live Preview (`http://127.0.0.1:8000/`):
+
+1. Enter comma-separated prompts (e.g. `person, red cup, toolbox`)
+2. Click **Run** for a one-shot on-demand pass
+3. Optionally enable **continuous (lower rate)** (`every_n=3`)
+
+Open-vocab boxes are **magenta** (`ov:` label prefix); fixed-class stay cyan.
+Results appear on MJPEG and `/v1/snapshot` / `/v1/stream` with
+`Detection.source = "open_vocab"`.
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/open-vocab/config` | Mode, classes, conf, every_n |
+| `PATCH /api/open-vocab/config` | Update prompt/mode/conf/every_n (no inference) |
+| `POST /api/open-vocab/run` | Arm one-shot on-demand run (process on loop thread) |
+
+First open-vocab Run may download YOLOE weights (`yoloe-26s-seg.pt`) into
+`SENTRY_MODEL_CACHE` — **AGPL-3.0** Ultralytics; see
+[`THIRD_PARTY_MODELS.md`](THIRD_PARTY_MODELS.md). Unit tests mock YOLOE and
+never download weights.
+
+Prompt limits: ≤32 classes, ≤64 characters each (422 on violation).
+
 ## Optional monocular depth (Phase 4)
 
 Depth Anything V2 **Small** (Apache-2.0) runs locally via Hugging Face

@@ -330,9 +330,16 @@ def test_root_serves_live_preview_html() -> None:
         assert "metric-free-fps" in body
         assert "detection_enabled" in body
         assert "near_cut" in body
-        # No open-vocab UI yet (06-02)
-        assert "open-vocab" not in body.lower()
-        assert "open_vocab" not in body.lower()
+        # Phase 6 open-vocab prompt UX (OVD-01/02/03)
+        assert "open-vocab" in body.lower()
+        assert "open-vocab/run" in body or "/api/open-vocab/" in body
+        assert "ov-prompt" in body
+        assert "ov-run" in body
+        assert "ov-continuous" in body
+        assert "metric-ov-ms" in body
+        assert "metric-ov-fps" in body
+        assert "person, red cup, toolbox" in body  # placeholder
+        assert "AGPL" in body or "yoloe" in body.lower()
         # Copy constraints from UI-SPEC (T-05-06)
         lower = body.lower()
         assert "autonomous" not in lower
