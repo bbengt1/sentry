@@ -17,14 +17,29 @@ This project is **not** the [getsentry](https://sentry.io) error-tracking produc
 - Python 3.11+
 - [`uv`](https://docs.astral.sh/uv/)
 
-## One-command local start
+## Primary maker path (desktop GPU)
+
+For full dual-model development (detect + depth + free-space + Live Preview),
+follow **[`docs/desktop-gpu.md`](docs/desktop-gpu.md)** — the primary end-to-end
+maker path:
+
+```bash
+uv sync --extra dev --extra detect --extra depth
+uv run sentry serve --profile desktop-gpu --source usb --device 0
+```
+
+Then open **`http://127.0.0.1:8000/`**. Safety / privacy / non-autonomy:
+[`docs/safety-and-privacy.md`](docs/safety-and-privacy.md).
+
+## One-command local start (CPU / CI)
 
 ```bash
 uv sync --extra dev
 uv run sentry serve --source synthetic
 ```
 
-Then open **`http://127.0.0.1:8000/`** for the Live Preview (MJPEG + status).
+Default runtime profile is **`cpu-fallback`** (safe without a GPU). Then open
+**`http://127.0.0.1:8000/`** for the Live Preview (MJPEG + status).
 
 Default bind is **localhost only** (`127.0.0.1`). Binding a remote interface is an
 **explicit opt-in** and exposes the live camera stream **without authentication**:
@@ -34,6 +49,23 @@ Default bind is **localhost only** (`127.0.0.1`). Binding a remote interface is 
 uv run sentry serve --source synthetic --host 0.0.0.0
 ```
 
+### Runtime profiles
+
+| Profile | Typical use | Select |
+|---------|-------------|--------|
+| `desktop-gpu` | **Primary maker path** — full pipeline on GPU | `--profile desktop-gpu` |
+| `jetson` | Jetson-class edge tiers (still PyTorch live) | `--profile jetson` |
+| `cpu-fallback` | Default — CI / no-GPU | `--profile cpu-fallback` (or omit) |
+
+### Headless (API without Live Preview HTML)
+
+```bash
+uv run sentry serve --no-ui --source synthetic
+# Perception APIs remain: /v1/snapshot, /v1/stream, /api/*
+```
+
+Headless does **not** add authentication — see
+[`docs/safety-and-privacy.md`](docs/safety-and-privacy.md).
 ### Other sources
 
 ```bash
@@ -245,6 +277,29 @@ uv run python scripts/export/export_yolo.py --weights yolo26n.pt --format onnx
 
 Full honesty notes (Jetson packaging, YOLOE experimental export, depth
 feasibility, AGPL): [`docs/export/README.md`](docs/export/README.md).
+
+## Safety, privacy, and non-autonomy
+
+Sentry is **perception-only** — no motor / `cmd_vel` / path-plan fields on the
+wire. Free-space is **not a safety interlock** (honor STALE / incomplete).
+Default bind is localhost; LAN is unauthenticated opt-in; `allow_cloud: false`.
+
+Canonical page: [`docs/safety-and-privacy.md`](docs/safety-and-privacy.md).  
+Primary GPU path: [`docs/desktop-gpu.md`](docs/desktop-gpu.md).
+
+## Extension stubs (post-v1 hooks)
+
+v1 leaves clean extension points without shipping full products:
+
+| Stub | What it is |
+|------|------------|
+| Multi-cam `camera_id` | Schema identity key (cam0 vs cam1); **single active source** in v1 — no fusion |
+| ROS2 bridge | Importable `Ros2PerceptionBridge` raises `NotImplementedError` (no `rclpy`) |
+| Voice | `voice-null` no-op sink (no ASR/TTS) |
+
+```python
+from sentry_ai.extensions.ros2.bridge import Ros2PerceptionBridge
+```
 
 ## Phase 5 scope
 
