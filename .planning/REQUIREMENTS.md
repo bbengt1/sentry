@@ -58,9 +58,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **UI-01**: Web dashboard shows live camera video in realtime
 - [x] **UI-02**: Dashboard overlays detections, depth colormap, and free-space/obstacles
-- [ ] **UI-03**: Developer can toggle perception stages (detection, depth, free-space) at runtime
-- [ ] **UI-04**: Developer can adjust thresholds (detection conf, depth/free-space cutoffs) interactively
-- [ ] **UI-05**: Dashboard shows performance telemetry (FPS, stage latency)
+- [x] **UI-03**: Developer can toggle perception stages (detection, depth, free-space) at runtime
+- [x] **UI-04**: Developer can adjust thresholds (detection conf, depth/free-space cutoffs) interactively
+- [x] **UI-05**: Dashboard shows performance telemetry (FPS, stage latency)
 - [x] **UI-06**: UI and robot API consume the same perception state (overlay parity)
 
 ### Open-Vocabulary Detection
@@ -159,9 +159,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | API-04 | Phase 5 | Complete |
 | API-05 | Phase 5 | Complete |
 | UI-02 | Phase 5 | Complete |
-| UI-03 | Phase 6 | Pending |
-| UI-04 | Phase 6 | Pending |
-| UI-05 | Phase 6 | Pending |
+| UI-03 | Phase 6 | Complete |
+| UI-04 | Phase 6 | Complete |
+| UI-05 | Phase 6 | Complete |
 | UI-06 | Phase 5 | Complete |
 | OVD-01 | Phase 6 | Pending |
 | OVD-02 | Phase 6 | Pending |

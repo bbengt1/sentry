@@ -114,7 +114,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — Control plane + full interactive UI (toggles, thresholds, telemetry)
+- [x] 06-01-PLAN.md — Control plane + full interactive UI (toggles, thresholds, telemetry)
 - [ ] 06-02-PLAN.md — Open-vocab worker (YOLOE) + prompt UX + stream/UI integration
 
 ### Phase 7: Edge Profiles & Extension Stubs
@@ -147,7 +147,7 @@ Plans:
 | 3. Fixed-Class Detection | 2/2 | Complete   | 2026-08-07 |
 | 4. Monocular Depth | 2/2 | Complete   | 2026-08-08 |
 | 5. Free-Space & Unified Stream | 3/3 | Complete   | 2026-08-08 |
-| 6. Developer Controls & Open-Vocab | 0/2 | Not started | - |
+| 6. Developer Controls & Open-Vocab | 1/2 | In Progress|  |
 | 7. Edge Profiles & Extension Stubs | 0/3 | Not started | - |
 
 ## Architecture Spine (reference)

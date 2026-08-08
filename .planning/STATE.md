@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: ready_to_execute
-stopped_at: Phase 6 planned and plan-check passed — ready to execute
-last_updated: 2026-08-08T12:31:27.953Z
+status: executing
+stopped_at: Completed 06-01-PLAN.md
+last_updated: "2026-08-08T16:26:19.101Z"
 last_activity: 2026-08-08
 progress:
   total_phases: 7
   completed_phases: 5
-  total_plans: 13
-  completed_plans: 13
+  total_plans: 15
+  completed_plans: 14
   percent: 71
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-07)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots — without proprietary sensors or cloud AI.  
-**Current focus:** Phase 6 — Developer Controls & Open-Vocab (planned)
+**Current focus:** Phase 6 — Developer Controls & Open-Vocab
 
 ## Current Position
 
-Phase: 6
-Plan: 0 of 2 planned — ready to execute
+Phase: 6 (Developer Controls & Open-Vocab) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
 Last activity: 2026-08-08
 
-Progress: [█████░░░░░] 71% (Phase 5 of 7 complete)
+Progress: [█████████░] 93%
 
 ## Performance Metrics
 
@@ -69,6 +69,7 @@ Progress: [█████░░░░░] 71% (Phase 5 of 7 complete)
 | Phase 05 P01 | 5min | 3 tasks | 11 files |
 | Phase 05 P02 | 4min | 3 tasks | 7 files |
 | Phase 05 P03 | 4min | 3 tasks | 13 files |
+| Phase 06 P01 | 6min | 3 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -129,6 +130,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 05]: WS /v1/stream fixed 0.1s keep-latest; no per-client queue
 - [Phase 05]: FreeSpaceLoop always-on in serve (CPU Spatial Post; no ML ImportError gate)
 - [Phase 05]: Status free_space ages/stale from product t_capture + DEFAULT_TTL_MS for UI badges
+- [Phase 06]: Enable flags inside loops skip compute; never stop/start threads for UI toggles — Locked plan decision (UI-03)
+- [Phase 06]: Unified GET/PATCH /api/pipeline/config for stages + free-space cuts; keep det conf + depth mode routes — Locked plan decision (UI-04)
+- [Phase 06]: clear_* product slots on disable for honest completeness — RESEARCH A4 disable semantics
 
 ### Pending Todos
 
@@ -146,6 +150,6 @@ None. Plan check passed with 4 non-blocking warnings (file count per plan, resea
 
 ## Session Continuity
 
-Last session: 2026-08-08T12:28:16.918Z
-Stopped at: Completed 05-03-PLAN.md
+Last session: 2026-08-08T16:26:13.399Z
+Stopped at: Completed 06-01-PLAN.md
 Next: Execute 03-02-PLAN.md (overlays, snapshot JSON, runtime conf, serve wiring)
