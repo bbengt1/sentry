@@ -13,7 +13,12 @@ import time
 from typing import Any
 
 from sentry_ai.schemas.enums import DepthKind
-from sentry_ai.spatial.free_space import ObstacleCue, compute_free_space
+from sentry_ai.spatial.free_space import (
+    DEFAULT_MID_CUT,
+    DEFAULT_NEAR_CUT,
+    ObstacleCue,
+    compute_free_space,
+)
 from sentry_ai.spatial.smoothing import OccupancySmoother
 from sentry_ai.state.perception_store import PerceptionStore
 
@@ -43,6 +48,13 @@ def _obstacles_for_store(obstacles: list[Any]) -> list[Any]:
     return out
 
 
+def _validate_cut(name: str, value: float) -> float:
+    v = float(value)
+    if not 0.0 <= v <= 1.0:
+        raise ValueError(f"{name} must be in [0, 1], got {value!r}")
+    return v
+
+
 class FreeSpaceLoop:
     """Daemon free-space thread: PerceptionStore depth → FreeSpaceProduct."""
 
@@ -50,13 +62,80 @@ class FreeSpaceLoop:
         self._store = store
         self._lock = threading.Lock()
         self._stop = threading.Event()
+        self._enabled = threading.Event()
+        self._enabled.set()  # stages on by default
         self._thread: threading.Thread | None = None
         self._last_frame_id: int | None = None
         self._smoother = OccupancySmoother(alpha=0.35)
+        self._near_cut = DEFAULT_NEAR_CUT
+        self._mid_cut = DEFAULT_MID_CUT
 
     @property
     def store(self) -> PerceptionStore:
         return self._store
+
+    def is_enabled(self) -> bool:
+        """Return True when the loop will compute free-space."""
+        return self._enabled.is_set()
+
+    def set_enabled(self, enabled: bool) -> None:
+        """Enable or pause free-space compute without stopping the thread.
+
+        On disable, clears the free-space product once so completeness/overlays
+        drop honestly. Does not call stop()/start().
+        """
+        if enabled:
+            self._enabled.set()
+        else:
+            self._enabled.clear()
+            self._store.clear_free_space()
+
+    def get_near_cut(self) -> float:
+        with self._lock:
+            return self._near_cut
+
+    def get_mid_cut(self) -> float:
+        with self._lock:
+            return self._mid_cut
+
+    def set_near_cut(self, near_cut: float) -> None:
+        """Update near_cut; requires near_cut > current mid_cut."""
+        near = _validate_cut("near_cut", near_cut)
+        with self._lock:
+            if near <= self._mid_cut:
+                raise ValueError(
+                    f"near_cut must be > mid_cut "
+                    f"(got near_cut={near}, mid_cut={self._mid_cut})"
+                )
+            self._near_cut = near
+
+    def set_mid_cut(self, mid_cut: float) -> None:
+        """Update mid_cut; requires current near_cut > mid_cut."""
+        mid = _validate_cut("mid_cut", mid_cut)
+        with self._lock:
+            if self._near_cut <= mid:
+                raise ValueError(
+                    f"near_cut must be > mid_cut "
+                    f"(got near_cut={self._near_cut}, mid_cut={mid})"
+                )
+            self._mid_cut = mid
+
+    def set_cuts(
+        self,
+        *,
+        near_cut: float | None = None,
+        mid_cut: float | None = None,
+    ) -> None:
+        """Update near and/or mid cutoffs atomically. Does not reset smoother."""
+        with self._lock:
+            near = self._near_cut if near_cut is None else _validate_cut("near_cut", near_cut)
+            mid = self._mid_cut if mid_cut is None else _validate_cut("mid_cut", mid_cut)
+            if near <= mid:
+                raise ValueError(
+                    f"near_cut must be > mid_cut (got near_cut={near}, mid_cut={mid})"
+                )
+            self._near_cut = near
+            self._mid_cut = mid
 
     def start(self) -> None:
         """Spawn daemon free-space thread. Idempotent if already running."""
@@ -84,6 +163,9 @@ class FreeSpaceLoop:
 
     def _run(self) -> None:
         while not self._stop.is_set():
+            if not self._enabled.is_set():
+                self._stop.wait(0.01)
+                continue
             depth = self._store.snapshot_depth()
             if (
                 depth is None
@@ -99,12 +181,18 @@ class FreeSpaceLoop:
                 if gap > 0:
                     self._store.record_free_space_drop(gap)
 
+            with self._lock:
+                near_cut = self._near_cut
+                mid_cut = self._mid_cut
+
             t0 = time.perf_counter()
             try:
                 result = compute_free_space(
                     depth.depth_map,
                     kind=depth.kind,
                     smoother=self._smoother,
+                    near_cut=near_cut,
+                    mid_cut=mid_cut,
                 )
                 latency_ms = (time.perf_counter() - t0) * 1000.0
                 self._last_frame_id = depth.frame_id

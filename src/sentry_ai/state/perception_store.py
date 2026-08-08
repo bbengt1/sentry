@@ -181,6 +181,11 @@ class PerceptionStore:
                 error=p.error,
             )
 
+    def clear_detections(self) -> None:
+        """Clear latest detection product (stage disable). Does not reset FPS."""
+        with self._lock:
+            self._latest = None
+
     def set_depth(
         self,
         frame_id: int,
@@ -275,6 +280,11 @@ class PerceptionStore:
                 error=p.error,
             )
 
+    def clear_depth(self) -> None:
+        """Clear latest depth product (stage disable). Does not reset FPS."""
+        with self._lock:
+            self._latest_depth = None
+
     def set_free_space(
         self,
         frame_id: int,
@@ -350,6 +360,11 @@ class PerceptionStore:
                 method=p.method,
                 error=p.error,
             )
+
+    def clear_free_space(self) -> None:
+        """Clear latest free-space product (stage disable). Does not reset FPS."""
+        with self._lock:
+            self._latest_free_space = None
 
     def metrics_snapshot(self) -> StoreMetrics:
         """Return an isolated copy of store metrics (det + depth + free-space)."""

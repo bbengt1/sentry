@@ -35,6 +35,8 @@ class DepthLoop:
         self._store = store
         self._lock = threading.Lock()
         self._stop = threading.Event()
+        self._enabled = threading.Event()
+        self._enabled.set()  # stages on by default
         self._thread: threading.Thread | None = None
         self._last_frame_id: int | None = None
 
@@ -45,6 +47,22 @@ class DepthLoop:
     @property
     def store(self) -> PerceptionStore:
         return self._store
+
+    def is_enabled(self) -> bool:
+        """Return True when the loop will process frames."""
+        return self._enabled.is_set()
+
+    def set_enabled(self, enabled: bool) -> None:
+        """Enable or pause processing without stopping the thread.
+
+        On disable, clears the depth product once so completeness/overlays
+        drop honestly. Does not call stop()/start().
+        """
+        if enabled:
+            self._enabled.set()
+        else:
+            self._enabled.clear()
+            self._store.clear_depth()
 
     def start(self) -> None:
         """Spawn daemon depth thread. Idempotent if already running."""
@@ -87,6 +105,9 @@ class DepthLoop:
 
     def _run(self) -> None:
         while not self._stop.is_set():
+            if not self._enabled.is_set():
+                self._stop.wait(0.01)
+                continue
             frame = self._bus.get_latest()
             if frame is None or frame.frame_id == self._last_frame_id:
                 self._stop.wait(0.005)
