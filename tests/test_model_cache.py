@@ -10,6 +10,7 @@ from sentry_ai.models.cache import (
     KNOWN_WEIGHTS,
     configure_model_cache,
     default_cache_root,
+    tier_to_open_vocab_weight,
     tier_to_weight,
 )
 
@@ -33,6 +34,20 @@ def test_tier_to_weight_default_and_unknown() -> None:
     assert tier_to_weight("") == "yolo26n.pt"
 
 
+def test_tier_to_open_vocab_weight_known_tiers() -> None:
+    assert tier_to_open_vocab_weight("n") == "yoloe-26n-seg.pt"
+    assert tier_to_open_vocab_weight("s") == "yoloe-26s-seg.pt"
+    assert tier_to_open_vocab_weight("m") == "yoloe-26s-seg.pt"
+    assert tier_to_open_vocab_weight("N") == "yoloe-26n-seg.pt"
+    assert tier_to_open_vocab_weight(" S ") == "yoloe-26s-seg.pt"
+
+
+def test_tier_to_open_vocab_weight_default_and_unknown() -> None:
+    assert tier_to_open_vocab_weight(None) == "yoloe-26s-seg.pt"
+    assert tier_to_open_vocab_weight("xl") == "yoloe-26s-seg.pt"
+    assert tier_to_open_vocab_weight("") == "yoloe-26s-seg.pt"
+
+
 def test_known_weights_allowlist() -> None:
     assert "yolo26n.pt" in KNOWN_WEIGHTS
     assert "yolo26s.pt" in KNOWN_WEIGHTS
@@ -41,6 +56,11 @@ def test_known_weights_allowlist() -> None:
     assert "yoloe-26s-seg.pt" in KNOWN_WEIGHTS
     assert "yoloe-26n-seg.pt" in KNOWN_WEIGHTS
     for name in (tier_to_weight(t) for t in ("n", "s", "m", None)):
+        assert name in KNOWN_WEIGHTS
+        assert ".." not in name
+        assert "/" not in name
+        assert "\\" not in name
+    for name in (tier_to_open_vocab_weight(t) for t in ("n", "s", "m", None)):
         assert name in KNOWN_WEIGHTS
         assert ".." not in name
         assert "/" not in name

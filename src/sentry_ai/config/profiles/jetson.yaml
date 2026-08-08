@@ -1,12 +1,15 @@
-# Built-in runtime profile: NVIDIA Jetson edge (FOUND-06)
+# Built-in runtime profile: NVIDIA Jetson edge (FOUND-06 / EDGE-02)
+# preferred_backend=tensorrt is export target / device policy only.
+# Live path remains PyTorch CUDA if available; build engines via export recipes.
+# Open-vocab weights derive from detector_tier (n → yoloe-26n-seg.pt); mode off by default.
 profile: jetson
 device:
-  preferred_backend: tensorrt
+  preferred_backend: tensorrt  # device policy → cuda:0 live PyTorch (not silent TRT)
   device_id: "0"
 models:
   allow_cloud: false  # MODEL-01
   defaults_commercially_friendly: true
-  detector_tier: n
-  depth_tier: small
+  detector_tier: n  # → yolo26n.pt + yoloe-26n-seg.pt
+  depth_tier: small  # commercially-friendly Small only (never Base/Large NC)
 source:
   type: synthetic

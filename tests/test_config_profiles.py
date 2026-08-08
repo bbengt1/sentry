@@ -119,3 +119,27 @@ def test_desktop_gpu_backend_hint() -> None:
 def test_cpu_fallback_device_id() -> None:
     cfg = load_profile(RuntimeProfile.CPU_FALLBACK)
     assert cfg.device.device_id == "cpu"
+
+
+@pytest.mark.parametrize(
+    ("profile", "detector_tier", "depth_tier", "preferred_backend", "device_id"),
+    [
+        ("desktop-gpu", "s", "small", "torch", "cuda:0"),
+        ("jetson", "n", "small", "tensorrt", "0"),
+        ("cpu-fallback", "n", "small", "onnxruntime", "cpu"),
+    ],
+)
+def test_profile_tier_backend_matrix(
+    profile: str,
+    detector_tier: str,
+    depth_tier: str,
+    preferred_backend: str,
+    device_id: str,
+) -> None:
+    """EDGE-02: all three profiles expose detector/depth tiers + backend policy."""
+    cfg = load_profile(profile)
+    assert cfg.models.allow_cloud is False
+    assert cfg.models.detector_tier == detector_tier
+    assert cfg.models.depth_tier == depth_tier
+    assert str(cfg.device.preferred_backend) == preferred_backend
+    assert cfg.device.device_id == device_id

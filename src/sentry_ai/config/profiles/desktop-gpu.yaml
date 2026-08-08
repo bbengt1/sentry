@@ -1,12 +1,14 @@
-# Built-in runtime profile: desktop GPU (FOUND-06)
+# Built-in runtime profile: desktop GPU (FOUND-06 / EDGE-02)
+# preferred_backend is device policy / export target; live path remains PyTorch.
+# Open-vocab weights derive from detector_tier (s → yoloe-26s-seg.pt); mode off by default.
 profile: desktop-gpu
 device:
-  preferred_backend: torch
-  device_id: "cuda:0"  # advisory only; code must not assume CUDA is present
+  preferred_backend: torch  # live PyTorch CUDA when available
+  device_id: "cuda:0"  # passed to workers; code must not assume CUDA is present
 models:
   allow_cloud: false  # MODEL-01
   defaults_commercially_friendly: true
-  detector_tier: s
-  depth_tier: small
+  detector_tier: s  # → yolo26s.pt
+  depth_tier: small  # commercially-friendly Small only (never Base/Large NC)
 source:
   type: synthetic

@@ -26,12 +26,21 @@ _TIER_TO_WEIGHT: dict[str, str] = {
     "m": "yolo26m.pt",
 }
 
+# Open-vocab YOLOE: n has a dedicated weight; s/m share s (no m OV weight).
+_OV_TIER_TO_WEIGHT: dict[str, str] = {
+    "n": "yoloe-26n-seg.pt",
+    "s": "yoloe-26s-seg.pt",
+    "m": "yoloe-26s-seg.pt",
+}
+
 DEFAULT_WEIGHT = "yolo26n.pt"
+DEFAULT_OPEN_VOCAB_WEIGHT = "yoloe-26s-seg.pt"
 
 __all__ = [
     "KNOWN_WEIGHTS",
     "configure_model_cache",
     "default_cache_root",
+    "tier_to_open_vocab_weight",
     "tier_to_weight",
 ]
 
@@ -50,6 +59,19 @@ def tier_to_weight(tier: str | None) -> str:
         return DEFAULT_WEIGHT
     key = str(tier).strip().lower()
     return _TIER_TO_WEIGHT.get(key, DEFAULT_WEIGHT)
+
+
+def tier_to_open_vocab_weight(tier: str | None) -> str:
+    """Map detector/open-vocab tier to a known YOLOE weight filename.
+
+    - ``n`` → ``yoloe-26n-seg.pt`` (edge / Jetson / CPU)
+    - ``s`` / ``m`` / unknown / None → ``yoloe-26s-seg.pt``
+      (no m OV weight in KNOWN_WEIGHTS — stay on s)
+    """
+    if tier is None:
+        return DEFAULT_OPEN_VOCAB_WEIGHT
+    key = str(tier).strip().lower()
+    return _OV_TIER_TO_WEIGHT.get(key, DEFAULT_OPEN_VOCAB_WEIGHT)
 
 
 def configure_model_cache(cache_root: Path | None = None) -> Path:

@@ -1,12 +1,14 @@
-# Built-in runtime profile: CPU-only fallback (FOUND-06)
+# Built-in runtime profile: CPU-only fallback (FOUND-06 / EDGE-02)
+# preferred_backend=onnxruntime is export target; live path is PyTorch CPU.
+# Open-vocab weights derive from detector_tier (n → yoloe-26n-seg.pt); mode off by default.
 profile: cpu-fallback
 device:
-  preferred_backend: onnxruntime
+  preferred_backend: onnxruntime  # forces worker device=cpu (ORT is export target)
   device_id: "cpu"
 models:
   allow_cloud: false  # MODEL-01
   defaults_commercially_friendly: true
-  detector_tier: n
-  depth_tier: small
+  detector_tier: n  # → yolo26n.pt + yoloe-26n-seg.pt
+  depth_tier: small  # commercially-friendly Small only (never Base/Large NC)
 source:
   type: synthetic
