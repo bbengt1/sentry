@@ -44,4 +44,10 @@ class StatusSnapshot(BaseModel):
     det_conf: float | None = None
     det_fps: float | None = None
     det_frame_id: int | None = None
-
+    # Optional depth telemetry (Phase 4); defaults keep Phase 2/3 callers valid.
+    depth_latency_ms: float | None = None
+    depth_fps: float | None = None
+    depth_frame_id: int | None = None
+    depth_kind: str | None = None
+    depth_unit: str | None = None
+    depth_error: str | None = None
