@@ -90,7 +90,7 @@ Each task was committed atomically (TDD RED → GREEN):
 3. **Task 2 RED: Export script CLI tests** - `0e47171` (test)
 4. **Task 2 GREEN: export_yolo CLI + scripts README** - `7a92a25` (feat)
 
-**Plan metadata:** (final docs commit after SUMMARY/STATE)
+**Plan metadata:** `278169e` (docs: complete plan)
 
 ## Files Created/Modified
 
