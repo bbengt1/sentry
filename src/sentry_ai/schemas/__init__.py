@@ -9,6 +9,7 @@ from sentry_ai.schemas.perception import (
     DepthPayload,
     Detection,
     FreeSpacePayload,
+    ObstacleCue,
     PerceptionFrame,
 )
 
@@ -20,6 +21,7 @@ __all__ = [
     "Detection",
     "Frame",
     "FreeSpacePayload",
+    "ObstacleCue",
     "PerceptionFrame",
     "RuntimeProfile",
 ]

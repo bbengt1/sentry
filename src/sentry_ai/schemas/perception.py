@@ -55,12 +55,33 @@ class Detection(BaseModel):
     bbox_xyxy: tuple[float, float, float, float] | list[float]
 
 
-class FreeSpacePayload(BaseModel):
-    """Minimal free-space placeholder reserved for Phase 5."""
+class ObstacleCue(BaseModel):
+    """Image-space obstacle blob on the wire (ordinal nearness, not meters)."""
 
     model_config = ConfigDict(extra="forbid")
 
-    obstacle_count: int | None = None
+    bbox_xyxy: tuple[float, float, float, float] | list[float]
+    nearness_mean: float  # 0..1 ordinal; NOT meters
+    nearness_max: float
+    area_px: int
+    band: Literal["near", "mid", "far"] = "near"
+    # Intentionally NO distance_m
+
+
+class FreeSpacePayload(BaseModel):
+    """Wire free-space product: obstacles + bands (no full masks)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    method: Literal["near_field_bands"] = "near_field_bands"
+    depth_kind: DepthKind
+    units: Literal["ordinal", "m"] = "ordinal"  # "m" only if depth metric
+    obstacle_count: int = 0
+    obstacles: list[ObstacleCue] = Field(default_factory=list)
+    bands: dict[str, float] | None = None
+    width: int | None = None
+    height: int | None = None
+    roi_bottom_frac: float | None = None
 
 
 class PerceptionFrame(BaseModel):
