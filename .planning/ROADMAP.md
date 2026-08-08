@@ -80,7 +80,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Depth worker (DAV2 Small) + preprocess contract + golden tests + DepthLoop + store extension + cache
+- [x] 04-01-PLAN.md — Depth worker (DAV2 Small) + preprocess contract + golden tests + DepthLoop + store extension + cache
 - [ ] 04-02-PLAN.md — Depth stream payload, colormap UI, optional metric mode labeling, telemetry, serve wiring
 
 ### Phase 5: Free-Space & Unified Stream
@@ -145,7 +145,7 @@ Plans:
 | 1. Foundations & Contracts | 3/3 | Complete   | 2026-08-07 |
 | 2. Camera Ingest & Live Preview | 3/3 | Complete   | 2026-08-07 |
 | 3. Fixed-Class Detection | 2/2 | Complete   | 2026-08-07 |
-| 4. Monocular Depth | 0/2 | Not started | - |
+| 4. Monocular Depth | 1/2 | In Progress|  |
 | 5. Free-Space & Unified Stream | 0/3 | Not started | - |
 | 6. Developer Controls & Open-Vocab | 0/2 | Not started | - |
 | 7. Edge Profiles & Extension Stubs | 0/3 | Not started | - |

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: ready_to_execute
-stopped_at: Phase 4 planned and plan-check passed — ready to execute
-last_updated: 2026-08-07T19:31:26.496Z
-last_activity: 2026-08-07
+status: executing
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-08-08T10:15:52.112Z"
+last_activity: 2026-08-08
 progress:
   total_phases: 7
   completed_phases: 3
-  total_plans: 8
-  completed_plans: 8
+  total_plans: 10
+  completed_plans: 9
   percent: 43
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-07)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots — without proprietary sensors or cloud AI.  
-**Current focus:** Phase 4 — Monocular Depth (planned)
+**Current focus:** Phase 4 — Monocular Depth
 
 ## Current Position
 
-Phase: 4
-Plan: 0 of 2 planned — ready to execute
+Phase: 4 (Monocular Depth) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-08-07
+Last activity: 2026-08-08
 
-Progress: [███░░░░░░░] 43% (Phase 3 of 7 complete)
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
@@ -61,6 +61,7 @@ Progress: [███░░░░░░░] 43% (Phase 3 of 7 complete)
 | Phase 02 P03 | 8min | 3 tasks | 16 files |
 | Phase 03 P01 | 6min | 3 tasks | 25 files |
 | Phase 03 P02 | 5min | 3 tasks | 14 files |
+| Phase 04 P01 | 6min | 3 tasks | 23 files |
 
 ## Accumulated Context
 
@@ -103,6 +104,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 03]: Overlay transport Option A: server OpenCV draw before JPEG encode
 - [Phase 03]: GET /api/snapshot 404 when no product; 503 when store/worker missing
 - [Phase 03]: Det metrics merged in api_status; CaptureLoop not coupled to detection
+- [Phase 04]: HF Transformers DAV2 Small default (Apache-2.0); never Base/Large NC
+- [Phase 04]: Extend one PerceptionStore with DepthProduct rather than separate DepthStore
+- [Phase 04]: kind_for_mode from configured depth_mode only — no float-range heuristics
 
 ### Pending Todos
 
@@ -120,6 +124,6 @@ None. Plan check passed with 4 non-blocking warnings (file count per plan, resea
 
 ## Session Continuity
 
-Last session: 2026-08-07T19:28:04.041Z
-Stopped at: Completed 03-02-PLAN.md
+Last session: 2026-08-08T10:15:52.104Z
+Stopped at: Completed 04-01-PLAN.md
 Next: Execute 03-02-PLAN.md (overlays, snapshot JSON, runtime conf, serve wiring)

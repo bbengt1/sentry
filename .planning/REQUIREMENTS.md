@@ -34,7 +34,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Monocular Depth
 
-- [ ] **DEPTH-01**: Monocular depth model runs locally (Depth Anything V2 Small or equivalent OSS)
+- [x] **DEPTH-01**: Monocular depth model runs locally (Depth Anything V2 Small or equivalent OSS)
 - [ ] **DEPTH-02**: Depth map is available in the perception stream with explicit `depth_kind`
 - [ ] **DEPTH-03**: Depth colormap is shown on the web dashboard
 - [ ] **DEPTH-04**: Optional metric mode (if enabled) is explicitly labeled and never conflated with relative depth
@@ -145,7 +145,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DET-02 | Phase 3 | Complete |
 | DET-03 | Phase 3 | Complete |
 | DET-04 | Phase 3 | Complete |
-| DEPTH-01 | Phase 4 | Pending |
+| DEPTH-01 | Phase 4 | Complete |
 | DEPTH-02 | Phase 4 | Pending |
 | DEPTH-03 | Phase 4 | Pending |
 | DEPTH-04 | Phase 4 | Pending |
