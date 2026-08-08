@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import time
 from typing import Any
 
@@ -133,7 +132,10 @@ def test_snapshot_depth_only_200_completeness() -> None:
             raw = resp.content
             assert len(raw) < 50_000
             assert "depth_map" not in data
-            assert "depth_m" not in json.dumps(data)
+            # Key-level honesty: no depth_m field (substring match would hit depth_min)
+            assert "depth_m" not in data
+            assert "depth_m" not in (data.get("depth") or {})
+            assert "depth_m" not in (data.get("stats") or {})
     finally:
         loop.stop()
 

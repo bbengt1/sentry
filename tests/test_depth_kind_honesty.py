@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-
 import numpy as np
 from fastapi.testclient import TestClient
 
@@ -48,13 +46,14 @@ def test_relative_snapshot_unit_null_no_depth_m_key() -> None:
             data = resp.json()
             assert data["depth"]["kind"] == "relative"
             assert data["depth"]["unit"] is None
-            # No depth_m key anywhere in the JSON tree.
-            dumped = json.dumps(data)
-            assert "depth_m" not in dumped
-            # Nested keys must not include depth_m
+            # Key-level honesty: no depth_m field (avoid substring on depth_min/mean)
             assert "depth_m" not in data
             assert "depth_m" not in (data.get("depth") or {})
             assert "depth_m" not in (data.get("stats") or {})
+            # Schema field list must not expose depth_m
+            from sentry_ai.schemas.perception import DepthPayload
+
+            assert "depth_m" not in DepthPayload.model_fields
     finally:
         loop.stop()
 
@@ -79,6 +78,8 @@ def test_metric_snapshot_kind_and_unit_m() -> None:
             data = resp.json()
             assert data["depth"]["kind"] == "metric_estimated"
             assert data["depth"]["unit"] == "m"
-            assert "depth_m" not in json.dumps(data)
+            assert "depth_m" not in data
+            assert "depth_m" not in (data.get("depth") or {})
+            assert "depth_m" not in (data.get("stats") or {})
     finally:
         loop.stop()

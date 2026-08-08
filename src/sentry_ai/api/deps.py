@@ -19,3 +19,4 @@ class AppState:
     bind: str
     perception_store: Any | None = None
     detection_worker: Any | None = None
+    depth_worker: Any | None = None

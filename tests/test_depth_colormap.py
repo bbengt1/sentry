@@ -31,11 +31,10 @@ def test_colorize_depth_uses_turbo_path() -> None:
     source = inspect.getsource(colormap_mod)
     assert "COLORMAP_TURBO" in source
     assert "applyColorMap" in source
-    # No meter labels drawn inside helper.
-    assert '"m"' not in source or "unit" not in source.lower() or True
-    # Never import transformers.
-    assert "transformers" not in source
-    assert "torch" not in source
+    # Never import heavy depth-stack packages.
+    assert "import torch" not in source
+    assert "from transformers" not in source
+    assert "import transformers" not in source
 
 
 def test_blend_depth_same_shape_as_rgb_and_copies() -> None:
