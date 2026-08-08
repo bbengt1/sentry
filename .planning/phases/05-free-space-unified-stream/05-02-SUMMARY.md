@@ -87,7 +87,7 @@ Each task was committed atomically:
 3. **Task 3: Refactor GET /api/snapshot to assembler**
    - `e91b651` feat(05-02): refactor /api/snapshot to assemble_perception_frame
 
-**Plan metadata:** (pending final docs commit)
+**Plan metadata:** `3cab1d2` (docs: complete free-space wire + assembler plan)
 
 _Note: Tasks 1–2 used TDD RED→GREEN commits; Task 3 combined tests + refactor in one feat commit._
 
