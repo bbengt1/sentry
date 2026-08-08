@@ -302,11 +302,17 @@ def serve(
         None,
         help="Optional camera_id override for Frame identity.",
     ),
+    no_ui: bool = typer.Option(
+        False,
+        "--no-ui",
+        help="Serve perception API without Live Preview HTML (EDGE-05).",
+    ),
 ) -> None:
     """Start capture + localhost Live Preview (MJPEG + status).
 
     Default bind is 127.0.0.1 (not 0.0.0.0). Open
     http://127.0.0.1:8000/ in a browser when using defaults.
+    Use --no-ui for headless API-only deploy (EDGE-05).
     """
     # Validate profile early (same local-OSS constraint as smoke).
     try:
@@ -434,6 +440,7 @@ def serve(
         free_space_loop=free_space_loop,
         open_vocab_worker=ov_worker,
         open_vocab_loop=ov_loop,
+        serve_ui=not no_ui,
     )
 
     device_display = rt.device if rt.device is not None else "auto"
@@ -463,7 +470,10 @@ def serve(
             err=True,
         )
     typer.echo(f"source: {src.name} camera_id={getattr(src, 'camera_id', src.name)}")
-    typer.echo(f"bind: http://{bind}/  (Live Preview)")
+    if no_ui:
+        typer.echo(f"bind: http://{bind}/  (headless API)")
+    else:
+        typer.echo(f"bind: http://{bind}/  (Live Preview)")
     if det_loop is not None:
         typer.echo("detection: enabled (fixed-class YOLO)")
     else:

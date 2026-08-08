@@ -20,7 +20,12 @@ from typing import Any
 
 import cv2
 from fastapi import APIRouter, Request
-from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    StreamingResponse,
+)
 
 from sentry_ai.api.assemble import DEFAULT_TTL_MS
 from sentry_ai.models.depth.colormap import blend_depth
@@ -296,8 +301,24 @@ async def preview_mjpeg(request: Request) -> QuietStreamingResponse:
 
 
 @router.get("/", response_model=None)
-async def root_preview() -> FileResponse | HTMLResponse:
-    """Serve the packaged Live Preview page at GET /."""
+async def root_preview(
+    request: Request,
+) -> FileResponse | HTMLResponse | JSONResponse:
+    """Serve the packaged Live Preview page at GET / (or 404 when headless).
+
+    When ``app.state.serve_ui`` is False (EDGE-05), return JSON 404 pointing
+    at ``/v1/snapshot`` — do not serve index.html. Default True for backward
+    compatibility when the flag is missing.
+    """
+    serve_ui = getattr(request.app.state, "serve_ui", True)
+    if not serve_ui:
+        return JSONResponse(
+            status_code=404,
+            content={
+                "detail": "UI disabled (headless)",
+                "v1": "/v1/snapshot",
+            },
+        )
     if _INDEX_HTML.is_file():
         return FileResponse(
             path=_INDEX_HTML,

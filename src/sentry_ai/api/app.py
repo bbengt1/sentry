@@ -34,12 +34,16 @@ def create_app(
     free_space_loop: Any | None = None,
     open_vocab_worker: Any | None = None,
     open_vocab_loop: Any | None = None,
+    serve_ui: bool = True,
 ) -> FastAPI:
     """Build FastAPI app with preview + detection + depth + pipeline + OV + /v1.
 
     Caller owns loop lifecycle. Handlers only read bus/status/store — they
     never open cameras or run inference. Optional store/workers/loops default
     to None for Phase 2/3 backward compatibility.
+
+    ``serve_ui=False`` (EDGE-05 headless) keeps ``/api/*``, ``/v1/*``, and
+    ``/preview/mjpeg`` but gates GET ``/`` Live Preview HTML.
 
     Sets ``app.state.shutdown_flag`` (threading.Event) on lifespan exit so
     long-lived MJPEG / WebSocket streams can stop during ``sentry serve`` Ctrl+C.
@@ -71,6 +75,7 @@ def create_app(
     app.state.free_space_loop = free_space_loop
     app.state.open_vocab_worker = open_vocab_worker
     app.state.open_vocab_loop = open_vocab_loop
+    app.state.serve_ui = serve_ui
     app.state.shutdown_flag = shutdown_flag
     # Typed namespace for convenience (mirrors app.state fields).
     app.state.deps = AppState(

@@ -247,3 +247,21 @@ def test_serve_profile_default_is_cpu_fallback() -> None:
     assert "cpu-fallback" in result.stdout
     lower = result.stdout.lower()
     assert "model tier" in lower or "device policy" in lower or "profile" in lower
+
+
+def test_serve_help_shows_no_ui() -> None:
+    """EDGE-05: serve --help documents --no-ui headless flag."""
+    result = runner.invoke(app, ["serve", "--help"])
+    assert result.exit_code == 0
+    assert "--no-ui" in result.stdout
+    lower = result.stdout.lower()
+    assert "headless" in lower or "live preview" in lower or "ui" in lower
+
+
+def test_serve_source_wires_headless_no_ui() -> None:
+    """EDGE-05: serve passes serve_ui=not no_ui into create_app."""
+    source = inspect.getsource(cli_mod.serve)
+    assert "no_ui" in source
+    assert "serve_ui" in source
+    assert "serve_ui=not no_ui" in source
+    assert "headless" in source.lower()
