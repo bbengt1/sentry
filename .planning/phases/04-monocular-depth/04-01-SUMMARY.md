@@ -103,7 +103,7 @@ Each task was committed atomically:
 2. **Task 2: Preprocess + mapping contracts + PerceptionStore DepthProduct** - `1748513` (feat)
 3. **Task 3: DepthAnythingWorker + DepthLoop + plugin registration** - `fbba1e8` (feat)
 
-**Plan metadata:** (pending docs commit)
+**Plan metadata:** `1faa222` (docs: complete plan)
 
 ## Files Created/Modified
 
