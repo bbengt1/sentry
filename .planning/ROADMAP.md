@@ -114,8 +114,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 06-01: Control plane + full interactive UI (toggles, thresholds, source switch)
-- [ ] 06-02: Open-vocab worker (YOLOE) + prompt UX + stream/UI integration
+- [ ] 06-01-PLAN.md — Control plane + full interactive UI (toggles, thresholds, telemetry)
+- [ ] 06-02-PLAN.md — Open-vocab worker (YOLOE) + prompt UX + stream/UI integration
 
 ### Phase 7: Edge Profiles & Extension Stubs
 **Goal**: Make multi-target deployment real and leave clean extension points for post-v1 capabilities.  
