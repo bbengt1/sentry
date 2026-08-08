@@ -148,7 +148,7 @@ Plans:
 | 4. Monocular Depth | 2/2 | Complete   | 2026-08-08 |
 | 5. Free-Space & Unified Stream | 3/3 | Complete   | 2026-08-08 |
 | 6. Developer Controls & Open-Vocab | 2/2 | Complete   | 2026-08-08 |
-| 7. Edge Profiles & Extension Stubs | 0/3 | Not started | - |
+| 7. Edge Profiles & Extension Stubs | 0/3 | Planned | - |
 
 ## Architecture Spine (reference)
 
