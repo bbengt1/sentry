@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from sentry_ai.api.deps import AppState
 from sentry_ai.api.routes_depth import router as depth_router
 from sentry_ai.api.routes_detection import router as detection_router
+from sentry_ai.api.routes_open_vocab import router as open_vocab_router
 from sentry_ai.api.routes_pipeline import router as pipeline_router
 from sentry_ai.api.routes_preview import router as preview_router
 from sentry_ai.api.routes_v1 import router as v1_router
@@ -31,8 +32,10 @@ def create_app(
     detection_loop: Any | None = None,
     depth_loop: Any | None = None,
     free_space_loop: Any | None = None,
+    open_vocab_worker: Any | None = None,
+    open_vocab_loop: Any | None = None,
 ) -> FastAPI:
-    """Build FastAPI app with preview + detection + depth + pipeline + /v1.
+    """Build FastAPI app with preview + detection + depth + pipeline + OV + /v1.
 
     Caller owns loop lifecycle. Handlers only read bus/status/store — they
     never open cameras or run inference. Optional store/workers/loops default
@@ -66,6 +69,8 @@ def create_app(
     app.state.detection_loop = detection_loop
     app.state.depth_loop = depth_loop
     app.state.free_space_loop = free_space_loop
+    app.state.open_vocab_worker = open_vocab_worker
+    app.state.open_vocab_loop = open_vocab_loop
     app.state.shutdown_flag = shutdown_flag
     # Typed namespace for convenience (mirrors app.state fields).
     app.state.deps = AppState(
@@ -79,10 +84,13 @@ def create_app(
         detection_loop=detection_loop,
         depth_loop=depth_loop,
         free_space_loop=free_space_loop,
+        open_vocab_worker=open_vocab_worker,
+        open_vocab_loop=open_vocab_loop,
     )
     app.include_router(preview_router)
     app.include_router(detection_router)
     app.include_router(depth_router)
     app.include_router(pipeline_router)
+    app.include_router(open_vocab_router)
     app.include_router(v1_router)
     return app

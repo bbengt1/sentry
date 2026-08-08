@@ -24,3 +24,5 @@ class AppState:
     detection_loop: Any | None = None
     depth_loop: Any | None = None
     free_space_loop: Any | None = None
+    open_vocab_worker: Any | None = None
+    open_vocab_loop: Any | None = None

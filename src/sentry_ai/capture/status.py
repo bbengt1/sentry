@@ -65,3 +65,9 @@ class StatusSnapshot(BaseModel):
     free_space_enabled: bool | None = None
     near_cut: float | None = None
     mid_cut: float | None = None
+    # Optional open-vocab telemetry (Phase 6 OVD).
+    ov_fps: float | None = None
+    ov_latency_ms: float | None = None
+    ov_count: int | None = None
+    ov_mode: str | None = None
+    ov_frame_id: int | None = None

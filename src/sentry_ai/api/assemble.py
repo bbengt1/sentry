@@ -29,6 +29,7 @@ DEFAULT_TTL_MS: dict[str, float] = {
     "detections": 500.0,
     "depth": 750.0,
     "free_space": 750.0,
+    "open_vocab": 500.0,
 }
 
 
@@ -39,6 +40,7 @@ class TtlConfig:
     detections: float = 500.0
     depth: float = 750.0
     free_space: float = 750.0
+    open_vocab: float = 500.0
 
     @classmethod
     def from_mapping(cls, mapping: dict[str, float] | None) -> TtlConfig:
@@ -48,6 +50,9 @@ class TtlConfig:
             detections=float(mapping.get("detections", DEFAULT_TTL_MS["detections"])),
             depth=float(mapping.get("depth", DEFAULT_TTL_MS["depth"])),
             free_space=float(mapping.get("free_space", DEFAULT_TTL_MS["free_space"])),
+            open_vocab=float(
+                mapping.get("open_vocab", DEFAULT_TTL_MS["open_vocab"])
+            ),
         )
 
 
@@ -101,17 +106,25 @@ def assemble_perception_frame(
     ttl: TtlConfig | dict[str, float] | None = None,
     bus_metrics: dict[str, Any] | None = None,
 ) -> PerceptionFrame | None:
-    """Merge det + depth + free_space store products into one PerceptionFrame.
+    """Merge det + depth + free_space + open_vocab store products.
 
-    Returns ``None`` when all three products are absent (callers map to 404
+    Returns ``None`` when all products are absent (callers map to 404
     or skip WS send). Completeness = presence and ``error is None``.
+    Detections completeness is true if fixed **or** open-vocab product present.
+    Wire detections: fixed first, then OV (with source tags).
     Stale flags live in ``stats`` and are independent of completeness.
     """
     det = store.snapshot()
     depth = store.snapshot_depth()
     free = store.snapshot_free_space()
+    ov = None
+    if hasattr(store, "snapshot_open_vocab"):
+        try:
+            ov = store.snapshot_open_vocab()
+        except Exception:  # noqa: BLE001 — best-effort
+            ov = None
 
-    if det is None and depth is None and free is None:
+    if det is None and depth is None and free is None and ov is None:
         return None
 
     wall = time.time() if now is None else float(now)
@@ -124,13 +137,14 @@ def assemble_perception_frame(
     depth_good = depth is not None and depth.error is None
     free_good = free is not None and free.error is None
     # Detections: present counts as complete even with empty list (DET-04).
-    # Error on det product still counts as present for identity; completeness
-    # follows presence (historical snapshot behavior used det_present only).
+    # OV product also counts (OVD-03).
     det_present = det is not None
+    ov_present = ov is not None
+    detections_complete = det_present or ov_present
 
     # Primary identity = product with max t_capture among present products.
     candidates: list[Any] = [
-        p for p in (det, depth, free) if p is not None
+        p for p in (det, depth, free, ov) if p is not None
     ]
     primary = max(candidates, key=lambda p: p.t_capture)
 
@@ -147,6 +161,20 @@ def assemble_perception_frame(
         stats["det_age_ms"] = det_age
         # stats values must be float|int|str (schema); use 0/1 not bool.
         stats["det_stale"] = 1 if det_age > ttl_cfg.detections else 0
+
+    if ov is not None:
+        stats["ov_latency_ms"] = ov.latency_ms
+        stats["ov_frame_id"] = ov.frame_id
+        if ov.conf is not None:
+            stats["ov_conf"] = ov.conf
+        if ov.model_name is not None:
+            stats["ov_model"] = ov.model_name
+        if ov.prompt is not None:
+            stats["ov_prompt"] = ov.prompt
+        ov_age = _age_ms(wall, ov.t_capture)
+        stats["ov_age_ms"] = ov_age
+        stats["ov_stale"] = 1 if ov_age > ttl_cfg.open_vocab else 0
+        stats["ov_count"] = len(ov.detections)
 
     if depth is not None:
         stats["depth_frame_id"] = depth.frame_id
@@ -175,6 +203,7 @@ def assemble_perception_frame(
         stats.get("det_stale")
         or stats.get("depth_stale")
         or stats.get("free_space_stale")
+        or stats.get("ov_stale")
     )
     stats["products_stale"] = 1 if products_stale else 0
 
@@ -192,12 +221,16 @@ def assemble_perception_frame(
             stats["depth_fps"] = float(metrics.depth_fps)
         if getattr(metrics, "free_space_fps", None) is not None:
             stats["free_space_fps"] = float(metrics.free_space_fps)
+        if getattr(metrics, "ov_fps", None) is not None:
+            stats["ov_fps"] = float(metrics.ov_fps)
         if getattr(metrics, "det_frames_dropped", None) is not None:
             stats["det_frames_dropped"] = int(metrics.det_frames_dropped)
         if getattr(metrics, "depth_frames_dropped", None) is not None:
             stats["depth_frames_dropped"] = int(metrics.depth_frames_dropped)
         if getattr(metrics, "free_space_frames_dropped", None) is not None:
             stats["free_space_frames_dropped"] = int(metrics.free_space_frames_dropped)
+        if getattr(metrics, "ov_frames_dropped", None) is not None:
+            stats["ov_frames_dropped"] = int(metrics.ov_frames_dropped)
 
     if bus_metrics is not None:
         if "capture_fps" in bus_metrics and bus_metrics["capture_fps"] is not None:
@@ -234,6 +267,27 @@ def assemble_perception_frame(
             roi_bottom_frac=None,
         )
 
+    # Merge detections: fixed first, then OV (ensure source tags).
+    merged_detections = None
+    if det is not None or ov is not None:
+        merged: list[Any] = []
+        if det is not None:
+            merged.extend(list(det.detections))
+        if ov is not None:
+            for d in ov.detections:
+                # Ensure source tag on wire (worker already tags; re-assert).
+                if getattr(d, "source", "fixed") != "open_vocab":
+                    from sentry_ai.schemas.perception import Detection as DetSchema
+
+                    d = DetSchema(
+                        class_name=d.class_name,
+                        confidence=d.confidence,
+                        bbox_xyxy=d.bbox_xyxy,
+                        source="open_vocab",
+                    )
+                merged.append(d)
+        merged_detections = merged
+
     return PerceptionFrame(
         schema_version=1,
         frame_id=primary.frame_id,
@@ -241,12 +295,12 @@ def assemble_perception_frame(
         t_capture=primary.t_capture,
         t_publish=wall if now is not None else time.time(),
         completeness=Completeness(
-            detections=det_present,
+            detections=detections_complete,
             depth=depth_good,
             free_space=free_good,
         ),
         depth=depth_payload,
-        detections=list(det.detections) if det is not None else None,
+        detections=merged_detections,
         free_space=free_space_payload,
         stats=stats if stats else None,
     )

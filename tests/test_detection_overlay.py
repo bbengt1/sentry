@@ -48,3 +48,31 @@ def test_draw_detections_accepts_list_bbox() -> None:
     out = draw_detections(image, [det])
     assert out.shape == image.shape
     assert not np.array_equal(out[5, 10], (0, 0, 0))
+
+
+def test_draw_open_vocab_uses_magenta_not_cyan() -> None:
+    """OVD-03: open_vocab boxes are magenta BGR (255,0,255); fixed stay cyan."""
+    image = np.zeros((100, 100, 3), dtype=np.uint8)
+    fixed = Detection(
+        class_name="person",
+        confidence=0.9,
+        bbox_xyxy=(10.0, 10.0, 40.0, 40.0),
+        source="fixed",
+    )
+    ov = Detection(
+        class_name="cup",
+        confidence=0.8,
+        bbox_xyxy=(50.0, 50.0, 80.0, 80.0),
+        source="open_vocab",
+    )
+    out = draw_detections(image, [fixed, ov])
+    # Sample top edge of each box.
+    fixed_edge = out[10, 25]
+    ov_edge = out[50, 65]
+    # Fixed cyan-ish (0, 255, 180)
+    assert fixed_edge[1] > fixed_edge[0], "fixed box should be cyan-ish (G>B)"
+    # OV magenta (255, 0, 255) — B and R high, G low
+    assert int(ov_edge[0]) > 200 and int(ov_edge[2]) > 200, "OV box magenta B/R"
+    assert int(ov_edge[1]) < 50, "OV box magenta G low"
+    # Colors differ between sources
+    assert not np.array_equal(fixed_edge, ov_edge)

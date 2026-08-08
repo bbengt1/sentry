@@ -199,3 +199,26 @@ def test_serve_does_not_import_torch_at_module_level() -> None:
     # Top of module / unconditional imports should not pull torch.
     assert "import torch" not in source.split("def serve")[0]
     assert "import transformers" not in source.split("def serve")[0]
+
+
+def test_serve_source_wires_open_vocab_loop_lifecycle() -> None:
+    """serve constructs OpenVocabLoop when detect extra available; default off."""
+    source = inspect.getsource(cli_mod.serve)
+    assert "OpenVocabLoop" in source
+    assert "YoloeOpenVocabWorker" in source
+    assert "open_vocab_worker" in source
+    assert "open_vocab_loop" in source
+    assert "ov_loop.start()" in source
+    assert "ov_loop.stop()" in source
+    # Default mode off (not continuous by default)
+    assert "mode off" in source.lower() or "default mode off" in source.lower()
+    # Start after free_space; stop before free_space stop
+    free_start = source.index("free_space_loop.start()")
+    ov_start = source.index("ov_loop.start()")
+    ov_stop = source.index("ov_loop.stop()")
+    free_stop = source.index("free_space_loop.stop()")
+    assert free_start < ov_start
+    assert ov_stop < free_stop
+    # Injected into create_app
+    assert "open_vocab_worker=ov_worker" in source
+    assert "open_vocab_loop=ov_loop" in source

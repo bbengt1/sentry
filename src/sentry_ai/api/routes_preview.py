@@ -129,6 +129,21 @@ async def api_status(request: Request) -> dict[str, Any]:
         elif metrics.last_free_space_latency_ms is not None:
             data["free_space_latency_ms"] = metrics.last_free_space_latency_ms
 
+        # Open-vocab telemetry from separate store slot (OVD-03).
+        ov_product = None
+        if hasattr(store, "snapshot_open_vocab"):
+            try:
+                ov_product = store.snapshot_open_vocab()
+            except Exception:  # noqa: BLE001 — status best-effort
+                ov_product = None
+        data["ov_fps"] = getattr(metrics, "ov_fps", 0.0)
+        if ov_product is not None:
+            data["ov_latency_ms"] = ov_product.latency_ms
+            data["ov_count"] = len(ov_product.detections)
+            data["ov_frame_id"] = ov_product.frame_id
+        elif getattr(metrics, "last_ov_latency_ms", None) is not None:
+            data["ov_latency_ms"] = metrics.last_ov_latency_ms
+
     if worker is not None and data.get("det_conf") is None:
         try:
             data["det_conf"] = float(worker.get_conf())
@@ -146,6 +161,14 @@ async def api_status(request: Request) -> dict[str, Any]:
             data["near_cut"] = pipe.get("near_cut")
             data["mid_cut"] = pipe.get("mid_cut")
         except Exception:  # noqa: BLE001 — status is best-effort
+            pass
+
+    # Open-vocab mode from loop when present.
+    ov_loop = getattr(request.app.state, "open_vocab_loop", None)
+    if ov_loop is not None:
+        try:
+            data["ov_mode"] = str(ov_loop.get_mode())
+        except Exception:  # noqa: BLE001 — status best-effort
             pass
     return data
 
@@ -220,8 +243,19 @@ async def _mjpeg_generator(
                             obstacles=free_product.obstacles,
                         )
                     product = store.snapshot()
+                    dets: list[Any] = []
                     if product is not None:
-                        image = draw_detections(image, product.detections)
+                        dets.extend(list(product.detections))
+                    # Open-vocab boxes after fixed (dual color via source).
+                    if hasattr(store, "snapshot_open_vocab"):
+                        try:
+                            ov = store.snapshot_open_vocab()
+                        except Exception:  # noqa: BLE001 — overlay best-effort
+                            ov = None
+                        if ov is not None:
+                            dets.extend(list(ov.detections))
+                    if dets:
+                        image = draw_detections(image, dets)
                 ok, buf = cv2.imencode(
                     ".jpg",
                     image,

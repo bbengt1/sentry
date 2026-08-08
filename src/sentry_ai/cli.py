@@ -339,15 +339,25 @@ def serve(
     # Optional fixed-class detection (requires `uv sync --extra detect`).
     worker: Any | None = None
     det_loop: Any | None = None
+    ov_worker: Any | None = None
+    ov_loop: Any | None = None
     try:
         from sentry_ai.models.cache import configure_model_cache, tier_to_weight
         from sentry_ai.models.detection.loop import DetectionLoop
+        from sentry_ai.models.detection.open_vocab_loop import OpenVocabLoop
         from sentry_ai.models.detection.yolo_worker import YoloDetectionWorker
+        from sentry_ai.models.detection.yoloe_worker import (
+            DEFAULT_WEIGHTS as YOLOE_WEIGHTS,
+        )
+        from sentry_ai.models.detection.yoloe_worker import YoloeOpenVocabWorker
 
         configure_model_cache()
         weights = tier_to_weight(cfg.models.detector_tier)
         worker = YoloDetectionWorker(weights=weights, conf=0.25)
         det_loop = DetectionLoop(bus, worker, store)
+        # Open-vocab twin (same detect extra); default mode off.
+        ov_worker = YoloeOpenVocabWorker(weights=YOLOE_WEIGHTS, conf=0.25)
+        ov_loop = OpenVocabLoop(bus, ov_worker, store)  # mode=off default
     except ImportError as exc:
         typer.echo(
             "detection disabled: detect extra not installed "
@@ -356,6 +366,8 @@ def serve(
         )
         worker = None
         det_loop = None
+        ov_worker = None
+        ov_loop = None
 
     # Optional monocular depth (requires `uv sync --extra depth`).
     depth_worker: Any | None = None
@@ -396,6 +408,8 @@ def serve(
         detection_loop=det_loop,
         depth_loop=depth_loop,
         free_space_loop=free_space_loop,
+        open_vocab_worker=ov_worker,
+        open_vocab_loop=ov_loop,
     )
 
     typer.echo(f"sentry-ai {__version__} serve")
@@ -410,6 +424,10 @@ def serve(
     else:
         typer.echo("depth: disabled (install: uv sync --extra depth)")
     typer.echo("free-space: enabled (near-field bands Spatial Post)")
+    if ov_loop is not None:
+        typer.echo("open-vocab: available (YOLOE; default mode off)")
+    else:
+        typer.echo("open-vocab: disabled (install: uv sync --extra detect)")
     if host not in ("127.0.0.1", "localhost", "::1"):
         typer.echo(
             "warning: non-localhost bind exposes the live camera stream "
@@ -417,13 +435,15 @@ def serve(
             err=True,
         )
 
-    # Start order: capture → det → depth → free_space; stop reverse.
+    # Start order: capture → det → depth → free_space → open_vocab; stop reverse.
     loop.start()
     if det_loop is not None:
         det_loop.start()
     if depth_loop is not None:
         depth_loop.start()
     free_space_loop.start()
+    if ov_loop is not None:
+        ov_loop.start()  # thread alive; mode=off sleeps
 
     def _signal_shutdown() -> None:
         """Wake MJPEG/WS generators immediately (before connection drain)."""
@@ -433,6 +453,8 @@ def serve(
 
     def _stop_workers() -> None:
         _signal_shutdown()
+        if ov_loop is not None:
+            ov_loop.stop()
         free_space_loop.stop()
         if depth_loop is not None:
             depth_loop.stop()
