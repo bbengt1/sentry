@@ -379,9 +379,11 @@ def serve(
 
     # Free-space Spatial Post always runs when store exists (CPU; no ML extra).
     # Idles until a good depth product appears — no ImportError gate.
+    from sentry_ai.control.pipeline_state import PipelineState
     from sentry_ai.spatial.loop import FreeSpaceLoop
 
     free_space_loop = FreeSpaceLoop(store)
+    pipeline_state = PipelineState()
 
     app_asgi = create_app(
         bus=bus,
@@ -390,6 +392,10 @@ def serve(
         perception_store=store,
         detection_worker=worker,
         depth_worker=depth_worker,
+        pipeline_state=pipeline_state,
+        detection_loop=det_loop,
+        depth_loop=depth_loop,
+        free_space_loop=free_space_loop,
     )
 
     typer.echo(f"sentry-ai {__version__} serve")

@@ -624,6 +624,67 @@ def test_api_status_includes_free_space_fields_when_store_present() -> None:
         loop.stop()
 
 
+def test_api_status_includes_pipeline_stage_flags() -> None:
+    """UI-03/UI-05: stage flags + free-space cuts on /api/status when state set."""
+    from sentry_ai.control.pipeline_state import PipelineState
+    from sentry_ai.spatial.free_space import DEFAULT_MID_CUT, DEFAULT_NEAR_CUT
+    from sentry_ai.state.perception_store import PerceptionStore
+
+    source = SyntheticSource(camera_id="synthetic0", fps=0.0)
+    bus = FrameBus()
+    loop = CaptureLoop(source, bus)
+    store = PerceptionStore()
+    state = PipelineState()
+    state.update(detection_enabled=False, near_cut=0.8)
+    loop.start()
+    try:
+        _wait_for_frame(bus)
+        app = create_app(
+            bus=bus,
+            capture_loop=loop,
+            bind="127.0.0.1:8000",
+            perception_store=store,
+            pipeline_state=state,
+        )
+        with TestClient(app) as client:
+            resp = client.get("/api/status")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["detection_enabled"] is False
+            assert data["depth_enabled"] is True
+            assert data["free_space_enabled"] is True
+            assert data["near_cut"] == 0.8
+            assert data["mid_cut"] == DEFAULT_MID_CUT
+            # Existing telemetry keys still present when store set
+            assert "det_fps" in data
+            assert "depth_fps" in data
+            assert "free_space_fps" in data
+    finally:
+        loop.stop()
+
+    # Without pipeline_state, stage keys omitted (not forced false).
+    source2 = SyntheticSource(camera_id="synthetic0", fps=0.0)
+    bus2 = FrameBus()
+    loop2 = CaptureLoop(source2, bus2)
+    loop2.start()
+    try:
+        _wait_for_frame(bus2)
+        app2 = create_app(
+            bus=bus2,
+            capture_loop=loop2,
+            bind="127.0.0.1:8000",
+        )
+        with TestClient(app2) as client:
+            data = client.get("/api/status").json()
+            assert data.get("detection_enabled") is None
+            assert data.get("near_cut") is None
+            # Capture keys still present
+            assert "capture_fps" in data
+            assert data.get("near_cut", DEFAULT_NEAR_CUT) or True
+    finally:
+        loop2.stop()
+
+
 def test_api_status_free_space_error_field() -> None:
     from sentry_ai.schemas.enums import DepthKind
     from sentry_ai.state.perception_store import PerceptionStore

@@ -134,6 +134,19 @@ async def api_status(request: Request) -> dict[str, Any]:
             data["det_conf"] = float(worker.get_conf())
         except Exception:  # noqa: BLE001 — status is best-effort
             pass
+
+    # Pipeline stage flags + free-space cuts (UI-03/UI-04/UI-05).
+    pipeline_state = getattr(request.app.state, "pipeline_state", None)
+    if pipeline_state is not None:
+        try:
+            pipe = pipeline_state.snapshot()
+            data["detection_enabled"] = pipe.get("detection_enabled")
+            data["depth_enabled"] = pipe.get("depth_enabled")
+            data["free_space_enabled"] = pipe.get("free_space_enabled")
+            data["near_cut"] = pipe.get("near_cut")
+            data["mid_cut"] = pipe.get("mid_cut")
+        except Exception:  # noqa: BLE001 — status is best-effort
+            pass
     return data
 
 

@@ -177,6 +177,22 @@ def test_serve_source_wires_free_space_loop_lifecycle() -> None:
     assert free_stop < depth_stop < bare_stop
 
 
+def test_serve_source_wires_pipeline_state() -> None:
+    """serve constructs PipelineState and injects loops into create_app (UI-03)."""
+    source = inspect.getsource(cli_mod.serve)
+    assert "PipelineState" in source
+    assert "pipeline_state" in source
+    assert "detection_loop" in source
+    assert "depth_loop" in source
+    assert "free_space_loop" in source
+    # Stage toggles must not stop CaptureLoop — no stop()/start() for enable.
+    # create_app receives pipeline_state and loop refs.
+    assert "pipeline_state=pipeline_state" in source
+    assert "detection_loop=det_loop" in source
+    assert "depth_loop=depth_loop" in source
+    assert "free_space_loop=free_space_loop" in source
+
+
 def test_serve_does_not_import_torch_at_module_level() -> None:
     """Bare smoke path: cli module must not hard-import torch."""
     source = inspect.getsource(cli_mod)

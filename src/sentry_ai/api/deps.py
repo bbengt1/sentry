@@ -20,3 +20,7 @@ class AppState:
     perception_store: Any | None = None
     detection_worker: Any | None = None
     depth_worker: Any | None = None
+    pipeline_state: Any | None = None
+    detection_loop: Any | None = None
+    depth_loop: Any | None = None
+    free_space_loop: Any | None = None

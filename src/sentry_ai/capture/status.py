@@ -59,3 +59,9 @@ class StatusSnapshot(BaseModel):
     free_space_error: str | None = None
     free_space_age_ms: float | None = None
     free_space_stale: bool | None = None
+    # Optional pipeline control plane (Phase 6); stage flags + free-space cuts.
+    detection_enabled: bool | None = None
+    depth_enabled: bool | None = None
+    free_space_enabled: bool | None = None
+    near_cut: float | None = None
+    mid_cut: float | None = None
