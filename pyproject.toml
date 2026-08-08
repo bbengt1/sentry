@@ -67,6 +67,7 @@ depth-anything-v2-small = "sentry_ai.models.depth.worker:DepthAnythingWorker"
 
 [project.entry-points."sentry_ai.sinks"]
 null = "sentry_ai.plugins.builtins:NullSink"
+voice-null = "sentry_ai.plugins.builtins:VoiceNullSink"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sentry_ai"]

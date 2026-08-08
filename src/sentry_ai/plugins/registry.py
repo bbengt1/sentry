@@ -85,7 +85,12 @@ class PluginRegistry:
 
 def register_builtins(registry: PluginRegistry) -> None:
     """Register in-tree sources/workers/sinks without requiring entry points."""
-    from sentry_ai.plugins.builtins import NoopWorker, NullSink, SyntheticSource
+    from sentry_ai.plugins.builtins import (
+        NoopWorker,
+        NullSink,
+        SyntheticSource,
+        VoiceNullSink,
+    )
     from sentry_ai.sources.opencv_source import FileSource, RtspSource, UsbSource
 
     # Manual register raises on duplicate; only register if missing so this
@@ -121,3 +126,7 @@ def register_builtins(registry: PluginRegistry) -> None:
             )
     if "null" not in registry.list_sinks():
         registry.register_sink("null", NullSink)
+    # EDGE-04: voice extension point (no ASR/TTS). ROS2 bridge is intentionally
+    # NOT auto-registered — import from sentry_ai.extensions.ros2.bridge instead.
+    if "voice-null" not in registry.list_sinks():
+        registry.register_sink("voice-null", VoiceNullSink)

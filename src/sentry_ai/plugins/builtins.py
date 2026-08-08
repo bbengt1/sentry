@@ -1,4 +1,4 @@
-"""Built-in plugins: real synthetic source, noop worker, null sink.
+"""Built-in plugins: real synthetic source, noop worker, null sinks.
 
 SyntheticSource is implemented in ``sentry_ai.sources.synthetic`` and
 re-exported here so the entry point path stays stable.
@@ -14,6 +14,7 @@ __all__ = [
     "NoopWorker",
     "NullSink",
     "SyntheticSource",
+    "VoiceNullSink",
 ]
 
 
@@ -32,6 +33,23 @@ class NullSink:
     """Sink stub that discards emitted items."""
 
     name: str = "null"
+
+    def emit(self, item: object) -> None:
+        _ = item
+
+    def close(self) -> None:
+        return None
+
+
+class VoiceNullSink:
+    """EDGE-04 voice extension point — no ASR/TTS; discards all emits.
+
+    Twin of :class:`NullSink` for future voice I/O plugins. Registered as
+    entry point ``voice-null``. Does not open audio devices or network I/O
+    (T-07-21).
+    """
+
+    name: str = "voice-null"
 
     def emit(self, item: object) -> None:
         _ = item
