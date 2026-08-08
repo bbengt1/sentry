@@ -3,8 +3,8 @@
 Handlers only read PerceptionStore / call worker.set_conf.
 They never open cameras or run model inference.
 
-Phase 5: GET /api/snapshot is a thin alias to assemble_perception_frame
-(canonical /v1 routes land in 05-03). No dual merge logic here.
+Phase 5: GET /api/snapshot is a thin alias of GET /v1/snapshot — both call
+assemble_perception_frame only. No dual merge logic here.
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ def _require_worker(request: Request) -> Any:
 
 @router.get("/api/snapshot")
 async def api_snapshot(request: Request) -> dict[str, Any]:
-    """Return PerceptionFrame JSON via assemble_perception_frame (DET-04/SPACE-02).
+    """Back-compat alias of GET /v1/snapshot (same assembler).
 
     404 only when det, depth, and free_space products are all absent.
     Bulk depth_map / free_mask / occupied_mask arrays are never serialized.
