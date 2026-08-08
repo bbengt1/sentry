@@ -311,12 +311,55 @@ def test_root_serves_live_preview_html() -> None:
         assert "metric-depth-ms" in body
         assert "Depth" in body
         assert "not meters" in body  # honesty copy in JS or note
-        # Copy constraints from UI-SPEC
+        # Phase 5: free-space footer + STALE/incomplete honesty
+        assert "metric-free-space" in body
+        assert "metric-obstacles" in body
+        assert "metric-free-age" in body
+        assert "stale-pill" in body
+        assert "incomplete-pill" in body
+        assert "obstacle_count" in body or "Obstacles" in body
+        # Copy constraints from UI-SPEC (T-05-06)
         lower = body.lower()
         assert "autonomous" not in lower
         assert "safe to drive" not in lower
+        assert "safe_to_drive" not in lower
+        assert "clear to proceed" not in lower
+        assert "navigation cleared" not in lower
+        assert "go_nogo" not in lower
         assert "motor" not in lower
         assert "velocity" not in lower
+
+
+def test_live_preview_and_readme_language_denylist() -> None:
+    """T-05-06: HTML + README never claim safe-to-drive / go-nogo."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    html = (root / "src" / "sentry_ai" / "ui" / "static" / "index.html").read_text(
+        encoding="utf-8"
+    )
+    readme = (root / "README.md").read_text(encoding="utf-8")
+    banned = (
+        "safe to drive",
+        "safe_to_drive",
+        "clear to proceed",
+        "clear_to_proceed",
+        "navigation cleared",
+        "go_nogo",
+        "go/nogo",
+    )
+    for text, label in ((html, "index.html"), (readme, "README.md")):
+        lower = text.lower()
+        for phrase in banned:
+            assert phrase not in lower, f"{label} contains banned phrase: {phrase}"
+        # Status field names for free-space must be present in HTML
+    assert "free_space_stale" in html or "stale-pill" in html
+    assert "obstacle_count" in html or "metric-obstacles" in html
+    # README documents /v1 contract
+    assert "/v1/snapshot" in readme
+    assert "/v1/stream" in readme
+    assert "near_field_bands" in readme
+    assert "perception" in readme.lower()
 
 
 def test_api_status_includes_depth_fields_when_store_present() -> None:

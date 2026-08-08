@@ -62,6 +62,23 @@
     .pill.error { background: var(--error); }
     .pill.starting { background: var(--starting); }
     .pill.stopped { background: var(--stopped); }
+    .pill.stale {
+      background: var(--reconnecting);
+      color: #1a1a1a;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .pill.incomplete {
+      background: #6d4c41;
+      color: #fff;
+      text-transform: lowercase;
+    }
+    .header-badges {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+    }
     .video-panel {
       background: var(--panel);
       border: 1px solid var(--border);
@@ -136,7 +153,11 @@
   <div class="wrap">
     <header>
       <h1>Sentry AI — Live Preview</h1>
-      <span id="status-pill" class="pill starting" role="status" aria-live="polite">starting</span>
+      <div class="header-badges">
+        <span id="status-pill" class="pill starting" role="status" aria-live="polite">starting</span>
+        <span id="stale-pill" class="pill stale" role="status" aria-live="polite" hidden>STALE</span>
+        <span id="incomplete-pill" class="pill incomplete" role="status" aria-live="polite" hidden>incomplete</span>
+      </div>
     </header>
 
     <div id="error-banner" role="alert"></div>
@@ -154,6 +175,10 @@
       <div>Det ms: <strong id="metric-det-ms">—</strong></div>
       <div>Depth: <strong id="metric-depth-kind">—</strong></div>
       <div>Depth ms: <strong id="metric-depth-ms">—</strong></div>
+      <div>Free-space: <strong id="metric-free-space">—</strong></div>
+      <div>Obstacles: <strong id="metric-obstacles">—</strong></div>
+      <div>Free-space age: <strong id="metric-free-age">—</strong></div>
+      <div>Free-space ms: <strong id="metric-free-ms">—</strong></div>
       <div>Bind: <strong id="metric-bind">—</strong></div>
       <div class="conf-row">
         <label for="conf-slider">Conf threshold:</label>
@@ -171,7 +196,8 @@
       <p class="note">
         Model weights may download on first detection/depth run; cached under
         SENTRY_MODEL_CACHE / ~/.cache/sentry-ai thereafter. Relative depth is
-        never meters — metric modes are labeled when enabled.
+        never meters — metric modes are labeled when enabled. Free-space uses
+        ordinal near-field bands (not a navigation interlock).
       </p>
     </footer>
   </div>
@@ -181,6 +207,8 @@
       var STATUS_POLL_MS = 500;
       var CONF_DEBOUNCE_MS = 150;
       var pill = document.getElementById("status-pill");
+      var stalePill = document.getElementById("stale-pill");
+      var incompletePill = document.getElementById("incomplete-pill");
       var errBanner = document.getElementById("error-banner");
       var elSource = document.getElementById("metric-source");
       var elFps = document.getElementById("metric-fps");
@@ -189,6 +217,10 @@
       var elDetMs = document.getElementById("metric-det-ms");
       var elDepthKind = document.getElementById("metric-depth-kind");
       var elDepthMs = document.getElementById("metric-depth-ms");
+      var elFreeSpace = document.getElementById("metric-free-space");
+      var elObstacles = document.getElementById("metric-obstacles");
+      var elFreeAge = document.getElementById("metric-free-age");
+      var elFreeMs = document.getElementById("metric-free-ms");
       var elBind = document.getElementById("metric-bind");
       var elConf = document.getElementById("metric-conf");
       var confSlider = document.getElementById("conf-slider");
@@ -211,6 +243,16 @@
       function formatNum(v, digits) {
         if (typeof v !== "number" || !isFinite(v)) return "—";
         return v.toFixed(digits);
+      }
+
+      function setBadge(el, visible, text) {
+        if (!el) return;
+        if (visible) {
+          el.hidden = false;
+          if (text) el.textContent = text;
+        } else {
+          el.hidden = true;
+        }
       }
 
       function applyStatus(data) {
@@ -262,6 +304,56 @@
           (data && typeof data.depth_latency_ms === "number")
             ? formatNum(data.depth_latency_ms, 1)
             : "—";
+
+        // Free-space / obstacles footer (SPACE-03 / UI-02) — perception cues only.
+        var hasFree =
+          data &&
+          (typeof data.free_space_frame_id === "number" ||
+            typeof data.obstacle_count === "number" ||
+            typeof data.free_space_latency_ms === "number");
+        if (data && data.free_space_error) {
+          elFreeSpace.textContent = "error";
+        } else if (hasFree) {
+          elFreeSpace.textContent =
+            data.free_space_stale === true ? "stale" : "active";
+        } else {
+          elFreeSpace.textContent = "—";
+        }
+        elObstacles.textContent =
+          (data && typeof data.obstacle_count === "number")
+            ? String(data.obstacle_count)
+            : "—";
+        elFreeAge.textContent =
+          (data && typeof data.free_space_age_ms === "number")
+            ? formatNum(data.free_space_age_ms, 0) + " ms"
+            : "—";
+        elFreeMs.textContent =
+          (data && typeof data.free_space_latency_ms === "number")
+            ? formatNum(data.free_space_latency_ms, 1)
+            : "—";
+
+        // STALE / incomplete honesty badges (SPACE-04) — never safe-to-drive copy.
+        var isStale =
+          !!(data && (data.free_space_stale === true || data.products_stale === true));
+        setBadge(stalePill, isStale, "STALE");
+        var incomplete =
+          hasFree === false &&
+          status === "streaming" &&
+          !(data && typeof data.depth_frame_id === "number");
+        // Show incomplete when free-space product missing while streaming with depth
+        // (depth present but free-space not yet) or explicit free_space_error.
+        if (
+          status === "streaming" &&
+          data &&
+          typeof data.depth_frame_id === "number" &&
+          typeof data.free_space_frame_id !== "number"
+        ) {
+          incomplete = true;
+        }
+        if (data && data.free_space_error) {
+          incomplete = true;
+        }
+        setBadge(incompletePill, incomplete, "incomplete");
 
         if (data && typeof data.det_conf === "number") {
           confFromServer = true;

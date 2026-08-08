@@ -235,7 +235,13 @@ def test_assemble_no_safety_language_in_stats() -> None:
     assert frame is not None
     stats = frame.stats or {}
     keys_lower = {str(k).lower() for k in stats}
-    forbidden_substrings = ("safe", "go_nogo", "safe_to_drive", "clear_to_proceed", "nogo")
+    forbidden_substrings = (
+        "safe",
+        "go_nogo",
+        "safe_to_drive",
+        "clear_to_proceed",
+        "nogo",
+    )
     for key in keys_lower:
         for bad in forbidden_substrings:
             assert bad not in key, f"forbidden stats key language: {key}"

@@ -145,6 +145,66 @@ offline. Unit tests inject fake models and never hit the HF hub.
 Honesty rules: relative products omit unit / never claim meters; metric modes
 show `metric_estimated` + `m`. Status/UI footer show depth kind + latency.
 
+## Free-space & unified stream (Phase 5)
+
+Near-field free-space / obstacle cues are derived on CPU from the in-process
+depth map (**Spatial Post** — no second neural net, no new install extra).
+`sentry serve` always starts `FreeSpaceLoop` when a `PerceptionStore` exists;
+it idles until depth products appear.
+
+### Versioned perception API (`/v1`)
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /v1/snapshot` | Point-in-time merged `PerceptionFrame` (detections + depth metadata + free_space) |
+| `WS /v1/stream` | Keep-latest JSON `PerceptionFrame` at ~10 Hz (no per-client queue) |
+| `GET /api/snapshot` | **Alias** of `GET /v1/snapshot` (same assembler; back-compat) |
+| `GET /api/status` | Capture + det/depth/**free_space** metrics for Live Preview footer |
+| Live Preview MJPEG | Draw order: depth blend → free-space mask → detection boxes (same store) |
+
+Wire free-space shape (`FreeSpacePayload`):
+
+- `method`: `near_field_bands`
+- `depth_kind` + `units` (v1 always **ordinal** — not calibrated meters)
+- `obstacle_count`, `obstacles[]` (bbox + nearness + band), optional `bands`
+- **Not** on the wire: full `free_mask` / `occupied_mask` / `depth_map` arrays
+
+Every frame includes `completeness` and `stats` ages / stale flags
+(`free_space_age_ms`, `free_space_stale`, `products_stale`, stage FPS/drops).
+**Consumers must honor stale/TTL** — this is a perception stream, **not a
+safety interlock**. Invalidated products must not be treated as live.
+
+### Perception-only boundary (API-05)
+
+Envelopes never include motor, velocity, path-plan, or autonomy-clearance
+fields (`cmd`, `cmd_vel`, `twist`, `path_plan`, and related control keys).
+Live Preview copy is limited to obstacles / free-space / incomplete / STALE.
+
+### Robot client sketch (optional)
+
+```python
+# Point-in-time
+import httpx
+frame = httpx.get("http://127.0.0.1:8000/v1/snapshot").json()
+
+# Streaming (~10 Hz keep-latest)
+from websockets.sync.client import connect
+with connect("ws://127.0.0.1:8000/v1/stream") as ws:
+    msg = ws.recv()  # JSON PerceptionFrame; check stats.*_stale
+```
+
+Install remains **core** + optional `detect` / `depth` extras. Free-space needs
+no new package — only a depth product for the loop to consume.
+
+## Phase 5 scope
+
+- FreeSpaceLoop Spatial Post (near-field bands) + FreeSpaceProduct in store
+- `assemble_perception_frame` single merge path for REST + WS
+- `GET /v1/snapshot` + `WS /v1/stream` + `/api/snapshot` alias
+- MJPEG free-space overlay + status free_space metrics + STALE/incomplete UI
+- API-05 perception-only denylist on wire envelopes
+- No new ML packages
+
 ## Phase 4 scope
 
 - Depth Anything V2 Small worker (HF Transformers) + DepthLoop on FrameBus
