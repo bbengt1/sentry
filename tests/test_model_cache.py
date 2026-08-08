@@ -49,6 +49,7 @@ def test_configure_model_cache_uses_arg(
     monkeypatch.delenv("SENTRY_MODEL_CACHE", raising=False)
     monkeypatch.delenv("HF_HOME", raising=False)
     monkeypatch.delenv("HUGGINGFACE_HUB_CACHE", raising=False)
+    monkeypatch.delenv("YOLO_CONFIG_DIR", raising=False)
     weights = configure_model_cache(tmp_path)
     assert weights == tmp_path / "weights"
     assert weights.is_dir()
@@ -64,6 +65,7 @@ def test_configure_model_cache_uses_env(
     monkeypatch.setenv("SENTRY_MODEL_CACHE", str(env_root))
     monkeypatch.delenv("HF_HOME", raising=False)
     monkeypatch.delenv("HUGGINGFACE_HUB_CACHE", raising=False)
+    monkeypatch.delenv("YOLO_CONFIG_DIR", raising=False)
     weights = configure_model_cache()
     assert weights == env_root / "weights"
     assert weights.is_dir()

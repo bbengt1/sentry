@@ -108,5 +108,16 @@ def register_builtins(registry: PluginRegistry) -> None:
             pass
         else:
             registry.register_worker("yolo-fixed", YoloDetectionWorker)
+    # depth-anything-v2-small: class import is light; torch only on real load.
+    if "depth-anything-v2-small" not in registry.list_workers():
+        try:
+            from sentry_ai.models.depth.worker import DepthAnythingWorker
+        except ImportError:
+            pass
+        else:
+            registry.register_worker(
+                "depth-anything-v2-small",
+                DepthAnythingWorker,
+            )
     if "null" not in registry.list_sinks():
         registry.register_sink("null", NullSink)

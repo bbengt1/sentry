@@ -21,6 +21,8 @@ def test_register_builtins_lists_synthetic_noop_null() -> None:
     assert "null" in registry.list_sinks()
     # yolo-fixed registers when importable (no ultralytics required for class import)
     assert "yolo-fixed" in registry.list_workers()
+    # depth-anything-v2-small registers when importable (torch only on real load)
+    assert "depth-anything-v2-small" in registry.list_workers()
 
 
 def test_get_source_synthetic_returns_class() -> None:
@@ -79,6 +81,7 @@ def test_discover_is_idempotent_with_builtins() -> None:
     assert "synthetic" in registry.list_sources()
     assert "noop" in registry.list_workers()
     assert "yolo-fixed" in registry.list_workers()
+    assert "depth-anything-v2-small" in registry.list_workers()
     assert "null" in registry.list_sinks()
 
 
@@ -88,6 +91,14 @@ def test_yolo_fixed_worker_class_from_registry() -> None:
     registry = PluginRegistry()
     register_builtins(registry)
     assert registry.get_worker("yolo-fixed") is YoloDetectionWorker
+
+
+def test_depth_worker_class_from_registry() -> None:
+    from sentry_ai.models.depth.worker import DepthAnythingWorker
+
+    registry = PluginRegistry()
+    register_builtins(registry)
+    assert registry.get_worker("depth-anything-v2-small") is DepthAnythingWorker
 
 
 def test_noop_worker_and_null_sink_lifecycle() -> None:
