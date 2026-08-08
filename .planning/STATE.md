@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: ready_to_execute
-stopped_at: Phase 5 planned and plan-check passed — ready to execute
-last_updated: 2026-08-08T10:27:28.347Z
+status: executing
+stopped_at: Completed 04-02-PLAN.md
+last_updated: "2026-08-08T12:11:45.138Z"
 last_activity: 2026-08-08
 progress:
   total_phases: 7
   completed_phases: 4
-  total_plans: 10
-  completed_plans: 10
+  total_plans: 13
+  completed_plans: 11
   percent: 57
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-07)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots — without proprietary sensors or cloud AI.  
-**Current focus:** Phase 5 — Free-Space & Unified Stream (planned)
+**Current focus:** Phase 5 — Free-Space & Unified Stream
 
 ## Current Position
 
-Phase: 5
-Plan: 0 of 3 planned — ready to execute
+Phase: 5 (Free-Space & Unified Stream) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
 Last activity: 2026-08-08
 
-Progress: [████░░░░░░] 57% (Phase 4 of 7 complete)
+Progress: [█████████░] 85%
 
 ## Performance Metrics
 
@@ -64,6 +64,8 @@ Progress: [████░░░░░░] 57% (Phase 4 of 7 complete)
 | Phase 03 P02 | 5min | 3 tasks | 14 files |
 | Phase 04 P01 | 6min | 3 tasks | 23 files |
 | Phase 04 P02 | 6min | 3 tasks | 16 files |
+| Phase 05 P01 | 5min | 3 tasks | 11 files |
+| Phase 05 P01 | 5min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -114,6 +116,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 04]: 404 only when neither detection nor depth product exists
 - [Phase 04]: Relative UI label: relative (not meters); metric shows kind + m when unit is m
 - [Phase 04]: serve depth_mode defaults to relative; PATCH /api/depth/config for runtime toggle
+- [Phase ?]: units always ordinal for v1 free-space even when depth_kind is metric_estimated
+- [Phase ?]: OccupancySmoother state owned by FreeSpaceLoop, not PerceptionStore
+- [Phase ?]: FreeSpaceLoop polls snapshot_depth only (no FrameBus/ModelWorker)
 
 ### Pending Todos
 
@@ -131,6 +136,6 @@ None. Plan check passed with 4 non-blocking warnings (file count per plan, resea
 
 ## Session Continuity
 
-Last session: 2026-08-08T10:23:38.613Z
+Last session: 2026-08-08T12:11:13.958Z
 Stopped at: Completed 04-02-PLAN.md
 Next: Execute 03-02-PLAN.md (overlays, snapshot JSON, runtime conf, serve wiring)

@@ -41,8 +41,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Free-Space / Obstacles
 
-- [ ] **SPACE-01**: Free-space / obstacle regions are derived from depth (simple occupancy or near-field bands — not SLAM)
-- [ ] **SPACE-02**: Obstacle cues are exposed in the perception stream in a machine-readable form
+- [x] **SPACE-01**: Free-space / obstacle regions are derived from depth (simple occupancy or near-field bands — not SLAM)
+- [x] **SPACE-02**: Obstacle cues are exposed in the perception stream in a machine-readable form
 - [ ] **SPACE-03**: Free-space / obstacle overlay is shown on the web dashboard
 - [ ] **SPACE-04**: Stale / incomplete perception is signaled (TTL or completeness flags); no implied “safe to proceed”
 
@@ -149,8 +149,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEPTH-02 | Phase 4 | Complete |
 | DEPTH-03 | Phase 4 | Complete |
 | DEPTH-04 | Phase 4 | Complete |
-| SPACE-01 | Phase 5 | Pending |
-| SPACE-02 | Phase 5 | Pending |
+| SPACE-01 | Phase 5 | Complete |
+| SPACE-02 | Phase 5 | Complete |
 | SPACE-03 | Phase 5 | Pending |
 | SPACE-04 | Phase 5 | Pending |
 | API-01 | Phase 5 | Pending |
