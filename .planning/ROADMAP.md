@@ -131,9 +131,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 07-01: Runtime profiles + edge model tiers + headless mode
-- [ ] 07-02: ONNX/TensorRT export recipes + Jetson packaging notes
-- [ ] 07-03: Extension stubs (ROS2 scaffold, multi-cam `camera_id` tests, voice no-op) + release docs
+- [ ] 07-01-PLAN.md — Runtime profiles + edge model tiers + headless mode (EDGE-02, EDGE-05)
+- [ ] 07-02-PLAN.md — ONNX/TensorRT export recipes + Jetson packaging notes (EDGE-03)
+- [ ] 07-03-PLAN.md — Extension stubs + desktop GPU docs + safety/privacy (EDGE-04, EDGE-01)
 
 ## Progress
 
