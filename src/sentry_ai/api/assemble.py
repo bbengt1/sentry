@@ -62,10 +62,20 @@ def _obstacle_to_wire(cue: Any) -> ObstacleCue:
     (``_obstacles_for_store``); spatial ObstacleCue dataclasses may also
     appear. Both shapes must convert cleanly for ``/v1/snapshot``.
     """
+    from collections.abc import Mapping
+
     if isinstance(cue, ObstacleCue):
         return cue
-    if isinstance(cue, dict):
-        return ObstacleCue.model_validate(cue)
+    # FreeSpaceLoop path: plain dicts (must run before attribute access).
+    if isinstance(cue, Mapping):
+        data = dict(cue)
+        return ObstacleCue(
+            bbox_xyxy=list(data.get("bbox_xyxy") or data.get("bbox") or ()),
+            nearness_mean=float(data.get("nearness_mean", 0.0)),
+            nearness_max=float(data.get("nearness_max", 0.0)),
+            area_px=int(data.get("area_px", 0)),
+            band=data.get("band") or "near",
+        )
     if hasattr(cue, "model_dump"):
         return ObstacleCue.model_validate(cue.model_dump())
     return ObstacleCue(

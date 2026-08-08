@@ -46,7 +46,13 @@ async def v1_snapshot(request: Request) -> dict[str, Any]:
     Canonical path; ``GET /api/snapshot`` is a thin alias of this contract.
     """
     store = _require_store(request)
-    frame = assemble_perception_frame(store)
+    try:
+        frame = assemble_perception_frame(store)
+    except Exception as exc:  # noqa: BLE001 — surface assembly bugs as 500 detail
+        raise HTTPException(
+            status_code=500,
+            detail=f"assemble_perception_frame failed: {type(exc).__name__}: {exc}",
+        ) from exc
     if frame is None:
         raise HTTPException(
             status_code=404,
