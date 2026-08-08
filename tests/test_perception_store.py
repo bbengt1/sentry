@@ -359,3 +359,201 @@ def test_depth_product_builds_valid_depth_payload() -> None:
     )
     assert payload.kind == DepthKind.RELATIVE
     assert payload.unit is None
+
+
+# --- Free-space product (Phase 5 / SPACE-01) ---
+
+
+def test_snapshot_free_space_none_before_set() -> None:
+    store = PerceptionStore()
+    assert store.snapshot_free_space() is None
+
+
+def test_set_free_space_returns_product_fields() -> None:
+    store = PerceptionStore()
+    free = np.zeros((4, 6), dtype=np.uint8)
+    free[2:, :] = 255
+    occ = np.zeros((4, 6), dtype=np.uint8)
+    occ[2:4, 1:3] = 255
+    obstacles = [
+        {
+            "bbox_xyxy": (1.0, 2.0, 3.0, 4.0),
+            "nearness_mean": 0.9,
+            "nearness_max": 0.95,
+            "area_px": 4,
+            "band": "near",
+        }
+    ]
+    bands = {"near_frac": 0.2, "mid_frac": 0.3, "far_frac": 0.5}
+    store.set_free_space(
+        frame_id=5,
+        camera_id="camF",
+        t_capture=2.5,
+        latency_ms=3.5,
+        depth_kind=DepthKind.RELATIVE,
+        obstacle_count=1,
+        obstacles=obstacles,
+        bands=bands,
+        free_mask=free,
+        occupied_mask=occ,
+        method="near_field_bands",
+    )
+    snap = store.snapshot_free_space()
+    assert snap is not None
+    assert snap.frame_id == 5
+    assert snap.camera_id == "camF"
+    assert snap.t_capture == 2.5
+    assert snap.latency_ms == 3.5
+    assert snap.depth_kind == DepthKind.RELATIVE
+    assert snap.obstacle_count == 1
+    assert len(snap.obstacles) == 1
+    assert snap.bands == bands
+    assert snap.method == "near_field_bands"
+    assert snap.error is None
+    assert snap.free_mask is not None
+    assert snap.occupied_mask is not None
+    assert snap.t_compute > 0.0
+
+
+def test_set_free_space_keep_latest_overwrite() -> None:
+    store = PerceptionStore()
+    store.set_free_space(
+        frame_id=1,
+        camera_id="cam0",
+        t_capture=1.0,
+        latency_ms=1.0,
+        depth_kind=DepthKind.RELATIVE,
+        obstacle_count=0,
+        obstacles=[],
+        bands={"near_frac": 0.0, "mid_frac": 0.0, "far_frac": 1.0},
+    )
+    store.set_free_space(
+        frame_id=2,
+        camera_id="cam0",
+        t_capture=2.0,
+        latency_ms=2.0,
+        depth_kind=DepthKind.RELATIVE,
+        obstacle_count=2,
+        obstacles=[{"bbox_xyxy": (0, 0, 1, 1), "area_px": 1}],
+        bands={"near_frac": 0.5, "mid_frac": 0.25, "far_frac": 0.25},
+    )
+    snap = store.snapshot_free_space()
+    assert snap is not None
+    assert snap.frame_id == 2
+    assert snap.obstacle_count == 2
+
+
+def test_snapshot_free_space_isolates_obstacles_and_bands() -> None:
+    store = PerceptionStore()
+    obstacles = [{"bbox_xyxy": (0.0, 0.0, 1.0, 1.0), "area_px": 1, "band": "near"}]
+    bands = {"near_frac": 0.1, "mid_frac": 0.2, "far_frac": 0.7}
+    free = np.ones((2, 2), dtype=np.uint8)
+    store.set_free_space(
+        frame_id=1,
+        camera_id="cam0",
+        t_capture=1.0,
+        latency_ms=1.0,
+        depth_kind=DepthKind.RELATIVE,
+        obstacle_count=1,
+        obstacles=obstacles,
+        bands=bands,
+        free_mask=free,
+        occupied_mask=np.zeros((2, 2), dtype=np.uint8),
+    )
+    snap = store.snapshot_free_space()
+    assert snap is not None
+    snap.obstacles.append({"mutated": True})
+    snap.bands["near_frac"] = 99.0
+    snap.frame_id = 999
+    again = store.snapshot_free_space()
+    assert again is not None
+    assert again.frame_id == 1
+    assert len(again.obstacles) == 1
+    assert again.bands["near_frac"] == 0.1
+    assert snap is not again
+    # Masks may share array ref (immutable after set)
+    assert again.free_mask is free or np.array_equal(again.free_mask, free)
+
+
+def test_record_free_space_drop_and_metrics() -> None:
+    store = PerceptionStore()
+    store.set_free_space(
+        frame_id=1,
+        camera_id="cam0",
+        t_capture=1.0,
+        latency_ms=4.0,
+        depth_kind=DepthKind.RELATIVE,
+        obstacle_count=0,
+        obstacles=[],
+        bands={},
+    )
+    store.record_free_space_drop(3)
+    metrics = store.metrics_snapshot()
+    assert metrics.free_space_frames == 1
+    assert metrics.free_space_frames_dropped == 3
+    assert metrics.last_free_space_latency_ms == 4.0
+    assert metrics.free_space_fps >= 0.0
+    # Det/depth half still present
+    assert metrics.det_frames == 0
+    assert metrics.depth_frames == 0
+
+
+def test_triple_product_coexistence() -> None:
+    store = PerceptionStore()
+    store.set_detections(
+        frame_id=10,
+        camera_id="cam0",
+        t_capture=10.0,
+        detections=[_det("person")],
+        latency_ms=5.0,
+    )
+    store.set_depth(
+        frame_id=11,
+        camera_id="cam0",
+        t_capture=11.0,
+        depth_map=np.ones((4, 4), dtype=np.float32),
+        kind=DepthKind.RELATIVE,
+        unit=None,
+        latency_ms=7.0,
+    )
+    store.set_free_space(
+        frame_id=11,
+        camera_id="cam0",
+        t_capture=11.0,
+        latency_ms=2.0,
+        depth_kind=DepthKind.RELATIVE,
+        obstacle_count=0,
+        obstacles=[],
+        bands={"near_frac": 0.0, "mid_frac": 0.0, "far_frac": 1.0},
+    )
+    assert store.snapshot() is not None
+    assert store.snapshot_depth() is not None
+    free = store.snapshot_free_space()
+    assert free is not None
+    assert free.frame_id == 11
+    metrics = store.metrics_snapshot()
+    assert metrics.det_frames == 1
+    assert metrics.depth_frames == 1
+    assert metrics.free_space_frames == 1
+
+
+def test_free_space_error_product() -> None:
+    store = PerceptionStore()
+    store.set_free_space(
+        frame_id=3,
+        camera_id="cam0",
+        t_capture=3.0,
+        latency_ms=0.5,
+        depth_kind=DepthKind.RELATIVE,
+        obstacle_count=0,
+        obstacles=[],
+        bands={},
+        free_mask=None,
+        occupied_mask=None,
+        error="compute failed: boom",
+    )
+    snap = store.snapshot_free_space()
+    assert snap is not None
+    assert snap.error == "compute failed: boom"
+    assert snap.obstacle_count == 0
+    assert snap.obstacles == []
