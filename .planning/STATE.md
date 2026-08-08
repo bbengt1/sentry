@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 06-01-PLAN.md
-last_updated: "2026-08-08T16:26:19.101Z"
+status: verifying
+stopped_at: Completed 06-02-PLAN.md
+last_updated: "2026-08-08T16:35:56.555Z"
 last_activity: 2026-08-08
 progress:
   total_phases: 7
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 15
-  completed_plans: 14
-  percent: 71
+  completed_plans: 15
+  percent: 86
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-08-07)
 
 Phase: 6 (Developer Controls & Open-Vocab) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-08-08
 
-Progress: [█████████░] 93%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -70,6 +70,7 @@ Progress: [█████████░] 93%
 | Phase 05 P02 | 4min | 3 tasks | 7 files |
 | Phase 05 P03 | 4min | 3 tasks | 13 files |
 | Phase 06 P01 | 6min | 3 tasks | 18 files |
+| Phase 06 P02 | 8min | 3 tasks | 24 files |
 
 ## Accumulated Context
 
@@ -133,6 +134,10 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 06]: Enable flags inside loops skip compute; never stop/start threads for UI toggles — Locked plan decision (UI-03)
 - [Phase 06]: Unified GET/PATCH /api/pipeline/config for stages + free-space cuts; keep det conf + depth mode routes — Locked plan decision (UI-04)
 - [Phase 06]: clear_* product slots on disable for honest completeness — RESEARCH A4 disable semantics
+- [Phase 06]: OpenVocabProduct fourth store slot — never dual-write set_detections
+- [Phase 06]: Default OV mode off; continuous every_n=3 opt-in only
+- [Phase 06]: Detection.source additive default fixed — existing fixed path unchanged
+- [Phase 06]: YOLOE via existing detect extra; yoloe-26s-seg.pt default; mock in CI
 
 ### Pending Todos
 
@@ -150,6 +155,6 @@ None. Plan check passed with 4 non-blocking warnings (file count per plan, resea
 
 ## Session Continuity
 
-Last session: 2026-08-08T16:26:13.399Z
-Stopped at: Completed 06-01-PLAN.md
+Last session: 2026-08-08T16:35:56.546Z
+Stopped at: Completed 06-02-PLAN.md
 Next: Execute 03-02-PLAN.md (overlays, snapshot JSON, runtime conf, serve wiring)

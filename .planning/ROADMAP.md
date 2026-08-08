@@ -11,7 +11,7 @@ Build an open-source, camera-only perception product for maker robotics: start w
 - [x] **Phase 3: Fixed-Class Detection** — Local YOLO detection worker, overlays, stream detections (completed 2026-08-07)
 - [x] **Phase 4: Monocular Depth** — Depth Anything V2 pipeline with honest depth typing (completed 2026-08-08)
 - [x] **Phase 5: Free-Space & Unified Stream** — Spatial post, merged PerceptionFrame API, obstacle overlays (completed 2026-08-08)
-- [ ] **Phase 6: Developer Controls & Open-Vocab** — Interactive console + promptable detection
+- [x] **Phase 6: Developer Controls & Open-Vocab** — Interactive console + promptable detection (completed 2026-08-08)
 - [ ] **Phase 7: Edge Profiles & Extension Stubs** — Desktop/Jetson/CPU profiles, export recipes, future hooks
 
 ## Phase Details
@@ -115,7 +115,7 @@ Plans:
 
 Plans:
 - [x] 06-01-PLAN.md — Control plane + full interactive UI (toggles, thresholds, telemetry)
-- [ ] 06-02-PLAN.md — Open-vocab worker (YOLOE) + prompt UX + stream/UI integration
+- [x] 06-02-PLAN.md — Open-vocab worker (YOLOE) + prompt UX + stream/UI integration
 
 ### Phase 7: Edge Profiles & Extension Stubs
 **Goal**: Make multi-target deployment real and leave clean extension points for post-v1 capabilities.  
@@ -147,7 +147,7 @@ Plans:
 | 3. Fixed-Class Detection | 2/2 | Complete   | 2026-08-07 |
 | 4. Monocular Depth | 2/2 | Complete   | 2026-08-08 |
 | 5. Free-Space & Unified Stream | 3/3 | Complete   | 2026-08-08 |
-| 6. Developer Controls & Open-Vocab | 1/2 | In Progress|  |
+| 6. Developer Controls & Open-Vocab | 2/2 | Complete   | 2026-08-08 |
 | 7. Edge Profiles & Extension Stubs | 0/3 | Not started | - |
 
 ## Architecture Spine (reference)

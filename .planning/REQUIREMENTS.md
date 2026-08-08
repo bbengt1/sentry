@@ -65,9 +65,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Open-Vocabulary Detection
 
-- [ ] **OVD-01**: Open-vocabulary detector (YOLOE or equivalent OSS) accepts text prompts for custom classes
-- [ ] **OVD-02**: Open-vocab path can run on-demand or at a lower rate than fixed-class detection
-- [ ] **OVD-03**: Open-vocab results appear on dashboard and in stream when enabled
+- [x] **OVD-01**: Open-vocabulary detector (YOLOE or equivalent OSS) accepts text prompts for custom classes
+- [x] **OVD-02**: Open-vocab path can run on-demand or at a lower rate than fixed-class detection
+- [x] **OVD-03**: Open-vocab results appear on dashboard and in stream when enabled
 
 ### Multi-Target & Extensibility
 
@@ -163,9 +163,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UI-04 | Phase 6 | Complete |
 | UI-05 | Phase 6 | Complete |
 | UI-06 | Phase 5 | Complete |
-| OVD-01 | Phase 6 | Pending |
-| OVD-02 | Phase 6 | Pending |
-| OVD-03 | Phase 6 | Pending |
+| OVD-01 | Phase 6 | Complete |
+| OVD-02 | Phase 6 | Complete |
+| OVD-03 | Phase 6 | Complete |
 | EDGE-01 | Phase 7 | Pending |
 | EDGE-02 | Phase 7 | Pending |
 | EDGE-03 | Phase 7 | Pending |
