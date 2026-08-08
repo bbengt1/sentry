@@ -98,7 +98,7 @@ Plans:
 
 Plans:
 - [x] 05-01-PLAN.md — Spatial Post free-space/obstacle derivation + temporal smoothing
-- [ ] 05-02-PLAN.md — Perception state store + merged frame assembly
+- [x] 05-02-PLAN.md — Perception state store + merged frame assembly
 - [ ] 05-03-PLAN.md — `/v1` WebSocket + REST API docs, stale contract, full overlay parity
 
 ### Phase 6: Developer Controls & Open-Vocab
@@ -146,7 +146,7 @@ Plans:
 | 2. Camera Ingest & Live Preview | 3/3 | Complete   | 2026-08-07 |
 | 3. Fixed-Class Detection | 2/2 | Complete   | 2026-08-07 |
 | 4. Monocular Depth | 2/2 | Complete   | 2026-08-08 |
-| 5. Free-Space & Unified Stream | 1/3 | In Progress|  |
+| 5. Free-Space & Unified Stream | 2/3 | In Progress|  |
 | 6. Developer Controls & Open-Vocab | 0/2 | Not started | - |
 | 7. Edge Profiles & Extension Stubs | 0/3 | Not started | - |
 

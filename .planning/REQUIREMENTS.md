@@ -44,15 +44,15 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **SPACE-01**: Free-space / obstacle regions are derived from depth (simple occupancy or near-field bands — not SLAM)
 - [x] **SPACE-02**: Obstacle cues are exposed in the perception stream in a machine-readable form
 - [ ] **SPACE-03**: Free-space / obstacle overlay is shown on the web dashboard
-- [ ] **SPACE-04**: Stale / incomplete perception is signaled (TTL or completeness flags); no implied “safe to proceed”
+- [x] **SPACE-04**: Stale / incomplete perception is signaled (TTL or completeness flags); no implied “safe to proceed”
 
 ### Perception Stream API
 
 - [ ] **API-01**: WebSocket stream delivers merged `PerceptionFrame` under a versioned `/v1` contract
 - [ ] **API-02**: REST snapshot endpoint returns latest `PerceptionFrame`
-- [ ] **API-03**: Each frame reports completeness for depth, detections, and free-space
-- [ ] **API-04**: Stream metadata includes FPS / stage latency and drop counts
-- [ ] **API-05**: API never emits motor commands, velocities, or path plans (perception-only boundary)
+- [x] **API-03**: Each frame reports completeness for depth, detections, and free-space
+- [x] **API-04**: Stream metadata includes FPS / stage latency and drop counts
+- [x] **API-05**: API never emits motor commands, velocities, or path plans (perception-only boundary)
 
 ### Developer Web Interface
 
@@ -152,12 +152,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SPACE-01 | Phase 5 | Complete |
 | SPACE-02 | Phase 5 | Complete |
 | SPACE-03 | Phase 5 | Pending |
-| SPACE-04 | Phase 5 | Pending |
+| SPACE-04 | Phase 5 | Complete |
 | API-01 | Phase 5 | Pending |
 | API-02 | Phase 5 | Pending |
-| API-03 | Phase 5 | Pending |
-| API-04 | Phase 5 | Pending |
-| API-05 | Phase 5 | Pending |
+| API-03 | Phase 5 | Complete |
+| API-04 | Phase 5 | Complete |
+| API-05 | Phase 5 | Complete |
 | UI-02 | Phase 5 | Pending |
 | UI-03 | Phase 6 | Pending |
 | UI-04 | Phase 6 | Pending |

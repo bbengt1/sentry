@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Completed 04-02-PLAN.md
-last_updated: "2026-08-08T12:11:45.138Z"
+last_updated: "2026-08-08T12:19:38.669Z"
 last_activity: 2026-08-08
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 13
-  completed_plans: 11
+  completed_plans: 12
   percent: 57
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-08-07)
 ## Current Position
 
 Phase: 5 (Free-Space & Unified Stream) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-08-08
 
-Progress: [█████████░] 85%
+Progress: [█████████░] 92%
 
 ## Performance Metrics
 
@@ -66,6 +66,7 @@ Progress: [█████████░] 85%
 | Phase 04 P02 | 6min | 3 tasks | 16 files |
 | Phase 05 P01 | 5min | 3 tasks | 11 files |
 | Phase 05 P01 | 5min | 3 tasks | 11 files |
+| Phase 05 P02 | 4min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -119,6 +120,10 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase ?]: units always ordinal for v1 free-space even when depth_kind is metric_estimated
 - [Phase ?]: OccupancySmoother state owned by FreeSpaceLoop, not PerceptionStore
 - [Phase ?]: FreeSpaceLoop polls snapshot_depth only (no FrameBus/ModelWorker)
+- [Phase 05]: FreeSpacePayload expanded with ObstacleCue list + bands; units default ordinal; no distance_m
+- [Phase 05]: DEFAULT_TTL_MS: detections 500 / depth 750 / free_space 750; TtlConfig overrideable
+- [Phase 05]: Primary identity = max t_capture among present products
+- [Phase 05]: /api/snapshot is thin alias to assembler only — no dual merge
 
 ### Pending Todos
 
@@ -136,6 +141,6 @@ None. Plan check passed with 4 non-blocking warnings (file count per plan, resea
 
 ## Session Continuity
 
-Last session: 2026-08-08T12:11:13.958Z
+Last session: 2026-08-08T12:17:13.761Z
 Stopped at: Completed 04-02-PLAN.md
 Next: Execute 03-02-PLAN.md (overlays, snapshot JSON, runtime conf, serve wiring)
