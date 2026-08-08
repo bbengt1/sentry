@@ -78,6 +78,9 @@ packages = ["src/sentry_ai"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+  "export: real Ultralytics model.export (opt-in; skipped by default in CI)",
+]
 
 [tool.ruff]
 target-version = "py311"
