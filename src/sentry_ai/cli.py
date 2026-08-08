@@ -123,34 +123,65 @@ def cameras(
         8,
         "--max-index",
         min=0,
-        help="Highest device index to probe (inclusive). Default 8.",
+        help="Highest OpenCV device index to probe (inclusive). Default 8.",
     ),
     all_indices: bool = typer.Option(
         False,
         "--all",
         help="Also show indices that failed to open (debug).",
     ),
+    no_avfoundation: bool = typer.Option(
+        False,
+        "--no-avfoundation",
+        help="Skip macOS AVFoundation name discovery (OpenCV indices only).",
+    ),
 ) -> None:
-    """List local camera device indices available to OpenCV.
+    """List local cameras (OpenCV indices + macOS AVFoundation names).
 
-    Probes USB / built-in / virtual cameras (e.g. macOS Continuity Camera).
-    Use the INDEX with: sentry serve --source usb --device <INDEX>
+    On macOS, uses AVFoundation DiscoverySession so Continuity Camera /
+    iPhone entries appear with names when the system exposes them.
+    Use IDX with: sentry serve --source usb --device <IDX>
     """
+    import platform
+
     from sentry_ai.sources.list_cameras import (
         format_camera_list,
         list_local_cameras,
+        list_macos_av_devices,
     )
+
+    use_av = not no_avfoundation and platform.system() == "Darwin"
+    av_count = 0
+    if use_av:
+        try:
+            av_count = len(list_macos_av_devices())
+        except Exception:  # noqa: BLE001
+            av_count = 0
 
     try:
         found = list_local_cameras(
             max_index=max_index,
             include_unavailable=all_indices,
+            use_avfoundation=use_av,
         )
     except Exception as exc:  # noqa: BLE001
         typer.echo(f"cameras failed: {exc}", err=True)
         raise typer.Exit(code=1) from exc
 
-    typer.echo(format_camera_list(found, max_index=max_index))
+    # Effective probe ceiling after AV expansion
+    probed = max_index
+    if found:
+        idxs = [c.index for c in found if c.index is not None]
+        if idxs:
+            probed = max(probed, max(idxs))
+
+    typer.echo(
+        format_camera_list(
+            found,
+            max_index=probed,
+            av_device_count=av_count if use_av else None,
+        )
+    )
 
 
 @app.command()

@@ -7,6 +7,7 @@ from sentry_ai.sources.list_cameras import (
     LocalCameraInfo,
     format_camera_list,
     list_local_cameras,
+    list_macos_av_devices,
     probe_camera_index,
 )
 from sentry_ai.sources.opencv_source import (
@@ -28,5 +29,6 @@ __all__ = [
     "UsbSource",
     "format_camera_list",
     "list_local_cameras",
+    "list_macos_av_devices",
     "probe_camera_index",
 ]

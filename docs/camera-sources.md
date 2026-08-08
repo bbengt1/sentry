@@ -49,21 +49,32 @@ than bolting PyAV into the default path without docs and tests.
 
 ```bash
 uv run sentry cameras
-uv run sentry cameras --max-index 12   # probe more indices
+uv run sentry cameras --max-index 12   # probe more OpenCV indices
 uv run sentry cameras --all            # include failed indices (debug)
+uv run sentry cameras --no-avfoundation  # OpenCV indices only (skip names)
 ```
 
-OpenCV device indices are **not** always physical USB only. On **macOS** the
-list often includes:
+On **macOS**, Sentry combines:
 
-- Built-in FaceTime camera  
-- **Continuity Camera** (iPhone as webcam)  
-- Other virtual devices (OBS, Zoom, etc.)
+1. **AVFoundation DiscoverySession** (Swift) — names + Continuity / external types  
+2. **OpenCV** `CAP_AVFOUNDATION` probes — whether `serve --source usb` can open them  
 
-Use the printed `INDEX` with:
+### Continuity Camera (iPhone)
+
+Continuity only appears when macOS currently exposes the device:
+
+- iPhone nearby, same Apple ID, Bluetooth + Wi‑Fi on  
+- iOS: **Settings → General → AirPlay & Continuity → Continuity Camera** on  
+- iPhone unlocked / recently unlocked; not already used as a camera elsewhere  
+- macOS Ventura or later  
+
+If Continuity is listed with **OPEN=no**, AVFoundation sees it but OpenCV cannot
+stream yet — re-check Continuity is active, then re-run `sentry cameras`.
+
+Use the printed **IDX** with:
 
 ```bash
-uv run sentry serve --source usb --device <INDEX>
+uv run sentry serve --source usb --device <IDX>
 ```
 
 ## Manual verification checklist
