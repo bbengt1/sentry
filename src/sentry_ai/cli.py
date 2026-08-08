@@ -410,16 +410,39 @@ def serve(
         det_loop.start()
     if depth_loop is not None:
         depth_loop.start()
-    try:
-        import uvicorn
 
-        uvicorn.run(app_asgi, host=host, port=port, log_level="info")
-    finally:
+    def _stop_workers() -> None:
+        # Signal streams first so MJPEG generators exit promptly.
+        flag = getattr(app_asgi.state, "shutdown_flag", None)
+        if flag is not None:
+            flag.set()
         if depth_loop is not None:
             depth_loop.stop()
         if det_loop is not None:
             det_loop.stop()
         loop.stop()
+
+    try:
+        import uvicorn
+
+        # timeout_graceful_shutdown: do not hang forever on open MJPEG
+        # browser connections ("Waiting for connections to close").
+        config = uvicorn.Config(
+            app_asgi,
+            host=host,
+            port=port,
+            log_level="info",
+            timeout_graceful_shutdown=2,
+        )
+        server = uvicorn.Server(config)
+        try:
+            server.run()
+        except KeyboardInterrupt:
+            # Second Ctrl+C / race with uvicorn signal handling.
+            typer.echo("sentry serve: interrupted", err=True)
+    finally:
+        _stop_workers()
+        typer.echo("sentry serve: stopped")
 
 
 def main() -> None:
@@ -427,6 +450,10 @@ def main() -> None:
     # Ensure non-zero exit propagates when invoked as a script.
     try:
         app()
+    except KeyboardInterrupt:
+        # Top-level guard so Typer/uvicorn races don't dump a full traceback.
+        typer.echo("interrupted", err=True)
+        sys.exit(130)
     except SystemExit as exc:
         code = exc.code if isinstance(exc.code, int) else (1 if exc.code else 0)
         sys.exit(code)

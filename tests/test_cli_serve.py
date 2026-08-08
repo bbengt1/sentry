@@ -117,6 +117,14 @@ def test_serve_source_wires_detection_loop_lifecycle() -> None:
     assert "det_loop" in source
 
 
+def test_serve_uses_graceful_shutdown_timeout() -> None:
+    """Ctrl+C must not hang forever on open MJPEG connections."""
+    source = inspect.getsource(cli_mod.serve)
+    assert "timeout_graceful_shutdown" in source
+    assert "shutdown_flag" in source
+    assert "_stop_workers" in source or "stop()" in source
+
+
 def test_serve_source_wires_depth_loop_lifecycle() -> None:
     """serve constructs DepthLoop when depth extra available; degrades otherwise."""
     source = inspect.getsource(cli_mod.serve)

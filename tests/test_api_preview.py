@@ -121,6 +121,38 @@ def test_mjpeg_generator_emits_jpeg_boundary() -> None:
     assert b"\xff\xd8" in chunk  # JPEG SOI
 
 
+def test_mjpeg_generator_stops_on_shutdown_flag() -> None:
+    """Serve Ctrl+C sets shutdown_flag; generator must exit without hang."""
+    import threading
+
+    bus = FrameBus()
+    bus.publish(_make_frame())
+    flag = threading.Event()
+    flag.set()
+
+    async def _drain() -> int:
+        gen = _mjpeg_generator(bus, store=None, shutdown_flag=flag)
+        count = 0
+        async for _ in gen:
+            count += 1
+            if count > 5:
+                break
+        return count
+
+    # Already set → zero or immediate exit (no infinite stream)
+    n = asyncio.run(_drain())
+    assert n == 0
+
+
+def test_create_app_has_shutdown_flag() -> None:
+    bus = FrameBus()
+    source = SyntheticSource(camera_id="t", fps=0.0)
+    loop = CaptureLoop(source, bus)
+    app = create_app(bus=bus, capture_loop=loop, bind="127.0.0.1:8000")
+    assert hasattr(app.state, "shutdown_flag")
+    assert app.state.shutdown_flag.is_set() is False
+
+
 def test_mjpeg_generator_with_store_overlay_still_jpeg() -> None:
     """Store detections are drawn before encode; stream remains multipart JPEG."""
     from sentry_ai.schemas.perception import Detection

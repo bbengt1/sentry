@@ -4,11 +4,15 @@ Handlers only call bus.get_latest / capture_loop.build_status / store snapshots.
 They never open cameras or call source.read — encode from bus only.
 Detection overlays and depth colormap are drawn from PerceptionStore
 (same truth as snapshot).
+
+MJPEG generators exit on client disconnect, app shutdown_flag, or cancel so
+``sentry serve`` Ctrl+C does not hang on open browser streams.
 """
 
 from __future__ import annotations
 
 import asyncio
+import threading
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
@@ -104,49 +108,72 @@ async def _mjpeg_generator(
     bus: Any,
     store: Any | None = None,
     jpeg_quality: int = JPEG_QUALITY,
+    *,
+    request: Request | None = None,
+    shutdown_flag: threading.Event | None = None,
 ) -> AsyncIterator[bytes]:
     """Yield multipart JPEG parts from the keep-latest bus slot.
 
     When ``store`` has a good depth product, blend TURBO colormap first;
     then draw detection boxes. Temporal skew (depth/det frame_id lagging
     RGB) is accepted intentionally. Never runs inference.
+
+    Stops when:
+    - ``shutdown_flag`` is set (app lifespan / serve Ctrl+C),
+    - the HTTP client disconnects (``request.is_disconnected``),
+    - or the task is cancelled (uvicorn graceful shutdown).
     """
     boundary = BOUNDARY.encode()
-    while True:
-        item = bus.get_latest()
-        if item is not None:
-            image = item.image_bgr
-            if store is not None:
-                depth_product = store.snapshot_depth()
-                if (
-                    depth_product is not None
-                    and depth_product.error is None
-                    and depth_product.depth_map is not None
-                ):
-                    image = blend_depth(
-                        image,
-                        depth_product.depth_map,
-                        alpha=DEPTH_BLEND_ALPHA,
-                    )
-                product = store.snapshot()
-                if product is not None:
-                    image = draw_detections(image, product.detections)
-            ok, buf = cv2.imencode(
-                ".jpg",
-                image,
-                [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality],
-            )
-            if ok:
-                chunk = buf.tobytes()
-                yield (
-                    b"--"
-                    + boundary
-                    + b"\r\n"
-                    + b"Content-Type: image/jpeg\r\n\r\n"
-                    + chunk
-                    + b"\r\n"
+    try:
+        while True:
+            if shutdown_flag is not None and shutdown_flag.is_set():
+                break
+            if request is not None:
+                try:
+                    if await request.is_disconnected():
+                        break
+                except RuntimeError:
+                    # Request has no receive channel (unit tests building
+                    # Request(scope) without ASGI receive).
+                    pass
+
+            item = bus.get_latest()
+            if item is not None:
+                image = item.image_bgr
+                if store is not None:
+                    depth_product = store.snapshot_depth()
+                    if (
+                        depth_product is not None
+                        and depth_product.error is None
+                        and depth_product.depth_map is not None
+                    ):
+                        image = blend_depth(
+                            image,
+                            depth_product.depth_map,
+                            alpha=DEPTH_BLEND_ALPHA,
+                        )
+                    product = store.snapshot()
+                    if product is not None:
+                        image = draw_detections(image, product.detections)
+                ok, buf = cv2.imencode(
+                    ".jpg",
+                    image,
+                    [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality],
                 )
-        await asyncio.sleep(MJPEG_SLEEP_S)
+                if ok:
+                    chunk = buf.tobytes()
+                    yield (
+                        b"--"
+                        + boundary
+                        + b"\r\n"
+                        + b"Content-Type: image/jpeg\r\n\r\n"
+                        + chunk
+                        + b"\r\n"
+                    )
+            await asyncio.sleep(MJPEG_SLEEP_S)
+    except asyncio.CancelledError:
+        # Normal path when uvicorn cancels streaming tasks on shutdown.
+        return
 
 
 @router.get("/preview/mjpeg")
@@ -154,8 +181,14 @@ async def preview_mjpeg(request: Request) -> StreamingResponse:
     """MJPEG multipart stream of the latest bus frame (subscriber only)."""
     bus = _bus(request)
     store = _perception_store(request)
+    shutdown_flag = getattr(request.app.state, "shutdown_flag", None)
     return StreamingResponse(
-        _mjpeg_generator(bus, store=store),
+        _mjpeg_generator(
+            bus,
+            store=store,
+            request=request,
+            shutdown_flag=shutdown_flag,
+        ),
         media_type=f"multipart/x-mixed-replace; boundary={BOUNDARY}",
     )
 
