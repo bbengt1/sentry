@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
+status: verifying
 stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-08-08T10:15:52.112Z"
+last_updated: "2026-08-08T10:23:31.428Z"
 last_activity: 2026-08-08
 progress:
   total_phases: 7
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 10
-  completed_plans: 9
-  percent: 43
+  completed_plans: 10
+  percent: 57
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-08-07)
 
 Phase: 4 (Monocular Depth) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-08-08
 
-Progress: [█████████░] 90%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -62,6 +62,7 @@ Progress: [█████████░] 90%
 | Phase 03 P01 | 6min | 3 tasks | 25 files |
 | Phase 03 P02 | 5min | 3 tasks | 14 files |
 | Phase 04 P01 | 6min | 3 tasks | 23 files |
+| Phase 04 P02 | 6min | 3 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -107,6 +108,11 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 04]: HF Transformers DAV2 Small default (Apache-2.0); never Base/Large NC
 - [Phase 04]: Extend one PerceptionStore with DepthProduct rather than separate DepthStore
 - [Phase 04]: kind_for_mode from configured depth_mode only — no float-range heuristics
+- [Phase 04]: Overlay transport: server-side COLORMAP_TURBO alpha 0.45 before MJPEG encode
+- [Phase 04]: Snapshot never serializes depth_map; metadata + min/max/mean/latency only
+- [Phase 04]: 404 only when neither detection nor depth product exists
+- [Phase 04]: Relative UI label: relative (not meters); metric shows kind + m when unit is m
+- [Phase 04]: serve depth_mode defaults to relative; PATCH /api/depth/config for runtime toggle
 
 ### Pending Todos
 
@@ -124,6 +130,6 @@ None. Plan check passed with 4 non-blocking warnings (file count per plan, resea
 
 ## Session Continuity
 
-Last session: 2026-08-08T10:15:52.104Z
+Last session: 2026-08-08T10:22:54.490Z
 Stopped at: Completed 04-01-PLAN.md
 Next: Execute 03-02-PLAN.md (overlays, snapshot JSON, runtime conf, serve wiring)
