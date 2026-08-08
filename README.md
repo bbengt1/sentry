@@ -113,25 +113,44 @@ uv sync --extra dev --extra depth
 
 # Both detection and depth
 uv sync --extra dev --extra detect --extra depth
+
+# Synthetic serve with TURBO depth colormap on Live Preview
+uv run sentry serve --source synthetic
 ```
 
-Default mode is **relative** depth (`DepthKind.relative`) — never labeled as
-meters. Optional metric indoor/outdoor Small heads are labeled
+Default mode is **relative** depth (`DepthKind.relative`) — **never** labeled
+as meters. Optional metric indoor/outdoor Small heads are labeled
 `metric_estimated` with `unit="m"`. Base/Large NC weights are never default.
+
+Without the depth extra, `sentry serve` still starts capture + Live Preview
+and logs a clear install hint (`uv sync --extra depth`).
 
 On first depth run, HF weights download once into
 `SENTRY_MODEL_CACHE/hf` (or `~/.cache/sentry-ai/hf`). Subsequent runs are
 offline. Unit tests inject fake models and never hit the HF hub.
 
-API/UI colormap and serve wiring land in the next Phase 4 plan; the depth
-worker + DepthLoop + PerceptionStore depth product ship first.
+### Depth API / status
 
-## Phase 4 scope (core)
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/snapshot` | `PerceptionFrame` with optional `depth` (`DepthPayload`: kind, unit, width, height) + completeness; **no** full depth map arrays |
+| `GET /api/depth/config` | Current `depth_mode` (+ model id/device when available) |
+| `PATCH /api/depth/config` | Runtime mode: `{"depth_mode":"relative"\|"metric_indoor"\|"metric_outdoor"}` |
+| `GET /api/status` | Capture + optional depth metrics (`depth_kind`, `depth_latency_ms`, `depth_fps`, `depth_frame_id`, …) |
+| Live Preview MJPEG | Server-side OpenCV `COLORMAP_TURBO` blend from the same PerceptionStore product |
+
+Honesty rules: relative products omit unit / never claim meters; metric modes
+show `metric_estimated` + `m`. Status/UI footer show depth kind + latency.
+
+## Phase 4 scope
 
 - Depth Anything V2 Small worker (HF Transformers) + DepthLoop on FrameBus
 - PerceptionStore DepthProduct (keep-latest, dual with detections)
-- Honest `DepthKind` / unit from configured mode
+- Honest `DepthKind` / unit from configured mode; relative never meters
+- Server-side TURBO colormap on MJPEG; snapshot metadata + stats only
+- Live Preview depth kind badge + depth latency; optional depth_mode PATCH
 - HF cache under `SENTRY_MODEL_CACHE/hf`
+- `sentry serve` starts DepthLoop when depth extra available
 
 ## Phase 3 scope
 

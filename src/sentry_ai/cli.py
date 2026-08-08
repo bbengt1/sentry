@@ -284,12 +284,33 @@ def serve(
         worker = None
         det_loop = None
 
+    # Optional monocular depth (requires `uv sync --extra depth`).
+    depth_worker: Any | None = None
+    depth_loop: Any | None = None
+    try:
+        from sentry_ai.models.cache import configure_model_cache
+        from sentry_ai.models.depth.loop import DepthLoop
+        from sentry_ai.models.depth.worker import DepthAnythingWorker
+
+        configure_model_cache()  # HF_HOME under SENTRY_MODEL_CACHE
+        depth_worker = DepthAnythingWorker(depth_mode="relative")
+        depth_loop = DepthLoop(bus, depth_worker, store)
+    except ImportError as exc:
+        typer.echo(
+            "depth disabled: depth extra not installed "
+            f"({exc}). Install with: uv sync --extra depth",
+            err=True,
+        )
+        depth_worker = None
+        depth_loop = None
+
     app_asgi = create_app(
         bus=bus,
         capture_loop=loop,
         bind=bind,
         perception_store=store,
         detection_worker=worker,
+        depth_worker=depth_worker,
     )
 
     typer.echo(f"sentry-ai {__version__} serve")
@@ -299,6 +320,10 @@ def serve(
         typer.echo("detection: enabled (fixed-class YOLO)")
     else:
         typer.echo("detection: disabled (capture-only preview)")
+    if depth_loop is not None:
+        typer.echo("depth: enabled (DAV2 Small relative)")
+    else:
+        typer.echo("depth: disabled (install: uv sync --extra depth)")
     if host not in ("127.0.0.1", "localhost", "::1"):
         typer.echo(
             "warning: non-localhost bind exposes the live camera stream "
@@ -306,14 +331,19 @@ def serve(
             err=True,
         )
 
+    # Start order: capture → det → depth; stop reverse.
     loop.start()
     if det_loop is not None:
         det_loop.start()
+    if depth_loop is not None:
+        depth_loop.start()
     try:
         import uvicorn
 
         uvicorn.run(app_asgi, host=host, port=port, log_level="info")
     finally:
+        if depth_loop is not None:
+            depth_loop.stop()
         if det_loop is not None:
             det_loop.stop()
         loop.stop()

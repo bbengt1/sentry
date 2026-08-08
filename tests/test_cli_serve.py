@@ -117,8 +117,33 @@ def test_serve_source_wires_detection_loop_lifecycle() -> None:
     assert "det_loop" in source
 
 
+def test_serve_source_wires_depth_loop_lifecycle() -> None:
+    """serve constructs DepthLoop when depth extra available; degrades otherwise."""
+    source = inspect.getsource(cli_mod.serve)
+    assert "DepthLoop" in source
+    assert "DepthAnythingWorker" in source
+    assert "depth_worker" in source
+    assert "depth_loop" in source
+    assert "depth_loop.start()" in source
+    assert "depth_loop.stop()" in source
+    # Graceful degrade path when depth extra missing
+    assert "uv sync --extra depth" in source or "depth extra" in source.lower()
+    # Stop depth before bare capture loop.stop() in finally
+    depth_stop = source.index("depth_loop.stop()")
+    bare_stop = None
+    for line in source.splitlines():
+        if line.strip() == "loop.stop()":
+            bare_stop = source.index(line)
+            break
+    assert bare_stop is not None
+    assert depth_stop < bare_stop
+    # Enabled banner for relative DAV2 Small
+    assert "DAV2" in source or "relative" in source
+
+
 def test_serve_does_not_import_torch_at_module_level() -> None:
     """Bare smoke path: cli module must not hard-import torch."""
     source = inspect.getsource(cli_mod)
     # Top of module / unconditional imports should not pull torch.
     assert "import torch" not in source.split("def serve")[0]
+    assert "import transformers" not in source.split("def serve")[0]

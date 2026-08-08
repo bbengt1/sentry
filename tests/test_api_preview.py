@@ -237,6 +237,11 @@ def test_root_serves_live_preview_html() -> None:
         assert "Det ms" in body
         assert "detection/config" in body
         assert "conf-slider" in body or 'type="range"' in body
+        # Phase 4: depth kind + latency (UI-SPEC)
+        assert "metric-depth-kind" in body
+        assert "metric-depth-ms" in body
+        assert "Depth" in body
+        assert "not meters" in body  # honesty copy in JS or note
         # Copy constraints from UI-SPEC
         lower = body.lower()
         assert "autonomous" not in lower

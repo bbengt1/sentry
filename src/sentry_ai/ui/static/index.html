@@ -152,6 +152,8 @@
       <div>Drops: <strong id="metric-drops">—</strong></div>
       <div>Detections: <strong id="metric-detections">—</strong></div>
       <div>Det ms: <strong id="metric-det-ms">—</strong></div>
+      <div>Depth: <strong id="metric-depth-kind">—</strong></div>
+      <div>Depth ms: <strong id="metric-depth-ms">—</strong></div>
       <div>Bind: <strong id="metric-bind">—</strong></div>
       <div class="conf-row">
         <label for="conf-slider">Conf threshold:</label>
@@ -167,8 +169,9 @@
         <strong id="metric-conf">0.25</strong>
       </div>
       <p class="note">
-        Model weights may download on first detection run; cached under
-        SENTRY_MODEL_CACHE / ~/.cache/sentry-ai thereafter.
+        Model weights may download on first detection/depth run; cached under
+        SENTRY_MODEL_CACHE / ~/.cache/sentry-ai thereafter. Relative depth is
+        never meters — metric modes are labeled when enabled.
       </p>
     </footer>
   </div>
@@ -184,6 +187,8 @@
       var elDrops = document.getElementById("metric-drops");
       var elDetections = document.getElementById("metric-detections");
       var elDetMs = document.getElementById("metric-det-ms");
+      var elDepthKind = document.getElementById("metric-depth-kind");
+      var elDepthMs = document.getElementById("metric-depth-ms");
       var elBind = document.getElementById("metric-bind");
       var elConf = document.getElementById("metric-conf");
       var confSlider = document.getElementById("conf-slider");
@@ -233,6 +238,29 @@
         elDetMs.textContent =
           (data && typeof data.det_latency_ms === "number")
             ? formatNum(data.det_latency_ms, 1)
+            : "—";
+
+        // Depth kind honesty: relative never labeled as meters (DEPTH-04).
+        if (data && data.depth_kind) {
+          var kind = String(data.depth_kind);
+          if (kind === "relative") {
+            elDepthKind.textContent = "relative (not meters)";
+          } else if (
+            (kind === "metric_estimated" || kind === "metric_calibrated") &&
+            data.depth_unit === "m"
+          ) {
+            elDepthKind.textContent = kind + " (m)";
+          } else {
+            elDepthKind.textContent = kind;
+          }
+        } else if (data && data.depth_error) {
+          elDepthKind.textContent = "unavailable";
+        } else {
+          elDepthKind.textContent = "—";
+        }
+        elDepthMs.textContent =
+          (data && typeof data.depth_latency_ms === "number")
+            ? formatNum(data.depth_latency_ms, 1)
             : "—";
 
         if (data && typeof data.det_conf === "number") {
