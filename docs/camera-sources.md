@@ -9,7 +9,7 @@ preview never opens cameras.
 | Source | Plugin name | How to select | Target | Typical latency class | CI |
 |--------|-------------|---------------|--------|----------------------|----|
 | Synthetic | `synthetic` | `--source synthetic` | patterned BGR frames | n/a (local) | Yes |
-| USB UVC | `usb` | `--source usb --device 0` | device index | low (tens of ms) | Manual |
+| USB UVC | `usb` | `--source usb --device N` | device index (see `sentry cameras`) | low (tens of ms) | Manual |
 | File / video | `file` | `--source file --path clip.mp4` | filesystem path | file decode | Yes (fixtures) |
 | Network / IP | `rtsp` | `--source rtsp --url rtsp://…` | OpenCV URL | high (100–500 ms+) | Mock only |
 
@@ -45,11 +45,33 @@ than bolting PyAV into the default path without docs and tests.
   only (`sentry serve --host 0.0.0.0`).
 - RTSP credentials in the URL may show up in process lists and logs.
 
+## List local cameras
+
+```bash
+uv run sentry cameras
+uv run sentry cameras --max-index 12   # probe more indices
+uv run sentry cameras --all            # include failed indices (debug)
+```
+
+OpenCV device indices are **not** always physical USB only. On **macOS** the
+list often includes:
+
+- Built-in FaceTime camera  
+- **Continuity Camera** (iPhone as webcam)  
+- Other virtual devices (OBS, Zoom, etc.)
+
+Use the printed `INDEX` with:
+
+```bash
+uv run sentry serve --source usb --device <INDEX>
+```
+
 ## Manual verification checklist
 
 1. **Synthetic:** `uv run sentry serve --source synthetic` → open
    `http://127.0.0.1:8000/` → green **streaming** pill + moving bar.
-2. **USB:** `uv run sentry serve --source usb --device 0` → live frames; unplug
+2. **USB:** `uv run sentry cameras` then
+   `uv run sentry serve --source usb --device <INDEX>` → live frames; unplug
    cable → **reconnecting** / **error** without freezing the whole page forever.
 3. **File:** `uv run sentry serve --source file --path tests/fixtures/<clip>` →
    looping playback (default `loop_file=True`).

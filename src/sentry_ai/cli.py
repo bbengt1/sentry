@@ -1,7 +1,10 @@
-"""Sentry AI CLI — health, synthetic smoke, and localhost serve.
+"""Sentry AI CLI — health, cameras, synthetic smoke, and localhost serve.
 
 Smoke validates synthetic ImageFrame → PerceptionFrame paths without
 hardware cameras, torch, or cloud API keys (MODEL-01 / FOUND-05).
+
+``sentry cameras`` lists local OpenCV device indices (USB / built-in /
+Continuity Camera on macOS).
 
 ``sentry serve`` starts capture + FastAPI Live Preview (UI-01 / MODEL-03).
 """
@@ -114,6 +117,42 @@ def health(
     typer.echo("status: ok")
 
 
+@app.command("cameras")
+def cameras(
+    max_index: int = typer.Option(
+        8,
+        "--max-index",
+        min=0,
+        help="Highest device index to probe (inclusive). Default 8.",
+    ),
+    all_indices: bool = typer.Option(
+        False,
+        "--all",
+        help="Also show indices that failed to open (debug).",
+    ),
+) -> None:
+    """List local camera device indices available to OpenCV.
+
+    Probes USB / built-in / virtual cameras (e.g. macOS Continuity Camera).
+    Use the INDEX with: sentry serve --source usb --device <INDEX>
+    """
+    from sentry_ai.sources.list_cameras import (
+        format_camera_list,
+        list_local_cameras,
+    )
+
+    try:
+        found = list_local_cameras(
+            max_index=max_index,
+            include_unavailable=all_indices,
+        )
+    except Exception as exc:  # noqa: BLE001
+        typer.echo(f"cameras failed: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    typer.echo(format_camera_list(found, max_index=max_index))
+
+
 @app.command()
 def smoke(
     frames: int = typer.Option(
@@ -208,7 +247,10 @@ def serve(
     ),
     device: int = typer.Option(
         0,
-        help="USB device index for --source usb.",
+        help=(
+            "USB device index for --source usb. "
+            "List indices with: sentry cameras"
+        ),
     ),
     path: str | None = typer.Option(
         None,

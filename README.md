@@ -38,6 +38,9 @@ uv run sentry serve --source synthetic --host 0.0.0.0
 
 ```bash
 # USB UVC camera
+# List OpenCV camera indices (USB / FaceTime / Continuity Camera on macOS)
+uv run sentry cameras
+
 uv run sentry serve --source usb --device 0
 
 # Local video file (loops by default)
