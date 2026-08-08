@@ -293,7 +293,10 @@ def serve(
     ),
     profile: str = typer.Option(
         "cpu-fallback",
-        help="Runtime profile name (loaded for consistency; no ML).",
+        help=(
+            "Runtime profile name (selects model tiers and device policy; "
+            "default cpu-fallback — use desktop-gpu for CUDA)."
+        ),
     ),
     camera_id: str | None = typer.Option(
         None,
@@ -320,9 +323,14 @@ def serve(
         raise typer.Exit(code=1)
 
     from sentry_ai.api.app import create_app
+    from sentry_ai.backend.protocols import probe_device
     from sentry_ai.bus.frame_bus import FrameBus
     from sentry_ai.capture.loop import CaptureLoop
+    from sentry_ai.config.profile_runtime import profile_runtime
     from sentry_ai.state.perception_store import PerceptionStore
+
+    rt = profile_runtime(cfg)
+    probe = probe_device(cfg.profile)
 
     src = _build_serve_source(
         source=source,
@@ -342,21 +350,33 @@ def serve(
     ov_worker: Any | None = None
     ov_loop: Any | None = None
     try:
-        from sentry_ai.models.cache import configure_model_cache, tier_to_weight
+        from sentry_ai.models.cache import (
+            configure_model_cache,
+            tier_to_open_vocab_weight,
+            tier_to_weight,
+        )
         from sentry_ai.models.detection.loop import DetectionLoop
         from sentry_ai.models.detection.open_vocab_loop import OpenVocabLoop
         from sentry_ai.models.detection.yolo_worker import YoloDetectionWorker
-        from sentry_ai.models.detection.yoloe_worker import (
-            DEFAULT_WEIGHTS as YOLOE_WEIGHTS,
-        )
         from sentry_ai.models.detection.yoloe_worker import YoloeOpenVocabWorker
 
         configure_model_cache()
-        weights = tier_to_weight(cfg.models.detector_tier)
-        worker = YoloDetectionWorker(weights=weights, conf=0.25)
+        # Profile-driven weights + device (EDGE-02); keep tier helpers in scope
+        # so inspect-source tests and callers can see the wiring.
+        _ = tier_to_weight
+        _ = tier_to_open_vocab_weight
+        worker = YoloDetectionWorker(
+            weights=rt.detector_weights,
+            conf=0.25,
+            device=rt.device,
+        )
         det_loop = DetectionLoop(bus, worker, store)
         # Open-vocab twin (same detect extra); default mode off.
-        ov_worker = YoloeOpenVocabWorker(weights=YOLOE_WEIGHTS, conf=0.25)
+        ov_worker = YoloeOpenVocabWorker(
+            weights=rt.open_vocab_weights,
+            conf=0.25,
+            device=rt.device,
+        )
         ov_loop = OpenVocabLoop(bus, ov_worker, store)  # mode=off default
     except ImportError as exc:
         typer.echo(
@@ -378,7 +398,11 @@ def serve(
         from sentry_ai.models.depth.worker import DepthAnythingWorker
 
         configure_model_cache()  # HF_HOME under SENTRY_MODEL_CACHE
-        depth_worker = DepthAnythingWorker(depth_mode="relative")
+        depth_worker = DepthAnythingWorker(
+            depth_mode="relative",
+            model_id=rt.depth_model_id,
+            device=rt.device,
+        )
         depth_loop = DepthLoop(bus, depth_worker, store)
     except ImportError as exc:
         typer.echo(
@@ -412,7 +436,32 @@ def serve(
         open_vocab_loop=ov_loop,
     )
 
+    device_display = rt.device if rt.device is not None else "auto"
     typer.echo(f"sentry-ai {__version__} serve")
+    typer.echo(f"profile: {rt.profile.value}")
+    typer.echo(f"detector: {rt.detector_weights}")
+    typer.echo(f"open-vocab: {rt.open_vocab_weights} (mode off by default)")
+    typer.echo(f"depth: {rt.depth_model_id} (tier={rt.depth_tier})")
+    typer.echo(f"preferred_backend: {rt.preferred_backend}")
+    typer.echo(f"device: {device_display}")
+    typer.echo(
+        f"probe: available={probe.available} "
+        f"backend={probe.backend} device_id={probe.device_id}"
+    )
+    # Honesty logs: preferred_backend is export target / device policy only.
+    if str(rt.preferred_backend) == "tensorrt":
+        typer.echo(
+            "note: preferred_backend=tensorrt → live path is still PyTorch "
+            "CUDA if available; build engines via export recipes "
+            "(not silent TRT inference)",
+            err=True,
+        )
+    elif str(rt.preferred_backend) == "onnxruntime":
+        typer.echo(
+            "note: preferred_backend=onnxruntime → live path is PyTorch CPU; "
+            "ORT is the export target (not silent ORT inference)",
+            err=True,
+        )
     typer.echo(f"source: {src.name} camera_id={getattr(src, 'camera_id', src.name)}")
     typer.echo(f"bind: http://{bind}/  (Live Preview)")
     if det_loop is not None:

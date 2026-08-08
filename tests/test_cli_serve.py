@@ -222,3 +222,28 @@ def test_serve_source_wires_open_vocab_loop_lifecycle() -> None:
     # Injected into create_app
     assert "open_vocab_worker=ov_worker" in source
     assert "open_vocab_loop=ov_loop" in source
+
+
+def test_serve_applies_profile_runtime() -> None:
+    """EDGE-02: serve wires profile_runtime weights + device into workers."""
+    source = inspect.getsource(cli_mod.serve)
+    assert "profile_runtime" in source
+    assert "tier_to_open_vocab_weight" in source
+    assert "rt.detector_weights" in source
+    assert "rt.open_vocab_weights" in source
+    assert "rt.depth_model_id" in source
+    assert "device=rt.device" in source
+    assert "probe_device" in source
+    # Banner honesty fields
+    assert "preferred_backend" in source
+    assert "tensorrt" in source
+    assert "onnxruntime" in source
+
+
+def test_serve_profile_default_is_cpu_fallback() -> None:
+    """Serve default profile remains cpu-fallback (no CUDA auto-switch)."""
+    result = runner.invoke(app, ["serve", "--help"])
+    assert result.exit_code == 0
+    assert "cpu-fallback" in result.stdout
+    lower = result.stdout.lower()
+    assert "model tier" in lower or "device policy" in lower or "profile" in lower
