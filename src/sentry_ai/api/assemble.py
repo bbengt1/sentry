@@ -56,9 +56,16 @@ def _age_ms(now: float, t_capture: float) -> float:
 
 
 def _obstacle_to_wire(cue: Any) -> ObstacleCue:
-    """Copy product obstacle (dataclass or model) into wire ObstacleCue."""
+    """Copy product obstacle (dict, dataclass, or model) into wire ObstacleCue.
+
+    FreeSpaceLoop stores obstacles as plain dicts for store isolation
+    (``_obstacles_for_store``); spatial ObstacleCue dataclasses may also
+    appear. Both shapes must convert cleanly for ``/v1/snapshot``.
+    """
     if isinstance(cue, ObstacleCue):
         return cue
+    if isinstance(cue, dict):
+        return ObstacleCue.model_validate(cue)
     if hasattr(cue, "model_dump"):
         return ObstacleCue.model_validate(cue.model_dump())
     return ObstacleCue(
@@ -128,7 +135,8 @@ def assemble_perception_frame(
             stats["det_model"] = det.model_name
         det_age = _age_ms(wall, det.t_capture)
         stats["det_age_ms"] = det_age
-        stats["det_stale"] = det_age > ttl_cfg.detections
+        # stats values must be float|int|str (schema); use 0/1 not bool.
+        stats["det_stale"] = 1 if det_age > ttl_cfg.detections else 0
 
     if depth is not None:
         stats["depth_frame_id"] = depth.frame_id
@@ -143,7 +151,7 @@ def assemble_perception_frame(
             stats["depth_model"] = depth.model_name
         depth_age = _age_ms(wall, depth.t_capture)
         stats["depth_age_ms"] = depth_age
-        stats["depth_stale"] = depth_age > ttl_cfg.depth
+        stats["depth_stale"] = 1 if depth_age > ttl_cfg.depth else 0
 
     if free is not None:
         stats["free_space_frame_id"] = free.frame_id
@@ -151,14 +159,14 @@ def assemble_perception_frame(
         stats["free_space_obstacle_count"] = free.obstacle_count
         free_age = _age_ms(wall, free.t_capture)
         stats["free_space_age_ms"] = free_age
-        stats["free_space_stale"] = free_age > ttl_cfg.free_space
+        stats["free_space_stale"] = 1 if free_age > ttl_cfg.free_space else 0
 
     products_stale = bool(
         stats.get("det_stale")
         or stats.get("depth_stale")
         or stats.get("free_space_stale")
     )
-    stats["products_stale"] = products_stale
+    stats["products_stale"] = 1 if products_stale else 0
 
     # Stage FPS / drops from store metrics when available.
     metrics = None

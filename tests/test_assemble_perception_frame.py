@@ -142,6 +142,42 @@ def test_assemble_free_space_error_not_complete() -> None:
     assert frame.free_space is None
 
 
+def test_assemble_accepts_dict_obstacles_from_free_space_loop() -> None:
+    """FreeSpaceLoop stores obstacles as plain dicts — must not 500 snapshot."""
+    store = PerceptionStore()
+    _seed_depth(store, t_capture=300.0)
+    store.set_free_space(
+        frame_id=2,
+        camera_id="cam0",
+        t_capture=300.0,
+        latency_ms=5.0,
+        depth_kind=DepthKind.RELATIVE,
+        obstacle_count=1,
+        obstacles=[
+            {
+                "bbox_xyxy": [10.0, 20.0, 30.0, 40.0],
+                "nearness_mean": 0.8,
+                "nearness_max": 0.95,
+                "area_px": 100,
+                "band": "near",
+            }
+        ],
+        bands={"near_frac": 0.2, "mid_frac": 0.3, "far_frac": 0.5},
+        free_mask=None,
+        occupied_mask=None,
+        method="near_field_bands",
+        error=None,
+    )
+    frame = assemble_perception_frame(store, now=300.05)
+    assert frame is not None
+    assert frame.free_space is not None
+    assert frame.free_space.obstacle_count == 1
+    assert frame.free_space.obstacles[0].nearness_mean == 0.8
+    # Round-trip JSON like /v1/snapshot
+    dumped = frame.model_dump()
+    assert dumped["free_space"]["obstacles"][0]["band"] == "near"
+
+
 def test_assemble_stale_independent_of_completeness() -> None:
     """age > TTL → stale flags true while completeness may still be true."""
     store = PerceptionStore()
