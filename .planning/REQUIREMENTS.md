@@ -72,10 +72,10 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Multi-Target & Extensibility
 
 - [ ] **EDGE-01**: Documented desktop GPU development path runs the full pipeline
-- [ ] **EDGE-02**: Runtime profiles exist for desktop, Jetson-class, and CPU/lite fallback
+- [x] **EDGE-02**: Runtime profiles exist for desktop, Jetson-class, and CPU/lite fallback
 - [ ] **EDGE-03**: Export recipes for ONNX and/or TensorRT exist for edge deployment
 - [ ] **EDGE-04**: Extension stubs exist for multi-camera (`camera_id` schema), ROS2 bridge scaffold, and voice plugin no-op
-- [ ] **EDGE-05**: Headless mode runs perception API without requiring the web UI
+- [x] **EDGE-05**: Headless mode runs perception API without requiring the web UI
 
 ### Local Models & Privacy
 
@@ -167,10 +167,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OVD-02 | Phase 6 | Complete |
 | OVD-03 | Phase 6 | Complete |
 | EDGE-01 | Phase 7 | Pending |
-| EDGE-02 | Phase 7 | Pending |
+| EDGE-02 | Phase 7 | Complete |
 | EDGE-03 | Phase 7 | Pending |
 | EDGE-04 | Phase 7 | Pending |
-| EDGE-05 | Phase 7 | Pending |
+| EDGE-05 | Phase 7 | Complete |
 | MODEL-01 | Phase 1 | Complete |
 | MODEL-02 | Phase 3 | Complete |
 | MODEL-03 | Phase 2 | Complete |

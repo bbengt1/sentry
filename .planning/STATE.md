@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 7 planned (07-01, 07-02, 07-03) — plan-check PASS_WITH_FLAGS
-last_updated: "2026-08-08T16:59:45.261Z"
+stopped_at: Completed 07-01-PLAN.md
+last_updated: "2026-08-08T17:10:16.224Z"
 last_activity: 2026-08-08
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 18
-  completed_plans: 15
-  percent: 83
+  completed_plans: 16
+  percent: 86
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-07)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots — without proprietary sensors or cloud AI.  
-**Current focus:** Phase 7 — edge profiles & extension stubs (planned)
+**Current focus:** Phase 7 — edge profiles & extension stubs (executing)
 
 ## Current Position
 
 Phase: 7
-Plan: 07-01 (next)
+Plan: 07-02 (next)
 Status: Ready to execute
 Last activity: 2026-08-08
 
-Progress: [████████░░] 83%
+Progress: [█████████░] 89%
 
 ## Performance Metrics
 
@@ -50,6 +50,7 @@ Progress: [████████░░] 83%
 | 4 | 2 | - | - |
 | 5 | 3 | - | - |
 | 6 | 2 | - | - |
+| 7 | 1/3 | - | - |
 
 **Recent Trend:**
 
@@ -72,6 +73,7 @@ Progress: [████████░░] 83%
 | Phase 05 P03 | 4min | 3 tasks | 13 files |
 | Phase 06 P01 | 6min | 3 tasks | 18 files |
 | Phase 06 P02 | 8min | 3 tasks | 24 files |
+| Phase 07 P01 | 6min | 3 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -139,6 +141,11 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 06]: Default OV mode off; continuous every_n=3 opt-in only
 - [Phase 06]: Detection.source additive default fixed — existing fixed path unchanged
 - [Phase 06]: YOLOE via existing detect extra; yoloe-26s-seg.pt default; mock in CI
+- [Phase 07]: Serve default remains cpu-fallback; no CUDA auto-switch to desktop-gpu
+- [Phase 07]: preferred_backend tensorrt/onnxruntime is device policy + honesty logs only (live PyTorch)
+- [Phase 07]: Headless via create_app(serve_ui=False) + sentry serve --no-ui (not separate api cmd)
+- [Phase 07]: Open-vocab weights derive from detector_tier; depth_tier Small-only allowlist
+- [Phase 07]: probe_device light non-raising CUDA check; never hard-fails serve
 
 ### Pending Todos
 
@@ -156,6 +163,6 @@ Phase 7 plan-check: **PASS_WITH_FLAGS** (non-blocking). Flags: 07-01 file count,
 
 ## Session Continuity
 
-Last session: 2026-08-08
-Stopped at: Phase 7 planned (07-01, 07-02, 07-03) — plan-check PASS_WITH_FLAGS
-Next: `/gsd:execute-phase 7` (start 07-01: profiles + headless)
+Last session: 2026-08-08T17:10:00Z
+Stopped at: Completed 07-01-PLAN.md
+Next: Execute 07-02 (export recipes) then 07-03 (stubs + docs)
