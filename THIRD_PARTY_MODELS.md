@@ -13,26 +13,28 @@ non-default and out of the v1 core path.
 
 | Model / weights | Role | License | Default? | Notes |
 |-----------------|------|---------|----------|-------|
-| Depth Anything V2 **Small** | Depth | **Apache-2.0** | **Yes** | Commercially friendly default depth model |
-| Depth Anything V2 Base / Large / Giant | Depth | **CC-BY-NC-4.0** | **No** | Research-only; non-commercial (NC) weights |
-| DAV2 Metric indoor / outdoor heads | Depth (metric) | Check per weight | Optional | Domain-specific metric heads; verify before shipping |
+| Depth Anything V2 **Small** | Depth | **Apache-2.0** | **Yes** — Phase 4 active (optional `depth` extra) | Default monocular depth via HF Transformers (`depth-anything/Depth-Anything-V2-Small-hf`). Relative mode by default (`DepthKind.relative`, no meters). Install: `uv sync --extra depth`. Weights cache under `SENTRY_MODEL_CACHE/hf` (MODEL-02); offline after first download. |
+| Depth Anything V2 Base / Large / Giant | Depth | **CC-BY-NC-4.0** | **No** | Research-only; non-commercial (NC) weights. **Never default** in Sentry. |
+| DAV2 Metric indoor / outdoor heads | Depth (metric) | Check per weight | Optional | Small metric HF heads only; labeled `metric_estimated` + `unit="m"`. Verify license before shipping commercial products. |
 | YOLO26 (via Ultralytics) | Fixed-class detect | **AGPL-3.0** (Ultralytics) | **No** — Phase 3 active (optional `detect` extra) | **AGPL commercial caution** — non-default for commercial forks. Weights download once into Sentry cache (`SENTRY_MODEL_CACHE` or `~/.cache/sentry-ai/weights`); offline re-run after first pull (MODEL-02). Install: `uv sync --extra detect`. |
 | YOLOE | Open-vocab detect | **AGPL-3.0** (Ultralytics) | **No** — Planned Phase 6 | Non-blocking for Phase 1; non-default |
 
 ## Model cache (MODEL-02)
 
-Sentry points Ultralytics `weights_dir` at a project-owned cache:
+Sentry points Ultralytics `weights_dir` and Hugging Face cache at a project-owned root:
 
 | Setting | Value |
 |---------|-------|
 | Env override | `SENTRY_MODEL_CACHE` |
 | Default root | `~/.cache/sentry-ai` |
-| Weights dir | `<cache_root>/weights` |
+| Weights dir (YOLO) | `<cache_root>/weights` |
+| HF home (depth) | `<cache_root>/hf` (`HF_HOME`; hub under `hf/hub`) |
 | Ultralytics config | `YOLO_CONFIG_DIR` → `<cache_root>/ultralytics` (setdefault) |
 
-After the first download of `yolo26n.pt` / `yolo26s.pt` / `yolo26m.pt`, subsequent
-runs are **offline** (no network required). Unit tests mock YOLO and never
-download weights.
+After the first download of YOLO (`yolo26n.pt` / `yolo26s.pt` / `yolo26m.pt`) or
+Depth Anything V2 Small (HF hub under `hf/`), subsequent runs are **offline**
+(no network required). Unit tests mock YOLO/depth models and never download
+weights.
 
 ## Default selection rules
 

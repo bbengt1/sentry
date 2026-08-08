@@ -41,6 +41,15 @@ dev = [
 detect = [
   "ultralytics-opencv-headless>=8.4.33,<9",
 ]
+# Monocular depth (Phase 4). HF Transformers DAV2 Small. Install:
+#   uv sync --extra dev --extra depth
+# Combined with detection: uv sync --extra dev --extra detect --extra depth
+depth = [
+  "torch>=2.2,<3",
+  "transformers>=4.45,<6",
+  "huggingface-hub>=0.23,<2",
+  "pillow>=10,<13",
+]
 
 [project.scripts]
 sentry = "sentry_ai.cli:main"
@@ -54,6 +63,7 @@ rtsp = "sentry_ai.sources.opencv_source:RtspSource"
 [project.entry-points."sentry_ai.workers"]
 noop = "sentry_ai.plugins.builtins:NoopWorker"
 yolo-fixed = "sentry_ai.models.detection.yolo_worker:YoloDetectionWorker"
+depth-anything-v2-small = "sentry_ai.models.depth.worker:DepthAnythingWorker"
 
 [project.entry-points."sentry_ai.sinks"]
 null = "sentry_ai.plugins.builtins:NullSink"

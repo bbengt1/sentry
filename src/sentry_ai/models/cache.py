@@ -51,17 +51,20 @@ def tier_to_weight(tier: str | None) -> str:
 
 
 def configure_model_cache(cache_root: Path | None = None) -> Path:
-    """Point Ultralytics weights_dir at a Sentry-owned cache; return weights_dir.
+    """Point Ultralytics weights_dir + HF_HOME at a Sentry-owned cache.
 
     Resolution order for cache root:
       1. ``cache_root`` argument
       2. ``SENTRY_MODEL_CACHE`` environment variable
       3. ``~/.cache/sentry-ai``
 
-    Always creates ``weights/`` under the root and setdefaults
-    ``YOLO_CONFIG_DIR``. When ultralytics is importable, updates
-    ``settings`` with ``weights_dir`` and ``sync=False``. When not
-    installed, path setup still succeeds so non-detect installs work.
+    Always creates ``weights/`` and ``hf/`` under the root. Setdefaults
+    ``YOLO_CONFIG_DIR``, ``HF_HOME``, and ``HUGGINGFACE_HUB_CACHE``.
+    When ultralytics is importable, updates ``settings`` with
+    ``weights_dir`` and ``sync=False``. When not installed, path setup
+    still succeeds so non-detect / non-depth installs work.
+
+    Returns ``weights_dir`` for YOLO callers (backward compatible).
     """
     if cache_root is not None:
         root = Path(cache_root)
@@ -71,6 +74,11 @@ def configure_model_cache(cache_root: Path | None = None) -> Path:
 
     weights_dir = root / "weights"
     weights_dir.mkdir(parents=True, exist_ok=True)
+
+    hf_home = root / "hf"
+    hf_home.mkdir(parents=True, exist_ok=True)
+    os.environ.setdefault("HF_HOME", str(hf_home))
+    os.environ.setdefault("HUGGINGFACE_HUB_CACHE", str(hf_home / "hub"))
 
     os.environ.setdefault("YOLO_CONFIG_DIR", str(root / "ultralytics"))
 

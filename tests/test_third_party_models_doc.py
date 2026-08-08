@@ -47,3 +47,18 @@ def test_doc_yolo_phase3_active_agpl_and_cache() -> None:
     assert "sentry_model_cache" in lowered or "sentry-ai/weights" in lowered
     assert "offline" in lowered
     assert "cache" in lowered
+
+
+def test_doc_depth_phase4_active_apache_small_and_hf_cache() -> None:
+    """Phase 4: DAV2 Small Apache default + NC never default + HF cache."""
+    text = DOC_PATH.read_text(encoding="utf-8")
+    lowered = text.lower()
+    assert "phase 4" in lowered
+    assert "apache-2.0" in lowered
+    assert "depth anything v2" in lowered or "depth-anything" in lowered
+    assert "small" in lowered
+    assert "never default" in lowered or "cc-by-nc" in lowered
+    assert "hf" in lowered
+    assert "sentry_model_cache" in lowered or "sentry-ai" in lowered
+    assert "offline" in lowered
+    assert "extra depth" in lowered or "--extra depth" in lowered

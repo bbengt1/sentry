@@ -102,6 +102,37 @@ offline. Profile `detector_tier` maps to YOLO26 weights (`n`/`s`/`m`).
 Ultralytics/YOLO26 is **AGPL-3.0** — see
 [`THIRD_PARTY_MODELS.md`](THIRD_PARTY_MODELS.md) before commercial use.
 
+## Optional monocular depth (Phase 4)
+
+Depth Anything V2 **Small** (Apache-2.0) runs locally via Hugging Face
+Transformers. Core install and unit tests do **not** require torch:
+
+```bash
+# Dev + depth stack
+uv sync --extra dev --extra depth
+
+# Both detection and depth
+uv sync --extra dev --extra detect --extra depth
+```
+
+Default mode is **relative** depth (`DepthKind.relative`) — never labeled as
+meters. Optional metric indoor/outdoor Small heads are labeled
+`metric_estimated` with `unit="m"`. Base/Large NC weights are never default.
+
+On first depth run, HF weights download once into
+`SENTRY_MODEL_CACHE/hf` (or `~/.cache/sentry-ai/hf`). Subsequent runs are
+offline. Unit tests inject fake models and never hit the HF hub.
+
+API/UI colormap and serve wiring land in the next Phase 4 plan; the depth
+worker + DepthLoop + PerceptionStore depth product ship first.
+
+## Phase 4 scope (core)
+
+- Depth Anything V2 Small worker (HF Transformers) + DepthLoop on FrameBus
+- PerceptionStore DepthProduct (keep-latest, dual with detections)
+- Honest `DepthKind` / unit from configured mode
+- HF cache under `SENTRY_MODEL_CACHE/hf`
+
 ## Phase 3 scope
 
 - Fixed-class YOLO26 worker + DetectionLoop on FrameBus
