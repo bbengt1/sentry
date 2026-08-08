@@ -92,7 +92,7 @@ Each task was committed atomically:
 2. **Task 2: MJPEG free-space overlay + status telemetry + FreeSpaceLoop serve lifecycle** - `6a80172` (feat)
 3. **Task 3: Live Preview UI footer/STALE + README /v1 docs** - `877ee3b` (feat)
 
-**Plan metadata:** (pending final docs commit)
+**Plan metadata:** `016be0a` (docs: complete plan)
 
 ## Files Created/Modified
 
