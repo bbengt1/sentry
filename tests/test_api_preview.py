@@ -243,3 +243,197 @@ def test_root_serves_live_preview_html() -> None:
         assert "safe to drive" not in lower
         assert "motor" not in lower
         assert "velocity" not in lower
+
+
+def test_api_status_includes_depth_fields_when_store_present() -> None:
+    """DEPTH-04 telemetry: depth_kind + latency; relative omits unit m."""
+    from sentry_ai.schemas.enums import DepthKind
+    from sentry_ai.state.perception_store import PerceptionStore
+
+    source = SyntheticSource(camera_id="synthetic0", fps=0.0)
+    bus = FrameBus()
+    loop = CaptureLoop(source, bus)
+    store = PerceptionStore()
+    depth = np.linspace(0.0, 1.0, 48 * 64, dtype=np.float32).reshape(48, 64)
+    store.set_depth(
+        frame_id=9,
+        camera_id="synthetic0",
+        t_capture=time.time(),
+        depth_map=depth,
+        kind=DepthKind.RELATIVE,
+        unit=None,
+        latency_ms=33.25,
+        model_name="depth-anything-v2-small",
+    )
+    loop.start()
+    try:
+        _wait_for_frame(bus)
+        app = create_app(
+            bus=bus,
+            capture_loop=loop,
+            bind="127.0.0.1:8000",
+            perception_store=store,
+        )
+        with TestClient(app) as client:
+            resp = client.get("/api/status")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["depth_latency_ms"] == 33.25
+            assert data["depth_frame_id"] == 9
+            assert data["depth_kind"] == "relative"
+            assert "depth_fps" in data
+            # Relative honesty: unit omitted or null — never forced to "m"
+            assert data.get("depth_unit") in (None, "")
+            assert data.get("depth_error") in (None, "")
+    finally:
+        loop.stop()
+
+
+def test_api_status_depth_error_and_metric_unit() -> None:
+    from sentry_ai.schemas.enums import DepthKind
+    from sentry_ai.state.perception_store import PerceptionStore
+
+    source = SyntheticSource(camera_id="synthetic0", fps=0.0)
+    bus = FrameBus()
+    loop = CaptureLoop(source, bus)
+    store = PerceptionStore()
+    store.set_depth(
+        frame_id=2,
+        camera_id="synthetic0",
+        t_capture=time.time(),
+        depth_map=None,
+        kind=DepthKind.RELATIVE,
+        unit=None,
+        latency_ms=1.0,
+        error="depth failed",
+    )
+    loop.start()
+    try:
+        _wait_for_frame(bus)
+        app = create_app(
+            bus=bus,
+            capture_loop=loop,
+            bind="127.0.0.1:8000",
+            perception_store=store,
+        )
+        with TestClient(app) as client:
+            data = client.get("/api/status").json()
+            assert data.get("depth_error") == "depth failed"
+    finally:
+        loop.stop()
+
+    store2 = PerceptionStore()
+    depth = np.ones((16, 16), dtype=np.float32)
+    store2.set_depth(
+        frame_id=3,
+        camera_id="synthetic0",
+        t_capture=time.time(),
+        depth_map=depth,
+        kind=DepthKind.METRIC_ESTIMATED,
+        unit="m",
+        latency_ms=10.0,
+    )
+    source2 = SyntheticSource(camera_id="synthetic0", fps=0.0)
+    bus2 = FrameBus()
+    loop2 = CaptureLoop(source2, bus2)
+    loop2.start()
+    try:
+        _wait_for_frame(bus2)
+        app2 = create_app(
+            bus=bus2,
+            capture_loop=loop2,
+            bind="127.0.0.1:8000",
+            perception_store=store2,
+        )
+        with TestClient(app2) as client:
+            data = client.get("/api/status").json()
+            assert data["depth_kind"] == "metric_estimated"
+            assert data["depth_unit"] == "m"
+    finally:
+        loop2.stop()
+
+
+def test_mjpeg_generator_with_depth_product_still_jpeg() -> None:
+    """DEPTH-03: depth blend path still yields decodable multipart JPEG."""
+    from sentry_ai.schemas.enums import DepthKind
+    from sentry_ai.schemas.perception import Detection
+    from sentry_ai.state.perception_store import PerceptionStore
+
+    bus = FrameBus()
+    bus.publish(_make_frame())
+    store = PerceptionStore()
+    depth = np.linspace(0.0, 2.0, 48 * 64, dtype=np.float32).reshape(48, 64)
+    store.set_depth(
+        frame_id=0,
+        camera_id="synthetic0",
+        t_capture=time.time(),
+        depth_map=depth,
+        kind=DepthKind.RELATIVE,
+        unit=None,
+        latency_ms=20.0,
+    )
+    store.set_detections(
+        frame_id=0,
+        camera_id="synthetic0",
+        t_capture=time.time(),
+        detections=[
+            Detection(
+                class_name="person",
+                confidence=0.9,
+                bbox_xyxy=(2.0, 2.0, 20.0, 20.0),
+            )
+        ],
+        latency_ms=8.0,
+    )
+
+    async def _one_part() -> bytes:
+        gen = _mjpeg_generator(bus, store=store)
+        try:
+            return await gen.__anext__()
+        finally:
+            await gen.aclose()
+
+    chunk = asyncio.run(_one_part())
+    assert b"--frame" in chunk
+    assert b"\xff\xd8" in chunk  # JPEG SOI
+
+
+def test_mjpeg_generator_skips_blend_on_depth_error() -> None:
+    """Empty/error depth → RGB (+ dets) only; stream stays valid JPEG."""
+    from sentry_ai.schemas.enums import DepthKind
+    from sentry_ai.state.perception_store import PerceptionStore
+
+    bus = FrameBus()
+    bus.publish(_make_frame())
+    store = PerceptionStore()
+    store.set_depth(
+        frame_id=0,
+        camera_id="synthetic0",
+        t_capture=time.time(),
+        depth_map=None,
+        kind=DepthKind.RELATIVE,
+        unit=None,
+        latency_ms=1.0,
+        error="no map",
+    )
+
+    async def _one_part() -> bytes:
+        gen = _mjpeg_generator(bus, store=store)
+        try:
+            return await gen.__anext__()
+        finally:
+            await gen.aclose()
+
+    chunk = asyncio.run(_one_part())
+    assert b"\xff\xd8" in chunk
+
+
+def test_routes_preview_uses_blend_depth() -> None:
+    """MJPEG path imports/calls blend_depth before draw_detections."""
+    source = inspect.getsource(routes_preview)
+    assert "blend_depth" in source
+    assert "snapshot_depth" in source
+    # Order: depth blend before detections (string positions).
+    assert source.index("blend_depth") < source.index("draw_detections(")
+    assert "worker.process" not in source
+    assert "cv2.VideoCapture" not in source
