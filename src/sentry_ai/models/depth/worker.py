@@ -186,6 +186,34 @@ class DepthAnythingWorker:
             error=None,
         )
 
+    @staticmethod
+    def _normalize_model_inputs(inputs: Any, device: str) -> dict[str, Any]:
+        """Normalize HF BatchFeature / Mapping / bare tensor to kwargs for model(**).
+
+        AutoImageProcessor returns BatchFeature, which is *not* always a plain
+        dict. Passing it as a single positional arg makes DINOv2 look for
+        ``pixel_values.shape`` on the BatchFeature and raises AttributeError.
+        """
+        # Mapping / BatchFeature / UserDict-style
+        if hasattr(inputs, "items") and not hasattr(inputs, "shape"):
+            items = dict(inputs.items())
+        elif isinstance(inputs, dict):
+            items = dict(inputs)
+        else:
+            # Bare tensor or array treated as pixel_values
+            items = {"pixel_values": inputs}
+
+        moved: dict[str, Any] = {}
+        for key, value in items.items():
+            if hasattr(value, "to"):
+                try:
+                    moved[key] = value.to(device)
+                except (TypeError, RuntimeError, AttributeError):
+                    moved[key] = value
+            else:
+                moved[key] = value
+        return moved
+
     def _forward_depth(
         self,
         model: Any,
@@ -204,27 +232,13 @@ class DepthAnythingWorker:
             torch = None  # type: ignore[assignment]
             F = None  # type: ignore[assignment]
 
-        if torch is not None and isinstance(inputs, dict):
-            # Move tensors to device when present.
-            moved: dict[str, Any] = {}
-            for key, value in inputs.items():
-                if hasattr(value, "to"):
-                    moved[key] = value.to(device)
-                else:
-                    moved[key] = value
-            inputs = moved
+        kwargs = self._normalize_model_inputs(inputs, device)
 
         if torch is not None:
             with torch.no_grad():
-                if isinstance(inputs, dict):
-                    outputs = model(**inputs)
-                else:
-                    outputs = model(inputs)
+                outputs = model(**kwargs)
         else:
-            if isinstance(inputs, dict):
-                outputs = model(**inputs)
-            else:
-                outputs = model(inputs)
+            outputs = model(**kwargs)
 
         predicted = getattr(outputs, "predicted_depth", outputs)
 
@@ -239,14 +253,15 @@ class DepthAnythingWorker:
             # Interpolate to original size when spatial dims differ.
             if pred.shape[-2] != h or pred.shape[-1] != w:
                 assert F is not None
-                pred = F.interpolate(
-                    pred.unsqueeze(1) if pred.ndim == 3 else pred,
+                # pred is (B, H', W'); interpolate needs (N, C, H, W)
+                pred4 = pred.unsqueeze(1) if pred.ndim == 3 else pred
+                pred4 = F.interpolate(
+                    pred4,
                     size=(h, w),
                     mode="bilinear",
                     align_corners=False,
                 )
-                if pred.ndim == 4:
-                    pred = pred.squeeze(1)
+                pred = pred4.squeeze(1)
             depth_np = pred.squeeze().float().cpu().numpy().astype(np.float32)
             return depth_np
 
@@ -255,12 +270,10 @@ class DepthAnythingWorker:
         if arr.ndim == 3:
             arr = arr[0]
         if arr.shape[0] != h or arr.shape[1] != w:
-            # Simple nearest resize without torch for fakes that mismatch.
             # Prefer exact size from fake models in tests.
             if arr.size == h * w:
                 arr = arr.reshape(h, w)
             else:
-                # cv2 resize for mismatched fakes
                 import cv2
 
                 arr = cv2.resize(arr, (w, h), interpolation=cv2.INTER_LINEAR)

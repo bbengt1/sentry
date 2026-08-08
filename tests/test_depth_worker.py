@@ -118,6 +118,49 @@ def test_invalid_depth_mode_raises() -> None:
         )
 
 
+class FakeBatchFeature:
+    """Stand-in for transformers BatchFeature (Mapping-like, not a plain dict).
+
+    Real HF processors return BatchFeature; passing it as a single positional
+    arg to the model used to raise AttributeError on pixel_values.shape.
+    """
+
+    def __init__(self, data: dict[str, Any]) -> None:
+        self._data = data
+
+    def items(self) -> Any:
+        return self._data.items()
+
+
+class FakeBatchProcessor:
+    def __call__(self, *, images: Any, return_tensors: str = "pt") -> FakeBatchFeature:
+        return FakeBatchFeature({"pixel_values": "batch-feature-pixels"})
+
+
+def test_process_accepts_batch_feature_like_processor_output(
+    image_frame_factory: Callable[..., ImageFrame],
+) -> None:
+    """Regression: HF BatchFeature must be unpacked as model(**inputs)."""
+    model = FakeModel(value=3.0)
+    worker = DepthAnythingWorker(
+        model=model,
+        processor=FakeBatchProcessor(),
+        depth_mode="relative",
+    )
+    frame = image_frame_factory(frame_id=3, width=20, height=10)
+    model.set_hw(10, 20)
+    result = worker.process(frame)
+    assert result.depth_map is not None
+    assert result.depth_map.shape == (10, 20)
+    assert model.calls and "pixel_values" in model.calls[0]
+
+
+def test_normalize_model_inputs_unpacks_mapping() -> None:
+    bf = FakeBatchFeature({"pixel_values": "x", "other": 1})
+    out = DepthAnythingWorker._normalize_model_inputs(bf, device="cpu")
+    assert out == {"pixel_values": "x", "other": 1}
+
+
 def test_set_get_depth_mode(
     image_frame_factory: Callable[..., ImageFrame],
 ) -> None:
