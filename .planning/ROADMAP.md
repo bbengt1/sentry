@@ -10,7 +10,7 @@ Build an open-source, camera-only perception product for maker robotics: start w
 - [x] **Phase 2: Camera Ingest & Live Preview** — USB/file/synthetic/RTSP sources, frame bus, web preview (completed 2026-08-07)
 - [x] **Phase 3: Fixed-Class Detection** — Local YOLO detection worker, overlays, stream detections (completed 2026-08-07)
 - [x] **Phase 4: Monocular Depth** — Depth Anything V2 pipeline with honest depth typing (completed 2026-08-08)
-- [ ] **Phase 5: Free-Space & Unified Stream** — Spatial post, merged PerceptionFrame API, obstacle overlays
+- [x] **Phase 5: Free-Space & Unified Stream** — Spatial post, merged PerceptionFrame API, obstacle overlays (completed 2026-08-08)
 - [ ] **Phase 6: Developer Controls & Open-Vocab** — Interactive console + promptable detection
 - [ ] **Phase 7: Edge Profiles & Extension Stubs** — Desktop/Jetson/CPU profiles, export recipes, future hooks
 
@@ -99,7 +99,7 @@ Plans:
 Plans:
 - [x] 05-01-PLAN.md — Spatial Post free-space/obstacle derivation + temporal smoothing
 - [x] 05-02-PLAN.md — Perception state store + merged frame assembly
-- [ ] 05-03-PLAN.md — `/v1` WebSocket + REST API docs, stale contract, full overlay parity
+- [x] 05-03-PLAN.md — `/v1` WebSocket + REST API docs, stale contract, full overlay parity
 
 ### Phase 6: Developer Controls & Open-Vocab
 **Goal**: Make the developer console fully interactive and add open-vocabulary detection as the flexible query path.  
@@ -146,7 +146,7 @@ Plans:
 | 2. Camera Ingest & Live Preview | 3/3 | Complete   | 2026-08-07 |
 | 3. Fixed-Class Detection | 2/2 | Complete   | 2026-08-07 |
 | 4. Monocular Depth | 2/2 | Complete   | 2026-08-08 |
-| 5. Free-Space & Unified Stream | 2/3 | In Progress|  |
+| 5. Free-Space & Unified Stream | 3/3 | Complete   | 2026-08-08 |
 | 6. Developer Controls & Open-Vocab | 0/2 | Not started | - |
 | 7. Edge Profiles & Extension Stubs | 0/3 | Not started | - |
 

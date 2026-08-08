@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 04-02-PLAN.md
-last_updated: "2026-08-08T12:19:38.669Z"
+status: verifying
+stopped_at: Completed 05-03-PLAN.md
+last_updated: "2026-08-08T12:28:16.926Z"
 last_activity: 2026-08-08
 progress:
   total_phases: 7
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 13
-  completed_plans: 12
-  percent: 57
+  completed_plans: 13
+  percent: 71
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-08-07)
 
 Phase: 5 (Free-Space & Unified Stream) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-08-08
 
-Progress: [█████████░] 92%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -67,6 +67,7 @@ Progress: [█████████░] 92%
 | Phase 05 P01 | 5min | 3 tasks | 11 files |
 | Phase 05 P01 | 5min | 3 tasks | 11 files |
 | Phase 05 P02 | 4min | 3 tasks | 7 files |
+| Phase 05 P03 | 4min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -124,6 +125,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 05]: DEFAULT_TTL_MS: detections 500 / depth 750 / free_space 750; TtlConfig overrideable
 - [Phase 05]: Primary identity = max t_capture among present products
 - [Phase 05]: /api/snapshot is thin alias to assembler only — no dual merge
+- [Phase 05]: WS /v1/stream fixed 0.1s keep-latest; no per-client queue
+- [Phase 05]: FreeSpaceLoop always-on in serve (CPU Spatial Post; no ML ImportError gate)
+- [Phase 05]: Status free_space ages/stale from product t_capture + DEFAULT_TTL_MS for UI badges
 
 ### Pending Todos
 
@@ -141,6 +145,6 @@ None. Plan check passed with 4 non-blocking warnings (file count per plan, resea
 
 ## Session Continuity
 
-Last session: 2026-08-08T12:17:13.761Z
-Stopped at: Completed 04-02-PLAN.md
+Last session: 2026-08-08T12:28:16.918Z
+Stopped at: Completed 05-03-PLAN.md
 Next: Execute 03-02-PLAN.md (overlays, snapshot JSON, runtime conf, serve wiring)

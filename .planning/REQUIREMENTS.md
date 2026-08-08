@@ -43,13 +43,13 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **SPACE-01**: Free-space / obstacle regions are derived from depth (simple occupancy or near-field bands — not SLAM)
 - [x] **SPACE-02**: Obstacle cues are exposed in the perception stream in a machine-readable form
-- [ ] **SPACE-03**: Free-space / obstacle overlay is shown on the web dashboard
+- [x] **SPACE-03**: Free-space / obstacle overlay is shown on the web dashboard
 - [x] **SPACE-04**: Stale / incomplete perception is signaled (TTL or completeness flags); no implied “safe to proceed”
 
 ### Perception Stream API
 
-- [ ] **API-01**: WebSocket stream delivers merged `PerceptionFrame` under a versioned `/v1` contract
-- [ ] **API-02**: REST snapshot endpoint returns latest `PerceptionFrame`
+- [x] **API-01**: WebSocket stream delivers merged `PerceptionFrame` under a versioned `/v1` contract
+- [x] **API-02**: REST snapshot endpoint returns latest `PerceptionFrame`
 - [x] **API-03**: Each frame reports completeness for depth, detections, and free-space
 - [x] **API-04**: Stream metadata includes FPS / stage latency and drop counts
 - [x] **API-05**: API never emits motor commands, velocities, or path plans (perception-only boundary)
@@ -57,11 +57,11 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Developer Web Interface
 
 - [x] **UI-01**: Web dashboard shows live camera video in realtime
-- [ ] **UI-02**: Dashboard overlays detections, depth colormap, and free-space/obstacles
+- [x] **UI-02**: Dashboard overlays detections, depth colormap, and free-space/obstacles
 - [ ] **UI-03**: Developer can toggle perception stages (detection, depth, free-space) at runtime
 - [ ] **UI-04**: Developer can adjust thresholds (detection conf, depth/free-space cutoffs) interactively
 - [ ] **UI-05**: Dashboard shows performance telemetry (FPS, stage latency)
-- [ ] **UI-06**: UI and robot API consume the same perception state (overlay parity)
+- [x] **UI-06**: UI and robot API consume the same perception state (overlay parity)
 
 ### Open-Vocabulary Detection
 
@@ -151,18 +151,18 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEPTH-04 | Phase 4 | Complete |
 | SPACE-01 | Phase 5 | Complete |
 | SPACE-02 | Phase 5 | Complete |
-| SPACE-03 | Phase 5 | Pending |
+| SPACE-03 | Phase 5 | Complete |
 | SPACE-04 | Phase 5 | Complete |
-| API-01 | Phase 5 | Pending |
-| API-02 | Phase 5 | Pending |
+| API-01 | Phase 5 | Complete |
+| API-02 | Phase 5 | Complete |
 | API-03 | Phase 5 | Complete |
 | API-04 | Phase 5 | Complete |
 | API-05 | Phase 5 | Complete |
-| UI-02 | Phase 5 | Pending |
+| UI-02 | Phase 5 | Complete |
 | UI-03 | Phase 6 | Pending |
 | UI-04 | Phase 6 | Pending |
 | UI-05 | Phase 6 | Pending |
-| UI-06 | Phase 5 | Pending |
+| UI-06 | Phase 5 | Complete |
 | OVD-01 | Phase 6 | Pending |
 | OVD-02 | Phase 6 | Pending |
 | OVD-03 | Phase 6 | Pending |
