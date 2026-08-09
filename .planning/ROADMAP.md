@@ -50,8 +50,8 @@ Audit: [milestones/v1.0-MILESTONE-AUDIT.md](milestones/v1.0-MILESTONE-AUDIT.md)
 **UI hint**: yes
 
 Plans:
-- [ ] 08-01: Factory + artifact resolution + profile wiring
-- [ ] 08-02: Status/banner honesty (`backend_requested` / `backend_live`)
+- [ ] 08-01-PLAN.md — Factory + artifact resolution + profile wiring
+- [ ] 08-02-PLAN.md — Status/banner honesty (`backend_requested` / `backend_live`)
 
 ### Phase 9: Live ORT Fixed-Class YOLO
 **Goal**: Makers can run fixed-class YOLO live via ONNX Runtime when the profile prefers `onnxruntime` and a valid `.onnx` artifact is present — same Detection wire contract as PyTorch
