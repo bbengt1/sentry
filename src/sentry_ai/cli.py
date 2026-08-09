@@ -351,19 +351,23 @@ def serve(
     bind = f"{host}:{port}"
 
     # Optional fixed-class detection (requires `uv sync --extra detect`).
+    # backend_* locals stash WorkerBuild honesty fields for 08-02 banner/status.
     worker: Any | None = None
     det_loop: Any | None = None
     ov_worker: Any | None = None
     ov_loop: Any | None = None
+    backend_requested: str | None = None
+    backend_live: str | None = None
+    backend_reason: str | None = None
     try:
         from sentry_ai.models.cache import (
             configure_model_cache,
             tier_to_open_vocab_weight,
             tier_to_weight,
         )
+        from sentry_ai.models.detection.factory import build_detection_worker
         from sentry_ai.models.detection.loop import DetectionLoop
         from sentry_ai.models.detection.open_vocab_loop import OpenVocabLoop
-        from sentry_ai.models.detection.yolo_worker import YoloDetectionWorker
         from sentry_ai.models.detection.yoloe_worker import YoloeOpenVocabWorker
 
         configure_model_cache()
@@ -371,11 +375,12 @@ def serve(
         # so inspect-source tests and callers can see the wiring.
         _ = tier_to_weight
         _ = tier_to_open_vocab_weight
-        worker = YoloDetectionWorker(
-            weights=rt.detector_weights,
-            conf=0.25,
-            device=rt.device,
-        )
+        # Factory selects loader branch from preferred_backend (EDGE-RT-02).
+        build = build_detection_worker(rt, conf=0.25)
+        worker = build.worker
+        backend_requested = build.backend_requested
+        backend_live = build.backend_live
+        backend_reason = build.backend_reason
         det_loop = DetectionLoop(bus, worker, store)
         # Open-vocab twin (same detect extra); default mode off.
         ov_worker = YoloeOpenVocabWorker(
@@ -394,6 +399,9 @@ def serve(
         det_loop = None
         ov_worker = None
         ov_loop = None
+        backend_requested = None
+        backend_live = None
+        backend_reason = None
 
     # Optional monocular depth (requires `uv sync --extra depth`).
     depth_worker: Any | None = None
