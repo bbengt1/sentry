@@ -72,7 +72,7 @@ Each task was committed atomically:
 1. **Task 1: ORT process parity + conf golden tests (ORT-02, ORT-04)** - `cb582f6` (test)
 2. **Task 2: Status honesty fixture for live ORT + phase suite gate** - `55bbdab` (test)
 
-**Plan metadata:** (see final docs commit on branch)
+**Plan metadata:** `d83d6f1` (docs: complete plan)
 
 ## Files Created/Modified
 
@@ -126,3 +126,4 @@ Yes. ORT-01..04 automated dimensions are green under the combined suite. Phase 9
 - FOUND: `tests/test_backend_honesty_status.py` (live ORT fixtures)
 - FOUND: `cb582f6`
 - FOUND: `55bbdab`
+- FOUND: `d83d6f1`
