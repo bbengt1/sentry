@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v0.2
 milestone_name: Edge Runtime
-status: ready_for_verification
-stopped_at: Completed 09-02-PLAN.md
-last_updated: "2026-08-09T22:22:00Z"
+status: phase_complete
+stopped_at: Phase 9 verification passed
+last_updated: "2026-08-09T22:23:47Z"
 last_activity: 2026-08-09
 progress:
   total_phases: 5
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-09)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots — without proprietary sensors or cloud AI.  
-**Current focus:** Phase 9 — Live ORT Fixed-Class YOLO (v0.2 Edge Runtime) — plans complete, ready for verification
+**Current focus:** Phase 9 verified passed — next: Phase 10 Live TensorRT Fixed-Class YOLO
 
 ## Current Position
 
 Phase: 9 of 12 (Live ORT Fixed-Class YOLO)  
 Plan: 2 of 2 complete  
-Status: 09-02 complete — phase ready for verification  
+Status: Phase 9 verification passed (4/4 must-haves) — ready for Phase 10  
 Last activity: 2026-08-09
 
 Progress: [██████████] 100%
@@ -78,6 +78,8 @@ Decisions are logged in PROJECT.md Key Decisions table. v0.2 roadmap-binding:
 - [Phase 08]: Factory sole author of backend_live; Phase 8 never emits live ORT/TRT
 - [Phase 08]: path_rejected raises on explicit/env; cache/CWD miss returns None
 - [Phase 08]: Route never recomputes live from preferred_backend — pass-through only
+- [Phase 09]: Live ORT via Ultralytics-native YOLO("*.onnx"); soft-fall ort_artifact_missing/ort_dep_missing/path_rejected
+- [Phase 09]: verified 2026-08-09 — 4/4 roadmap SCs; ORT-01..04 satisfied
 - [Phase 08]: Structured banner fields replace prose-only export-target notes
 - [Phase 08]: Footer shows requested → live; appends reason when they differ
 - [Phase 08 verified]: All roadmap SCs + BACK-01/02/04 + EDGE-RT-01..03 satisfied in code
