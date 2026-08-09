@@ -158,6 +158,49 @@ def test_api_status_desktop_gpu_torch_match() -> None:
         loop.stop()
 
 
+def test_api_status_honesty_onnxruntime_live() -> None:
+    """Live ORT: requested=onnxruntime live=onnxruntime reason=None pass-through.
+
+    Status must not recompute live from preferred — factory-authored fields only.
+    """
+    loop, app = _running_app(
+        backend_requested="onnxruntime",
+        backend_live="onnxruntime",
+        backend_reason=None,
+    )
+    try:
+        with TestClient(app) as client:
+            resp = client.get("/api/status")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["backend_requested"] == "onnxruntime"
+            assert data["backend_live"] == "onnxruntime"
+            assert data.get("backend_reason") is None
+            # Pass-through: live ORT is allowed when factory authored it
+            assert data["backend_live"] == data["backend_requested"]
+    finally:
+        loop.stop()
+
+
+def test_status_snapshot_live_ort_fields() -> None:
+    """StatusSnapshot accepts live=onnxruntime with reason=None."""
+    snap = StatusSnapshot(
+        source="synthetic",
+        camera_id="cam0",
+        status=SourceStatus.STREAMING,
+        capture_fps=0.0,
+        frames_dropped=0,
+        backend_requested="onnxruntime",
+        backend_live="onnxruntime",
+        backend_reason=None,
+    )
+    dumped = snap.model_dump()
+    assert dumped["backend_requested"] == "onnxruntime"
+    assert dumped["backend_live"] == "onnxruntime"
+    assert dumped.get("backend_reason") is None
+
+
+
 def test_create_app_attaches_backend_to_app_state() -> None:
     """create_app kwargs land on app.state (and AppState when mirrored)."""
     bus = FrameBus()
