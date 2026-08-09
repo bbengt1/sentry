@@ -50,7 +50,7 @@ Audit: [milestones/v1.0-MILESTONE-AUDIT.md](milestones/v1.0-MILESTONE-AUDIT.md)
 **UI hint**: yes
 
 Plans:
-- [ ] 08-01-PLAN.md — Factory + artifact resolution + profile wiring
+- [x] 08-01-PLAN.md — Factory + artifact resolution + profile wiring
 - [ ] 08-02-PLAN.md — Status/banner honesty (`backend_requested` / `backend_live`)
 
 ### Phase 9: Live ORT Fixed-Class YOLO
@@ -124,7 +124,7 @@ Plans:
 | 5. Free-Space & Unified Stream | v1.0 | 3/3 | Complete | 2026-08-08 |
 | 6. Developer Controls & Open-Vocab | v1.0 | 2/2 | Complete | 2026-08-08 |
 | 7. Edge Profiles & Extension Stubs | v1.0 | 3/3 | Complete | 2026-08-08 |
-| 8. Backend Selection & Honesty | v0.2 | 0/2 | Not started | - |
+| 8. Backend Selection & Honesty | v0.2 | 1/2 | In Progress|  |
 | 9. Live ORT Fixed-Class YOLO | v0.2 | 0/2 | Not started | - |
 | 10. Live TensorRT Fixed-Class YOLO | v0.2 | 0/2 | Not started | - |
 | 11. Sticky Fallback & Dual-Model Guardrails | v0.2 | 0/2 | Not started | - |

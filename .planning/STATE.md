@@ -2,14 +2,15 @@
 gsd_state_version: 1.0
 milestone: v0.2
 milestone_name: Edge Runtime
-status: ready_to_plan
-last_updated: "2026-08-09T15:00:00.000Z"
+status: executing
+stopped_at: v0.2 ROADMAP.md written (phases 8–12); REQUIREMENTS traceability filled
+last_updated: "2026-08-09T19:41:33.778Z"
 last_activity: 2026-08-09
 progress:
   total_phases: 5
   completed_phases: 0
-  total_plans: 10
-  completed_plans: 0
+  total_plans: 2
+  completed_plans: 1
   percent: 0
 ---
 
@@ -25,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-08-09)
 ## Current Position
 
 Phase: 8 of 12 (Backend Selection & Honesty) — v0.2 phases 8–12  
-Plan: —  
-Status: Ready to plan  
-Last activity: 2026-08-09 — v0.2 roadmap created (phases 8–12)
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-08-09
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -43,7 +44,7 @@ Progress: [░░░░░░░░░░] 0%
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 8 | 0/2 | - | - |
+| 8 | 1/2 | 3min | 3min |
 | 9 | 0/2 | - | - |
 | 10 | 0/2 | - | - |
 | 11 | 0/2 | - | - |
@@ -53,6 +54,8 @@ Progress: [░░░░░░░░░░] 0%
 
 - Last 5 plans: v1.0 Phase 07 complete
 - Trend: —
+
+| Phase 08 P01 | 3min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -66,6 +69,9 @@ Decisions are logged in PROJECT.md Key Decisions table. v0.2 roadmap-binding:
 - No `tensorrt` pip extra; on-device engines only; no multi-SKU engines in wheel
 - Soft torch fallback default (loud); sticky resolve; strict mode available
 - Phases continue 8–12 (v1.0 used 1–7); standard granularity (5 phases)
+- [Phase 08]: Soft stub ORT/TRT with torch worker + reason codes (not construct-time raise)
+- [Phase 08]: Factory sole author of backend_live; Phase 8 never emits live ORT/TRT
+- [Phase 08]: path_rejected raises on explicit/env; cache/CWD miss returns None
 
 ### Pending Todos
 
@@ -90,6 +96,6 @@ See also: `milestones/v1.0-MILESTONE-AUDIT.md`.
 
 ## Session Continuity
 
-Last session: 2026-08-09  
+Last session: 2026-08-09T19:41:33.771Z
 Stopped at: v0.2 ROADMAP.md written (phases 8–12); REQUIREMENTS traceability filled  
 Next: `/gsd:plan-phase 8`

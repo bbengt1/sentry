@@ -10,10 +10,10 @@
 
 ### Backend selection & honesty
 
-- [ ] **BACK-01**: Runtime profile `preferred_backend` selects the fixed-class detection **loader** (torch / onnxruntime / tensorrt), not device-policy logs alone
+- [x] **BACK-01**: Runtime profile `preferred_backend` selects the fixed-class detection **loader** (torch / onnxruntime / tensorrt), not device-policy logs alone
 - [ ] **BACK-02**: Status / serve banner expose both `backend_requested` and `backend_live` (no silent backend lies)
 - [ ] **BACK-03**: When preferred ORT/TRT artifact or dependency is missing, behavior is **documented and sticky** (fail-closed or explicit torch fallback with reason logged once — never thrash every frame)
-- [ ] **BACK-04**: Artifact paths for `.onnx` / `.engine` resolve from config/env/cache with a safe allowlist (no arbitrary path traversal)
+- [x] **BACK-04**: Artifact paths for `.onnx` / `.engine` resolve from config/env/cache with a safe allowlist (no arbitrary path traversal)
 
 ### Live ONNX Runtime (fixed-class YOLO)
 
@@ -31,9 +31,9 @@
 
 ### Integration (existing spine)
 
-- [ ] **EDGE-RT-01**: `DetectionLoop` / FrameBus / PerceptionStore / `/v1` remain the perception spine — no bus redesign
-- [ ] **EDGE-RT-02**: `sentry serve` constructs detection worker via a factory from `profile_runtime` (torch worker preserved for `.pt`)
-- [ ] **EDGE-RT-03**: Desktop GPU path remains first-class with torch default; jetson/cpu-fallback profiles can select ORT/TRT honestly
+- [x] **EDGE-RT-01**: `DetectionLoop` / FrameBus / PerceptionStore / `/v1` remain the perception spine — no bus redesign
+- [x] **EDGE-RT-02**: `sentry serve` constructs detection worker via a factory from `profile_runtime` (torch worker preserved for `.pt`)
+- [x] **EDGE-RT-03**: Desktop GPU path remains first-class with torch default; jetson/cpu-fallback profiles can select ORT/TRT honestly
 - [ ] **EDGE-RT-04**: Depth and open-vocab continue on existing PyTorch paths this milestone (no live ORT/TRT for them)
 
 ### Docs, CI, safety
@@ -66,10 +66,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BACK-01 | Phase 8 | Pending |
+| BACK-01 | Phase 8 | Complete |
 | BACK-02 | Phase 8 | Pending |
 | BACK-03 | Phase 11 | Pending |
-| BACK-04 | Phase 8 | Pending |
+| BACK-04 | Phase 8 | Complete |
 | ORT-01 | Phase 9 | Pending |
 | ORT-02 | Phase 9 | Pending |
 | ORT-03 | Phase 9 | Pending |
@@ -78,9 +78,9 @@
 | TRT-02 | Phase 10 | Pending |
 | TRT-03 | Phase 10 | Pending |
 | TRT-04 | Phase 10 | Pending |
-| EDGE-RT-01 | Phase 8 | Pending |
-| EDGE-RT-02 | Phase 8 | Pending |
-| EDGE-RT-03 | Phase 8 | Pending |
+| EDGE-RT-01 | Phase 8 | Complete |
+| EDGE-RT-02 | Phase 8 | Complete |
+| EDGE-RT-03 | Phase 8 | Complete |
 | EDGE-RT-04 | Phase 11 | Pending |
 | EDGE-DOC-01 | Phase 12 | Pending |
 | EDGE-DOC-02 | Phase 12 | Pending |
