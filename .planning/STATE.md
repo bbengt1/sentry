@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 7 verification passed
-last_updated: "2026-08-08T17:25:45Z"
-last_activity: 2026-08-08
+status: Awaiting next milestone
+stopped_at: Completed 07-03-PLAN.md
+last_updated: "2026-08-09T13:39:13.717Z"
+last_activity: 2026-08-09 — Milestone v1.0 completed and archived
 progress:
   total_phases: 7
   completed_phases: 7
@@ -21,16 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-07)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots — without proprietary sensors or cloud AI.  
-**Current focus:** Milestone v1.0 complete — Phase 7 verified
+**Current focus:** Awaiting next milestone (`/gsd:new-milestone`)
 
 ## Current Position
 
-Phase: 7
-Plan: 3 of 3 in current phase
-Status: Phase 7 verified — milestone plans complete
-Last activity: 2026-08-08
-
-Progress: [██████████] 100%
+Phase: —
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-08-09 — Milestone v1.0 archived and tagged
 
 ## Performance Metrics
 
@@ -169,12 +167,25 @@ Phase 7 plan-check: **PASS_WITH_FLAGS** (non-blocking). Flags: 07-01 file count,
 
 ## Deferred Items
 
-| Category | Item | Status | Deferred At |
-|----------|------|--------|-------------|
-| *(none)* | | | |
+Items acknowledged and deferred at milestone close on 2026-08-09:
+
+| Category | Item | Status |
+|----------|------|--------|
+| verification_gap | Phase 02 human_needed UAT (browser MJPEG, physical USB, optional RTSP) | acknowledged |
+| verification_gap | Phase 03 human_needed UAT (real YOLO visual + offline cache) | acknowledged |
+| verification_gap | Phase 04 human_needed UAT (real DAV2 visual + offline cache; live depth mode reload) | acknowledged |
+| integration | Free-space product after depth disable; /v1 bus metrics; YOLOE registry | deferred polish |
+| nyquist | Most VALIDATION.md still nyquist_compliant false | docs debt |
+
+See also: `milestones/v1.0-MILESTONE-AUDIT.md` tech_debt section.
 
 ## Session Continuity
 
-Last session: 2026-08-08T17:22:56.469Z
-Stopped at: Completed 07-03-PLAN.md
-Next: Execute 07-03 (extension stubs + desktop GPU + safety/privacy docs)
+Last session: 2026-08-09
+Stopped at: Milestone v1.0 complete-milestone finished (archive + tag)
+Next: `/gsd:new-milestone` when ready for v1.1 / v2.0
+
+## Operator Next Steps
+
+- Start the next milestone with `/gsd:new-milestone`
+- Optional: push tag `v1.0` to origin when remote is ready

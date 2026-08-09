@@ -2,101 +2,113 @@
 
 ## What This Is
 
-Sentry AI is an open-source, camera-only perception stack for maker robotics — vision-based spatial awareness and object recognition without LiDAR or radar. Think Tesla FSD-style perception, scoped for hobbyist and maker robots that use off-the-shelf USB or network cameras. It runs local open-source models, exposes a realtime web developer interface with live overlays and controls, and ships a perception stream (depth, detections, free space / obstacles) that robots can consume via API.
+Sentry AI is an open-source, camera-only perception stack for maker robotics — vision-based spatial awareness and object recognition without LiDAR or radar. It runs local open-source models, exposes a realtime Live Preview with overlays and developer controls, and ships a versioned perception stream (depth, detections, free-space / obstacles, optional open-vocab) that robots consume via REST/WebSocket. Multi-target runtime profiles (desktop GPU, Jetson-class, CPU/lite), headless API mode, and extension stubs (ROS2, multi-cam `camera_id`, voice no-op) are included for post-v1 growth.
 
 ## Core Value
 
 Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots — without proprietary sensors or cloud AI.
 
+## Current State
+
+**Shipped: v1.0 Camera-only perception MVP** (2026-08-09)
+
+- Installable `sentry-ai` / CLI `sentry` with one-command local start
+- USB / file / synthetic / RTSP capture → keep-latest FrameBus → model workers
+- Fixed-class YOLO26 + monocular DAV2 Small depth + free-space/obstacles
+- Open-vocab YOLOE (on-demand / lower rate; default off)
+- Live Preview (MJPEG overlays + stage toggles + thresholds + telemetry)
+- `/v1/snapshot` + `/v1/stream` PerceptionFrame contract; perception-only boundary
+- Profiles: `desktop-gpu`, `jetson`, `cpu-fallback`; `sentry serve --no-ui`
+- Export recipes (ONNX/TensorRT docs + scripts); safety/privacy docs
+- ~7.4k LOC Python under `src/`; 18 plans across 7 phases
+
+**Audit at close:** tech_debt (46/46 requirements; residual operator UAT on phases 2–4) — see `milestones/v1.0-MILESTONE-AUDIT.md`.
+
 ## Requirements
 
 ### Validated
 
-<!-- Shipped and confirmed valuable. -->
-
-(None yet — ship to validate)
+- ✓ Camera-only spatial awareness (monocular depth + free-space/obstacles) — v1.0
+- ✓ Off-the-shelf cameras (USB, network/IP, file, synthetic) — v1.0
+- ✓ Local development workflow with live camera or synthetic sources — v1.0
+- ✓ Realtime web Live Preview with video + overlays — v1.0
+- ✓ Interactive developer controls (stages, thresholds, telemetry) — v1.0
+- ✓ Local open-source models only on the core path — v1.0
+- ✓ Fixed-class detection + optional open-vocabulary queries — v1.0
+- ✓ Perception stream API for robots (no motor commands) — v1.0
+- ✓ Single-camera pipeline with multi-cam `camera_id` extension hooks — v1.0
+- ✓ Multi-target runtime: desktop GPU + Jetson/CPU profiles + export recipes — v1.0
+- ✓ Extensible architecture stubs (ROS2 bridge, voice no-op, plugins) — v1.0
 
 ### Active
 
-- [ ] Camera-only spatial awareness (monocular depth estimation + free space / occupied regions)
-- [ ] Support for off-the-shelf cameras (USB, network/IP, and local/dev camera sources)
-- [ ] Local development workflow using local or external cameras
-- [ ] Realtime web interface showing live perception output (video + overlays)
-- [ ] Interactive developer controls (thresholds, model toggles, inspection) between developer and AI models
-- [ ] Local open-source AI models only (no required cloud inference)
-- [ ] Fixed-class object detection plus optional open-vocabulary queries
-- [ ] Perception stream API for robots (depth map, detections, free-space/obstacles) — control remains consumer’s job
-- [ ] Single-camera pipeline first, with extension points for multi-camera later
-- [ ] Multi-target runtime: desktop GPU for development + edge (Jetson / Pi-class) as first-class deployment
-- [ ] Extensible architecture for future capabilities (voice I/O, multi-camera, navigation cues, etc.)
+<!-- Next milestone — filled by /gsd:new-milestone -->
+
+- [ ] (none yet — run `/gsd:new-milestone` to define v1.1 / v2.0)
 
 ### Out of Scope
 
-- LiDAR / radar / ultrasonic as required sensors — product is camera-only by design
-- Full robot control / motion planning stack — Sentry AI outputs perception; robot control is the consumer’s responsibility
-- Dense SLAM / full 3D map building in v1 — depth + obstacles only; mapping can come later
-- Multi-camera fusion in v1 — single camera first; multi-camera is an extension point
-- Cloud-only or proprietary model dependency — local OSS models are required
-- Voice feedback / voice input in v1 — deferred as extensibility hooks, not core delivery
-- Commercial robot fleet management / cloud fleet dashboards — maker / local focus
+- LiDAR / radar / ultrasonic as required sensors — camera-only product thesis
+- Full robot control / motion planning — consumers own control
+- Dense SLAM / full 3D mapping — depth + obstacles only in core product
+- Multi-camera fusion (runtime) — single active source; schema hooks only
+- Cloud-only or proprietary model dependency — local OSS required
+- Voice / scene chat as primary UI — stubs only in v1.0
+- Commercial fleet SaaS / mandatory cloud camera upload
+- FSD / autonomous vehicle claims — hobby monocular ≠ vehicle-grade
 
 ## Context
 
-**Problem:** Maker robotics often depends on expensive or hard-to-integrate depth sensors (LiDAR, structured light). Vision-only stacks exist in research and industry (e.g. automotive FSD), but there is no approachable, open-source, camera-only perception product tailored for makers with:
+**Problem:** Maker robotics often depends on expensive depth sensors. There was no approachable OSS camera-only stack with off-the-shelf cameras, local models, interactive dev UI, and a clean robot API.
 
-1. Off-the-shelf camera support  
-2. Local OSS models  
-3. A realtime interactive developer UI  
-4. A clean perception API for robots  
+**Users:** Maker / hobbyist roboticists, students, small teams.
 
-**Users:** Maker / hobbyist roboticists, students, and small teams building robots who want spatial awareness from cameras they already have.
+**Shipped stack:** Python 3.11, FastAPI, Pydantic 2, OpenCV capture, Ultralytics YOLO26/YOLOE, HF Depth Anything V2 Small, static Live Preview, profile-driven serve.
 
-**Inspiration:** Tesla FSD-style vision-only perception — adapted for open hardware, local inference, and maker workflows rather than production vehicles.
-
-**v1 spatial model:** Monocular (or optional stereo later) depth estimation, free space vs occupied / obstacle regions, fixed-class object detection + open-vocabulary queries, single camera.
-
-**v1 interface:** Web dashboard — live video, perception overlays, model/threshold controls. Chat/scene Q&A and voice are future extensions.
-
-**v1 outputs:** Perception stream (depth map, bounding boxes / masks, free-space / obstacle signals) over REST and/or WebSocket (and optionally ROS2 later if research supports it as non-blocking).
-
-**Hardware:** Desktop GPU for primary development; edge deployment (NVIDIA Jetson, Raspberry Pi-class with accelerators where feasible) as a first-class goal, not an afterthought.
+**Known residual tech debt (non-blocking):** optional human UAT (USB/browser/real weights); free-space product after depth disable; `/v1` bus metrics parity; YOLOE not in plugin registry; Nyquist VALIDATION.md flags.
 
 ## Constraints
 
 - **Sensors**: Cameras only for spatial awareness — no LiDAR/radar requirement
 - **Models**: Local open-source models required; cloud optional only as non-default extension
-- **Cameras**: Must support common off-the-shelf sources (USB UVC, RTSP/network, file/synthetic for tests)
-- **Runtime**: Multi-target — develop on desktop GPU; deploy path to edge devices
-- **Interface**: Web-based realtime dashboard for developers
-- **Architecture**: Plugin / extension-friendly for voice, multi-camera, ROS2, etc.
-- **License**: Open source product suitable for maker community use and contribution
-- **Privacy**: Prefer on-device processing; no mandatory data upload
+- **Cameras**: USB UVC, RTSP/network, file/synthetic
+- **Runtime**: Multi-target — desktop GPU primary path; Jetson/CPU profiles + export recipes
+- **Interface**: Web Live Preview for developers; headless API for robots
+- **Architecture**: Plugin / extension-friendly
+- **License**: Apache-2.0 application code; third-party model licenses documented
+- **Privacy**: On-device default; localhost bind; no mandatory upload
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Camera-only perception (no LiDAR/radar) | Core product thesis; maker accessibility | — Pending |
-| Spatial v1 = depth + obstacles, not full SLAM | Ship useful navigation signal without mapping complexity | — Pending |
-| Single camera first | Reduces v1 complexity; multi-cam as extension | — Pending |
-| Web dashboard for developer UI | Universal, easy local dev, realtime overlays | — Pending |
-| Live overlays + controls (not chat-first) | Developer tooling first; NL Q&A later | — Pending |
-| Fixed-class + open-vocab detection | Standard reliability + flexible queries | — Pending |
-| Perception stream only (no robot control) | Clean boundary; works with any robot stack | — Pending |
-| Multi-target: desktop + edge | Dev ergonomics without abandoning deployment | — Pending |
-| Local OSS models only for core path | Open source, offline-capable, no vendor lock-in | — Pending |
-| Extensible plugin architecture | Voice, multi-cam, ROS2 without rewrite | — Pending |
+| Camera-only perception (no LiDAR/radar) | Core product thesis | ✓ Good — v1.0 |
+| Spatial v1 = depth + obstacles, not full SLAM | Ship useful signal without mapping complexity | ✓ Good — v1.0 |
+| Single camera first | v1 complexity; multi-cam hooks only | ✓ Good — v1.0 |
+| Static Live Preview (not full React rewrite) | Ship overlays/controls faster | ✓ Good — v1.0 |
+| Live overlays + controls (not chat-first) | Developer tooling first | ✓ Good — v1.0 |
+| Fixed-class + open-vocab detection | Reliability + flexible queries | ✓ Good — v1.0 |
+| Perception stream only (no robot control) | Clean safety boundary | ✓ Good — v1.0 |
+| Multi-target: desktop + edge profiles | Dev ergonomics + deploy path | ✓ Good — v1.0 (live TRT deferred; recipes only) |
+| Local OSS models only for core path | Offline, no vendor lock-in | ✓ Good — v1.0 |
+| Extensible plugin architecture | Voice/ROS2/multi-cam without rewrite | ✓ Good — stubs shipped |
+| Depth honesty via `depth_kind` | Never sell relative as meters | ✓ Good — v1.0 |
+| CUDA request falls back to MPS/CPU | Maker machines without CUDA | ✓ Good — post-v1 fix included |
+
+## Next Milestone Goals
+
+Define with `/gsd:new-milestone`. Candidate themes from v2 backlog:
+
+- Metric depth + calibration UX  
+- Production ROS2 bridge  
+- Multi-camera fusion  
+- Pi/lite published FPS budgets  
+- Real TensorRT/ORT live backends  
+- Scene VLM / voice plugins  
 
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
-
-**After each phase transition** (via `/gsd-transition`):
-1. Requirements invalidated? → Move to Out of Scope with reason
-2. Requirements validated? → Move to Validated with phase reference
-3. New requirements emerged? → Add to Active
-4. Decisions to log? → Add to Key Decisions
-5. "What This Is" still accurate? → Update if drifted
 
 **After each milestone** (via `/gsd:complete-milestone`):
 1. Full review of all sections
@@ -105,4 +117,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-07 after initialization*
+*Last updated: 2026-08-09 after v1.0 milestone*
