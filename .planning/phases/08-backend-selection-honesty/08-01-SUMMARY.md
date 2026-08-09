@@ -84,7 +84,7 @@ Each task was committed atomically (TDD: test → feat):
 2. **Task 2: build_detection_worker factory** — `c348bd4` (test) + `a4d9871` (feat)
 3. **Task 3: Wire cli.serve to factory** — `c1f2fc7` (test) + `a1cfa4f` (feat)
 
-**Plan metadata:** (pending docs commit)
+**Plan metadata:** `eea5f79` (docs: complete plan)
 
 ## Files Created/Modified
 
