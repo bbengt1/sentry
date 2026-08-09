@@ -65,8 +65,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 09-01: Live Ultralytics-native ORT worker path + `onnx` extra
-- [ ] 09-02: Detection parity / golden tests (CPU ORT or mocks)
+- [ ] 09-01-PLAN.md — Live Ultralytics-native ORT worker path + `onnx` extra
+- [ ] 09-02-PLAN.md — Detection parity / golden tests (CPU ORT or mocks)
 
 ### Phase 10: Live TensorRT Fixed-Class YOLO
 **Goal**: Jetson-class and NVIDIA desktop can run fixed-class YOLO live via TensorRT from an on-device `.engine` — no multi-SKU engines in the wheel, no pip `tensorrt` app dependency
