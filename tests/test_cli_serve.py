@@ -222,19 +222,27 @@ def test_serve_source_wires_open_vocab_loop_lifecycle() -> None:
 
 
 def test_serve_applies_profile_runtime() -> None:
-    """EDGE-02: serve wires profile_runtime weights + device into workers."""
+    """EDGE-02 / EDGE-RT-02: serve uses factory + profile_runtime for workers."""
     source = inspect.getsource(cli_mod.serve)
     assert "profile_runtime" in source
     assert "tier_to_open_vocab_weight" in source
-    assert "rt.detector_weights" in source
+    # Fixed-class detection via factory (not inline YoloDetectionWorker)
+    assert "build_detection_worker" in source
+    assert "DetectionLoop" in source
+    assert "backend_requested" in source
+    assert "backend_live" in source
+    assert "backend_reason" in source
+    # Open-vocab / depth still take profile weights + device directly
     assert "rt.open_vocab_weights" in source
     assert "rt.depth_model_id" in source
     assert "device=rt.device" in source
     assert "probe_device" in source
-    # Banner honesty fields
+    # Banner honesty fields (full BACK-02 rewrite lands in 08-02)
     assert "preferred_backend" in source
     assert "tensorrt" in source
     assert "onnxruntime" in source
+    # No hard-coded fixed-class YoloDetectionWorker construction in serve
+    assert "YoloDetectionWorker(" not in source
 
 
 def test_serve_profile_default_is_cpu_fallback() -> None:
