@@ -1,8 +1,12 @@
 """Profile → weights + device policy for serve construction (EDGE-02).
 
 Pure helpers only — no FastAPI, no torch import, no weight download.
-preferred_backend is device policy / export target; live inference stays
-on Ultralytics/HF PyTorch paths in v1.
+
+``preferred_backend`` selects a detection **loader branch** at serve via
+``build_detection_worker`` (Phase 8+). Live identity comes from the factory
+``backend_live`` field — not from device policy alone. ``device_for_backend``
+still maps preferred_backend → torch device strings for the live worker
+(never a fake ``\"tensorrt\"`` device).
 """
 
 from __future__ import annotations
