@@ -65,7 +65,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 09-01-PLAN.md — Live Ultralytics-native ORT worker path + `onnx` extra
+- [x] 09-01-PLAN.md — Live Ultralytics-native ORT worker path + `onnx` extra
 - [ ] 09-02-PLAN.md — Detection parity / golden tests (CPU ORT or mocks)
 
 ### Phase 10: Live TensorRT Fixed-Class YOLO
@@ -125,7 +125,7 @@ Plans:
 | 6. Developer Controls & Open-Vocab | v1.0 | 2/2 | Complete | 2026-08-08 |
 | 7. Edge Profiles & Extension Stubs | v1.0 | 3/3 | Complete | 2026-08-08 |
 | 8. Backend Selection & Honesty | v0.2 | 2/2 | Complete   | 2026-08-09 |
-| 9. Live ORT Fixed-Class YOLO | v0.2 | 0/2 | Not started | - |
+| 9. Live ORT Fixed-Class YOLO | v0.2 | 1/2 | In Progress|  |
 | 10. Live TensorRT Fixed-Class YOLO | v0.2 | 0/2 | Not started | - |
 | 11. Sticky Fallback & Dual-Model Guardrails | v0.2 | 0/2 | Not started | - |
 | 12. Docs, CI & Packaging Polish | v0.2 | 0/2 | Not started | - |

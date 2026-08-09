@@ -17,9 +17,9 @@
 
 ### Live ONNX Runtime (fixed-class YOLO)
 
-- [ ] **ORT-01**: Fixed-class YOLO can run live via ONNX Runtime when profile prefers `onnxruntime` and a valid `.onnx` artifact is present
+- [x] **ORT-01**: Fixed-class YOLO can run live via ONNX Runtime when profile prefers `onnxruntime` and a valid `.onnx` artifact is present
 - [ ] **ORT-02**: ORT path produces the same `Detection` wire contract (class, conf, bbox_xyxy, source=fixed) as the PyTorch path
-- [ ] **ORT-03**: Optional `onnx` (or equivalent) extra documents install; CI does not require GPU ORT
+- [x] **ORT-03**: Optional `onnx` (or equivalent) extra documents install; CI does not require GPU ORT
 - [ ] **ORT-04**: Golden/parity tests (mock session or fixture) prove postprocess mapping without Jetson hardware
 
 ### Live TensorRT (fixed-class YOLO)
@@ -70,9 +70,9 @@
 | BACK-02 | Phase 8 | Complete |
 | BACK-03 | Phase 11 | Pending |
 | BACK-04 | Phase 8 | Complete |
-| ORT-01 | Phase 9 | Pending |
+| ORT-01 | Phase 9 | Complete |
 | ORT-02 | Phase 9 | Pending |
-| ORT-03 | Phase 9 | Pending |
+| ORT-03 | Phase 9 | Complete |
 | ORT-04 | Phase 9 | Pending |
 | TRT-01 | Phase 10 | Pending |
 | TRT-02 | Phase 10 | Pending |
