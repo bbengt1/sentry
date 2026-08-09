@@ -1,649 +1,508 @@
-# Pitfalls Research
+# Domain Pitfalls: Live ORT / TensorRT YOLO on Ultralytics PyTorch Stack
 
-**Domain:** Camera-only monocular depth + realtime object detection for maker robotics  
-**Project:** Sentry AI  
-**Researched:** 2026-08-07  
-**Confidence:** HIGH (core geometric/latency pitfalls); MEDIUM (product-scope and licensing edge cases)
+**Domain:** Edge inference backends for fixed-class YOLO (ONNX Runtime + TensorRT)  
+**Project:** Sentry AI — milestone **v0.2 Edge Runtime**  
+**Researched:** 2026-08-09  
+**Overall confidence:** HIGH (SKU/JetPack/AGPL/honesty patterns verified against Sentry v1.0 code + export docs); MEDIUM (exact JetPack↔ORT wheel matrix drifts by SKU — always verify on device)
 
-Camera-only spatial awareness is seductive because demos look great and hardware is cheap. The failure modes that kill maker products are rarely “model not SOTA enough” — they are **metric scale lies**, **end-to-end latency**, **camera chaos**, **overpromise vs Tesla-FSD branding**, and **shipping a perception stream that robots cannot safely trust**.
+v1.0 ships **export recipes only**: `preferred_backend: tensorrt | onnxruntime` is device policy + honesty logs, live detection is still Ultralytics **PyTorch**. v0.2 makes ORT/TRT **real loaders**. The failure modes below are the ones that turn that upgrade into silent lies, OOM thrash, or unsupportable CI.
+
+**Scope of this doc:** Fixed-class YOLO edge backends only. Depth stays PyTorch/HF this milestone; YOLOE stays PyTorch/on-demand. Do not invent dual-backend depth.
 
 ---
 
 ## Critical Pitfalls
 
-### 1. Treating relative depth as metric meters
+### 1. Engine SKU non-portability (copying `.engine` across boxes)
 
 **What goes wrong:**  
-Relative / affine-invariant monocular models (MiDaS, Depth Anything V2 base relative models, etc.) output **relative inverse depth** or scale-ambiguous depth. Teams colorize the map, see sharp edges, and expose “depth in meters” on the API. Robots then plan stops at 0.8 m that are actually 2.5 m — or crash into objects that looked “far.”
+A TensorRT `.engine` built on a desktop RTX, Orin NX, or AGX is treated as a deployable artifact. Operators copy it to another Jetson SKU or another JetPack install. Load fails with opaque TRT errors, or worse, **appears** to load and produces wrong/slow results because SM arch / TRT version do not match.
 
 **Why it happens:**  
-Demos and papers optimize for visual quality and ranking metrics (δ1, AbsRel after scale alignment). Robotics needs **absolute scale**. Relative models are often used because they are faster, more general, and easier to run. Metric fine-tunes exist (Depth Anything V2 metric indoor/outdoor, Metric3D, ZoeDepth lineage) but are domain-split and still imperfect zero-shot.
+Engines are compiled for a **GPU compute capability + TensorRT major/minor + (often) CUDA** triple. They are not ONNX. Desktop→Jetson and Orin Nano→Orin AGX copies are the classic maker mistake. v1 docs already forbid prebuilt multi-SKU engines in the repo/wheel — live TRT makes the temptation stronger (ship engines on Releases “for convenience”).
 
-**Warning signs:**
-- API field named `depth_m` with no scale provenance or confidence
-- Depth values change when camera zooms or FOV changes without corresponding geometry
-- “Looks correct” in colorized overlay but fails a tape-measure test
-- Same scene produces different absolute ranges after restart or model swap
-- Free-space thresholds hardcoded in meters on relative outputs
+**Consequences:**
+- “Works on my desktop, broken on Jetson” support black hole
+- Silent accuracy/perf regressions if a mismatched engine partially runs
+- Git LFS / release bloat of non-portable binaries
 
 **Prevention:**
-- Explicitly type depth in the API: `relative` | `metric_estimated` | `metric_calibrated`
-- Never call relative output “meters” in UI or docs
-- Prefer metric models when obstacle distance matters; document indoor vs outdoor heads (DA-V2: Hypersim max_depth≈20 m indoor, VKITTI max_depth≈80 m outdoor)
-- Offer optional scale calibration (known object size, ground plane + camera height, stereo assist later)
-- Ship a **trust score / uncertainty** channel, not just a depth map
+- **On-device build only** for production engines (same board + JetPack + TRT as serve)
+- Refuse to ship `.engine` in git, wheel, or multi-SKU GitHub Releases
+- Cache engines under a **machine-local** path keyed by fingerprint, e.g.  
+  `{gpu_name}:{sm_arch}:{trt_version}:{weights}:{imgsz}:{precision}`  
+  Invalidate on any key change
+- CLI/docs: `sentry export … --format engine` must print “build on target; do not copy”
+- Optional startup check: refuse load when engine metadata fingerprint ≠ host probe
 
-**Phase to address:** Perception core / depth model selection (early foundation phase) — before any robot API contract freezes.
+**Detection:**
+- Load errors mentioning incompatible platform / deserialization
+- Engine file timestamps older than last JetPack upgrade
+- Same `.engine` path reused across profile switches without rebuild
+
+**Phase ownership:** **TRT engine lifecycle / Jetson packaging** (early TRT plan — before any “prebuilt engines” feature discussion).
 
 **Confidence:** HIGH  
-**Sources:** [MiDaS (relative inverse depth)](https://pytorch.org/hub/intelisl_midas_v2/), [Depth Anything V2 metric fine-tunes](https://github.com/DepthAnything/Depth-Anything-V2/tree/main/metric_depth), [Metric3D FAQ](https://github.com/YvanYin/Metric3D)
+**Sources:** [Sentry jetson-packaging.md](../../docs/export/jetson-packaging.md), [yolo26-onnx-tensorrt.md](../../docs/export/yolo26-onnx-tensorrt.md), NVIDIA TensorRT developer guide (engines are platform-specific)
 
 ---
 
-### 2. Ignoring camera intrinsics (beautiful depth, broken geometry)
+### 2. JetPack matrix blindness (torch / ORT / TRT / CUDA version soup)
 
 **What goes wrong:**  
-Depth maps look fine; back-projected point clouds / free-space polygons are stretched, curved, or wrong-sized. Metric3D’s own FAQ: *“Why depth maps look good but pointclouds are distorted? Because the focal length is not properly set.”*
+Team pins `onnxruntime-gpu` from generic PyPI, or a desktop CUDA torch wheel, on a Jetson. Install “succeeds,” import fails, CUDA contexts disagree, or TRT Python bindings from JetPack disagree with the engine builder used by Ultralytics. JetPack 5 vs 6, L4T, and Python 3.8/3.10/3.11 differences are ignored until field deploy.
 
 **Why it happens:**  
-Makers use random USB webcams with unknown/wrong EXIF, digital zoom, auto-crop, or driver-reported resolutions that differ from the actual active sensor window. Metric models that assume a canonical camera space amplify wrong `fx/fy/cx/cy`.
+PyPI GPU wheels target x86_64 CUDA toolkits. Jetson needs **JetPack-matched** wheels (NVIDIA forums / Jetson Zoo / JP container images). Ultralytics export for `engine` uses **system TensorRT**, not a project `tensorrt` extra — correct for Jetson, easy to “fix” by pip-installing random TRT.
 
-**Warning signs:**
-- Obstacles look closer on image edges than center (or vice versa)
-- Ground plane tilts when camera pitch is level
-- Changing resolution (720p ↔ 1080p) changes “meters” without re-calibration
-- No calibration step in onboarding; intrinsics hard-coded to 518×518 or 640×480 defaults
+**Consequences:**
+- Days lost to ABI / CUDA symbol errors
+- Engines built with one TRT version unloadable after `apt` JetPack point release
+- Docs that say “just pip install onnxruntime-gpu” actively harm Jetson users
 
 **Prevention:**
-- Require or strongly guide camera calibration (OpenCV checkerboard or Charuco) for any metric/3D path
-- Store per-camera profiles: resolution, intrinsics, distortion, mounting height/pitch
-- If uncalibrated: degrade gracefully to relative depth + image-space free space, not fake metric 3D
-- Document that network cameras often need manual FOV/focal entry
-- Re-validate intrinsics whenever crop, binning, or digital zoom changes
+- Document a **verify-on-device** matrix table (not a fake universal pin):
 
-**Phase to address:** Camera ingestion + calibration UX (early; blocks trustworthy spatial API).
+  | Component | Rule |
+  |-----------|------|
+  | TensorRT | JetPack-bundled only; **no** project `tensorrt` pip extra |
+  | ORT on Jetson | JetPack-/L4T-matched wheel or container — **not** generic `onnxruntime-gpu` from PyPI |
+  | ORT on desktop CUDA | `onnxruntime-gpu` matched to host CUDA major |
+  | ORT on CPU/CI | `onnxruntime` CPU wheel only |
+  | PyTorch | Keep as default desktop path; Jetson torch from NVIDIA/JP guidance when dual-model depth stays torch |
+
+- Rebuild engines after **any** JetPack / TRT upgrade
+- `probe_device` / health should report: CUDA available, TRT version string (if present), ORT version, **not** just `preferred_backend`
+- Prefer documented container (JP base image) over “host Python roulette” for Jetson CI-like bring-up
+
+**Detection:**
+- `ImportError` / `libcublas` / `libnvinfer` version mismatches at load
+- Engine build works, runtime load fails after OS update
+- `onnxruntime-gpu` installs but `get_device()` shows CPU only
+
+**Phase ownership:** **Jetson packaging + stack pins** (docs plan parallel to first live TRT/ORT loaders). Revisit whenever JetPack major changes.
+
+**Confidence:** HIGH for “don’t use generic PyPI GPU wheels on Jetson”; MEDIUM for exact version cells (SKU-specific — verify on device).
+
+**Sources:** [Sentry jetson-packaging.md](../../docs/export/jetson-packaging.md), [STACK.md inference backends](./STACK.md), NVIDIA Jetson Zoo / JetPack release notes
+
+---
+
+### 3. CI without GPU becomes fake confidence (or blocks the pipeline)
+
+**What goes wrong:**  
+Either (a) GitHub Actions tries to import TRT / run real engines and the job is red forever, or (b) CI only tests the PyTorch path while ORT/TRT loaders ship untested and break on first Jetson boot.
+
+**Why it happens:**  
+v1 correctly forbids Jetson in CI (`export` tests = argparse + allowlist only). Live backends need **more** tests without hardware — easy to either over-require GPU or under-mock the selection graph.
+
+**Consequences:**
+- Flaky or impossible CI
+- Regressions in backend selection, fingerprint, and fallback never caught
+- Contributors without NVIDIA cannot develop
+
+**Prevention:**
+- **Layered test strategy:**
+
+  | Layer | What runs in GHA | What does not |
+  |-------|------------------|---------------|
+  | Unit | Backend selection, path resolution, fingerprint keys, error messages | Real CUDA |
+  | Mock loaders | Fake ORT/TRT sessions inject detections | Weight download, `model.export` |
+  | Contract | `preferred_backend` → actual loader class mapping | Hardware FPS |
+  | Optional nightly / manual | On-device Jetson/desktop GPU smoke | Required for merge |
+
+- Keep default `sentry serve --profile cpu-fallback` CI-safe
+- Never download YOLO weights or call Ultralytics `export` in default pytest
+- Gate real ORT CPU smoke (optional extra) behind explicit marker, not default job
+- Document “hardware validation checklist” for release, separate from unit green
+
+**Detection:**
+- CI job needs `nvidia-smi` or fails on `import tensorrt`
+- 100% coverage on loaders that only run under `@pytest.mark.gpu`
+- No test asserts “when engine missing → explicit status”
+
+**Phase ownership:** **CI / test harness** plan **alongside** first ORT loader (not deferred to “polish”). Mock backends are part of the feature, not afterthought.
+
+**Confidence:** HIGH (matches v1 EDGE-03 decisions and PROJECT.md “CI-safe tests without Jetson”).
+
+---
+
+### 4. AGPL still applies when the runtime is ORT/TRT
+
+**What goes wrong:**  
+Team believes “we only ship ONNX/engine, not Ultralytics Python, so AGPL goes away.” Commercial forks redistribute YOLO26-derived graphs without AGPL obligations review. Or the reverse: refuse any YOLO path and block the milestone unnecessarily without documenting the actual obligation surface.
+
+**Why it happens:**  
+Export changes the **runtime loader**, not the **weight/training lineage**. Ultralytics YOLO26 / YOLOE remain **AGPL-3.0** in Sentry’s third-party table. Custom ORT postprocess code is Apache-2.0 app code; the model artifact is still AGPL-sensitive for many counsel interpretations when derived from AGPL tooling/weights.
+
+**Consequences:**
+- Legal surprise late in a commercial robot product
+- Incomplete `THIRD_PARTY_MODELS.md` after new export artifacts (`.onnx`, `.engine`) appear on disk
+- False marketing: “commercially friendly edge stack” while default detector is still AGPL weights
+
+**Prevention:**
+- Keep AGPL YOLO behind optional `detect` extra; never imply Apache-2.0 covers detector weights
+- Extend `THIRD_PARTY_MODELS.md` for **exported artifacts** (same license lineage as source `.pt`)
+- Status/UI: continue non-default commercial caution language when fixed-class YOLO is loaded (any backend)
+- Do not treat ORT/TRT as a license laundering step
+- If a commercially licensed detector is required later, that is a **different model plugin**, not a silent swap of YOLO weights
+
+**Detection:**
+- Docs claim “edge path is license-clean” without AGPL callout
+- Releases bundle `yolo26n.onnx` without license notes
+- `defaults_commercially_friendly: true` on profiles that still pull AGPL detectors (profile flag vs weight license confusion)
+
+**Phase ownership:** **Docs / policy** at milestone start; verify again when export artifacts are first **loaded** (not only exported).
+
+**Confidence:** HIGH for “document and do not launder”; legal interpretation of AGPL for exported graphs is counsel-dependent (flag as product risk, not DIY legal advice).
+
+**Sources:** [THIRD_PARTY_MODELS.md](../../THIRD_PARTY_MODELS.md), Ultralytics LICENSE (AGPL-3.0)
+
+---
+
+### 5. Silent backend lies (`preferred_backend` ≠ live loader)
+
+**What goes wrong:**  
+Profile says `tensorrt` or `onnxruntime`, health/UI shows that string, but inference still runs PyTorch (v1 behavior) **or** silently falls back to torch/CPU when engine/onnx is missing. Operators believe they measured TRT FPS. Bug reports cite “TRT is slow” when TRT never ran.
+
+**Why it happens:**  
+v1 honesty logs exist in CLI (`preferred_backend=tensorrt → live path is still PyTorch`) because loaders were deferred. v0.2 must **delete the lie**, not remove the logs. Half-migrated code paths (policy maps device to `cuda:0` while `BackendName.TENSORRT` is displayed) are the danger zone.
+
+**Consequences:**
+- False performance claims
+- Impossible field debugging
+- Robots trust a “production edge backend” that is actually eager PyTorch + HF depth OOM
+
+**Prevention:**
+- Single source of truth: **actual loader identity** reported in status/telemetry  
+  e.g. `detection.backend_live: torch | onnxruntime | tensorrt` separate from `detection.backend_requested`
+- Fail closed or fail loud:
+  - **Strict mode (jetson profile default candidate):** missing engine → clear error / degraded stage off, not silent torch
+  - **Dev mode:** explicit opt-in `fallback_to_torch: true` with warning + UI badge
+- Never return a fake torch device string `"tensorrt"` (v1 `device_for_backend` already avoids this — keep that invariant)
+- Integration test: request ORT/TRT without artifacts → assert status fields, not only logs
+- Live Preview footer: show **live** backend, not profile name alone
+
+**Detection:**
+- `preferred_backend=tensorrt` but process RSS/GPU modules show only `libtorch`
+- Logs lack engine path / ORT provider list
+- FPS “improves” after deleting the `.engine` (fallback thrash — see below)
+
+**Phase ownership:** **Backend selection & honesty contracts** — **first** v0.2 phase before ORT/TRT feature work. Blocks every other edge plan.
 
 **Confidence:** HIGH  
-**Sources:** [Metric3D Q&A](https://github.com/YvanYin/Metric3D), [OpenCV camera calibration](https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html)
+**Sources:** [profile_runtime.py](../../src/sentry_ai/config/profile_runtime.py), [cli honesty notes](../../src/sentry_ai/cli.py), PROJECT.md Active requirements
 
 ---
 
-### 3. Overpromising “Tesla FSD–style” vision-only autonomy
+### 6. Dual-model memory collision (YOLO ORT/TRT + DAV2 PyTorch)
 
 **What goes wrong:**  
-Marketing / README / UI copy implies production-grade vision-only driving. Makers expect lane-keeping, cross-traffic prediction, and fail-safe navigation. Reality: single monocular camera + hobby compute cannot match multi-camera, fleet-trained, safety-engineered stacks. Trust collapses; project becomes “cool demo that almost hit my dog.”
+Detection moves to TRT/ORT “to free GPU,” but depth remains HF PyTorch DAV2 Small on the same GPU. Peak VRAM = TRT workspace + torch CUDA caching allocator + two sets of weights + capture/MJPEG. Jetson Orin Nano class OOMs, throttles, or one stage starves. Enabling open-vocab YOLOE on top is a third resident model.
 
 **Why it happens:**  
-Inspiration language bleeds into product claims. Visual overlays look “smart.” Scope creep into control/planning because perception “should just work.”
+v0.2 scope is YOLO-only edge backends; depth stays torch. Makers assume “TensorRT = always enough headroom.” TRT builder workspace and torch cache do not share a single polite budget. Continuous dual-model was already unmeasured on Jetson in v1 docs.
 
-**Warning signs:**
-- Homepage leads with FSD comparisons without “perception only” caveats
-- Issues filed as “robot won’t navigate” when only depth/detections ship
-- No written safety boundary: “Sentry AI does not control motors”
-- Demo videos hide failure cases (glass, mirrors, night, motion blur)
+**Consequences:**
+- Random `CUDA out of memory` mid-session
+- Detection “works alone,” full pipeline dies
+- Thermal throttle masquerading as “slow backend”
 
 **Prevention:**
-- Position as **perception stream for makers**, not autonomy
-- Hard product boundary: depth, detections, free-space/obstacles — control is consumer’s job
-- Public known-failure list (glass, thin poles, low light, textureless walls, specular floors)
-- Require consumers to keep e-stop / bumper / simple fallback sensors for physical robots
-- Never auto-publish “safe to proceed” without explicit consumer policy
+- Default **jetson** profile: detector `n`, depth Small, open-vocab **off** (already); keep that under live TRT
+- Document **resident set** expectations: detect backend + depth torch may **exceed** detect-only TRT blog numbers
+- Load order: fail early with a clear “dual-model VRAM” message rather than looping OOM
+- Provide knobs: disable depth, lower `imgsz`, FP16 only, limit TRT workspace, single-stream
+- Do **not** co-load YOLOE continuous with TRT YOLO + DAV2 in this milestone
+- Optional: sequential GPU time-slicing (detect then depth) before claiming concurrent dual-model
 
-**Phase to address:** Product positioning + docs from day one; enforce in API design phase.
+**Detection:**
+- OOM only when free-space/depth enabled
+- `nvidia-smi` shows both TRT and python torch processes fighting one GPU
+- Latency spikes correlate with depth+detect both “ready”
 
-**Confidence:** HIGH (product risk); domain evidence is community/pattern-level rather than a single paper.
+**Phase ownership:** **Dual-model scheduling / Jetson validation** after single-model ORT and TRT paths work in isolation. Do not combine until each path is honest alone.
+
+**Confidence:** HIGH for risk; MEDIUM for exact MB budgets (measure per SKU).
+
+**Sources:** [jetson-packaging.md](../../docs/export/jetson-packaging.md), [desktop-gpu.md](../../docs/desktop-gpu.md) (no dual-model FPS guarantees)
 
 ---
 
-### 4. Demo FPS ≠ control-loop latency
+### 7. Fallback thrash (oscillating loaders / retry storms)
 
 **What goes wrong:**  
-Dashboard shows 30 FPS video while the robot receives detections that are 200–400 ms stale. UI stream is optimized for smoothness (latest frame, drop intermediate); robot path is coupled to the same pipeline and blocks on model batching, JSON encoding, or WebSocket backpressure.
+Missing engine → fallback to torch → next frame retries TRT → fails → fallback again. Or ORT CUDA provider fails init every N frames and silently uses CPU. Or profile reload / UI toggle re-instantiates backends without releasing GPU memory.
 
 **Why it happens:**  
-Teams measure model forward-pass time on a warm GPU with preloaded tensors, not capture→preprocess→infer→postprocess→serialize→network→consumer. UI and control share one synchronous path. Open-vocab models and full-res depth run every frame.
+Eager “be helpful” fallback without **sticky degraded state**. Combined with keep-latest loops that call `_ensure_model` patterns, transient errors become permanent flapping. Multi-thread detect + depth + free-space increase race windows on load locks.
 
-**Warning signs:**
-- “30 FPS” only in the web UI; API timestamps lag wall clock
-- Latency spikes when overlays are enabled
-- Queue depth grows under load (processing every frame instead of latest-only)
-- Edge device “works” on still images but drops to single-digit FPS on live video
+**Consequences:**
+- Multi-second stalls every few frames
+- Telemetry FPS oscillates; robots see intermittent stale detections
+- GPU memory fragmentation from repeated load/unload
 
 **Prevention:**
-- Separate **preview path** (lossy, droppable) from **robot perception path** (timestamped, latest-frame, bounded latency)
-- Publish end-to-end latency metrics: capture time, inference time, emit time, age-at-consumer
-- Default policy: drop intermediate frames; never build unbounded queues
-- Budget models by tier: edge “fast” profile vs desktop “quality” profile
-- Design dual-rate pipeline: cheap detector every frame, heavy depth every N ms
+- **Sticky backend decision** at worker start (or explicit reconfigure):  
+  `requested → resolve once → live backend`  
+  On failure: enter `degraded` with reason; do not re-resolve every frame
+- Reconfigure only on explicit config change (profile, weights path, force_reload)
+- Cap retries (e.g. one rebuild attempt per process) with cooldown
+- Distinguish error classes:
+  - Missing artifact → degraded / strict fail (no thrash)
+  - Transient infer error → drop frame, keep backend
+  - Fatal CUDA error → stop stage, surface status
+- Tests: inject fail-on-load once; assert single attempt + stable `backend_live`
 
-**Phase to address:** Architecture + streaming API design (before UI polish).
+**Detection:**
+- Log spam: “falling back to torch” every frame
+- Alternating latency 5 ms / 80 ms patterns
+- Rising GPU mem without new features enabled
+
+**Phase ownership:** **Honest fallback policy** plan immediately after first real loader (same phase as silent-lie prevention). Shared by ORT and TRT.
 
 **Confidence:** HIGH
 
 ---
 
-### 5. Desktop-only pipeline that cannot reach Jetson / Pi-class targets
+### 8. `CUDA_VISIBLE_DEVICES` / device index confusion
 
 **What goes wrong:**  
-v1 is a PyTorch research script on an RTX desktop. Edge port is “later.” By then: CUDA-only ops, 335M–1.3B depth models, Python GIL bottlenecks, no TensorRT/ONNX export path, and model licenses that block commercial makers. Edge becomes a rewrite.
+Profile `device_id: "0"` plus env `CUDA_VISIBLE_DEVICES=1` (or empty) means process-local GPU 0 is a different physical device — or none. ORT `CUDAExecutionProvider` device_id, TRT builder GPU, and torch `cuda:0` disagree. Multi-GPU desktops “randomly” use the wrong card; Jetson with MIG/containers sees empty CUDA.
 
 **Why it happens:**  
-Desktop GPU is the happy path. Multi-target is stated but not enforced by CI. TensorRT engines are device-specific (must build/validate on target SKU). Pi-class may need NPU/accelerator paths that pure PyTorch never exercises.
+v1 `resolve_device` normalizes bare `"0"` → `cuda:0` via **torch** visibility. ORT/TRT each have their own device index semantics. Ultralytics export `--device 0` is yet another entry point. Nested containers rewrite visibility without updating profile YAML.
 
-**Warning signs:**
-- No export format (ONNX/TensorRT/CoreML) in milestone definition
-- Only Large/Giant models in demos
-- “Works on Jetson” claim without published FPS/power numbers
-- Dependencies pin bleeding-edge CUDA that JetPack cannot match
+**Consequences:**
+- Engine built on GPU A, runtime binds GPU B
+- “CUDA unavailable” while another process sees the GPU
+- Hard-to-reproduce maker setups (laptop + eGPU, multi-RTX)
 
 **Prevention:**
-- First-class **runtime profiles**: `desktop-gpu`, `jetson`, `cpu-fallback` with explicit model sizes
-- Prefer exportable models early; validate TensorRT on real Orin/Xavier hardware (engines are not freely portable across SKUs)
-- Keep a Small/Base depth + nano/small detector path that hits a published latency budget on target hardware
-- CI smoke tests on at least one non-desktop profile (even CPU with tiny models)
-- Track JetPack / CUDA / TensorRT matrix in docs
+- Resolve **one** physical device at startup; pass the same index into torch / ORT / TRT
+- Log the triple: env `CUDA_VISIBLE_DEVICES`, requested id, runtime-visible device name
+- Prefer `device_id: "0"` meaning “first **visible** GPU” and document that explicitly
+- In containers, set visibility before process start; do not change mid-run
+- Health endpoint: `torch.cuda.get_device_name(0)` (if any) + ORT provider options
+- Never assume desktop `cuda:0` engine path is valid on Jetson without rebuild (ties to pitfall 1)
 
-**Phase to address:** Stack selection + first runnable pipeline; re-validate each phase that adds models.
+**Detection:**
+- Export and serve use different GPU ids in logs
+- `CUDA_VISIBLE_DEVICES=` empty → all CUDA paths fall back while nvidia-smi shows cards
+- ORT reports CPU EP while torch uses CUDA (split brain)
+
+**Phase ownership:** **Device policy / probe** in backend selection phase; extend `resolve_device` / `probe_device` rather than forking per-loader ad hoc logic.
+
+**Confidence:** HIGH
+
+**Sources:** [device.py](../../src/sentry_ai/models/device.py), [profile_runtime.py](../../src/sentry_ai/config/profile_runtime.py)
+
+---
+
+### 9. Ultralytics export vs custom ORT session (postprocess drift)
+
+**What goes wrong:**  
+Export via `YOLO.export(format="onnx"|"engine")` is correct, but live path reimplements preprocess/postprocess in raw ORT/TRT and **drifts** from Ultralytics: wrong letterbox, BGR/RGB, normalization, conf/iou, NMS-free head handling (YOLO26), class id mapping, or `imgsz` mismatch vs engine build. Boxes look “almost right” — shifted, scaled, or low-recall.
+
+**Why it happens:**  
+Temptation to drop Ultralytics dependency on edge for license/size reasons and hand-roll `onnxruntime.InferenceSession`. YOLO26 end-to-end / NMS-free details are easy to get wrong. Mixing Ultralytics-exported graph with a YOLOv8-era postprocess blog post is common.
+
+**Consequences:**
+- Silent accuracy regression vs PyTorch path
+- Golden-frame tests fail only on edge profile
+- Makers blame “TensorRT quantization” when the bug is letterbox pad
+
+**Prevention:**
+- **Preferred path for v0.2:** load exported artifacts **through Ultralytics** where possible (`YOLO("model.onnx")` / `YOLO("model.engine")`) so preprocess/postprocess stay aligned — custom ORT only if measured need
+- If custom ORT/TRT is required:
+  - Pin export flags (`imgsz`, `simplify`, half/fp16) in one module shared by export script + loader
+  - Golden test: same image → PyTorch vs ORT/TRT boxes within tolerance (mockable with fixture tensors)
+  - Do not copy third-party NMS code for YOLO26 without verifying head type
+- Export script remain basename-allowlisted; loader accepts only known export layouts
+- Document: engine `imgsz` must match serve `imgsz` (rebuild on change)
+
+**Detection:**
+- IoU mismatch vs torch on fixed synthetic frames
+- Boxes systematically shifted by pad margins
+- Score distributions differ wildly at same `conf`
+
+**Phase ownership:** **ORT loader** first (portable intermediate); **TRT loader** reuses the same preprocess/postprocess contract. Golden parity tests owned by the first custom path that bypasses Ultralytics predict.
+
+**Confidence:** HIGH for drift risk; MEDIUM for “always use Ultralytics YOLO(engine)” as long-term architecture (API may change — verify on pinned ultralytics version).
+
+**Sources:** [export_yolo.py](../../scripts/export/export_yolo.py), [yolo26-onnx-tensorrt.md](../../docs/export/yolo26-onnx-tensorrt.md), Ultralytics export docs
+
+---
+
+### 10. FPS overclaim (blog numbers ≠ dual-model sustained)
+
+**What goes wrong:**  
+README, UI, or release notes publish “YOLO26n TensorRT 200+ FPS on Orin” (or Ultralytics bench numbers) as if that were **Sentry end-to-end**: capture + detect + DAV2 depth + free-space + MJPEG + `/v1` stream. Operators design robot control loops around that fiction.
+
+**Why it happens:**  
+Vendor benches are often detect-only, power-unlocked, ideal thermal, fixed resolution, no depth, no Python GIL/API overhead. v1 already refused dual-model FPS tables; live TRT increases marketing pressure to “finally publish numbers.”
+
+**Consequences:**
+- Unsafe control-loop assumptions
+- Support burden (“your FPS claims are lies”)
+- Scope creep to chase bench FPS instead of honest latency budgets
+
+**Prevention:**
+- **Never** publish guaranteed FPS for dual-model stacks without on-device measurement protocol
+- If numbers appear, label axes explicitly:
+
+  | Metric | Meaning |
+  |--------|---------|
+  | `detect_infer_ms` | Backend only |
+  | `detect_e2e_ms` | Bus→worker→store |
+  | `pipeline_e2e_ms` | Capture→all stages→PerceptionFrame |
+  | `sustained_fps` | Thermal-throttled minutes, not peak |
+
+- Prefer **latency + stale flags** in API (already PerceptionFrame-oriented) over headline FPS
+- Jetson docs: “measure on device”; link methodology, not a single hero number
+- UI telemetry: show measured moving average, not profile marketing FPS
+
+**Detection:**
+- README tables without methodology
+- Confusing `detect_infer_ms` with camera FPS
+- Claims carried over from Ultralytics blog without Sentry pipeline context
+
+**Phase ownership:** **Docs + telemetry honesty** continuous; block release notes review. Measurement optional plan **after** loaders work — never gate loader merge on inventing FPS tables.
 
 **Confidence:** HIGH  
-**Sources:** [Ultralytics Jetson / TensorRT notes](https://docs.ultralytics.com/guides/nvidia-jetson/), [Ultralytics deployment practices](https://docs.ultralytics.com/guides/model-deployment-practices/)
+**Sources:** [desktop-gpu.md](../../docs/desktop-gpu.md), [jetson-packaging.md](../../docs/export/jetson-packaging.md), PROJECT.md (no fake FPS guarantees)
 
 ---
 
-### 6. Free-space / obstacles naively thresholded from monocular depth
+## Moderate Pitfalls
+
+### 11. Building engines inside `serve` on first frame
 
 **What goes wrong:**  
-`depth < 1.5 m ⇒ obstacle` produces flickering blobs, ground-as-obstacle (camera pitch), sky-as-free, and missed thin obstacles. Robot stutter-stops or drives into walls that were “sky-colored” in the depth map.
+Missing `.engine` triggers inline TRT build on first predict — multi-minute hang, thermal spike, watchdog kills, looks like deadlock.
 
-**Why it happens:**  
-Monocular depth is noisy temporally and biased by texture, lighting, and semantics. Without ground-plane reasoning, temporal filter, or morphology, thresholds fight the noise. Relative depth thresholds are especially meaningless across scenes.
+**Prevention:**  
+Separate **export/build** CLI from **serve**. Serve only loads existing engines (or explicit `--build-engine` opt-in with timeout + progress logs).
 
-**Warning signs:**
-- Free-space mask flashes frame-to-frame
-- Floor near camera always “occupied”
-- Glass doors and black mats invisible
-- No hysteresis / temporal smoothing parameters in UI
+**Phase ownership:** TRT lifecycle.
 
-**Prevention:**
-- Derive free-space with camera extrinsics (height, pitch) + ground plane when available
-- Temporal smoothing / hysteresis on occupancy; expose controls in developer UI
-- Prefer “obstacle likelihood” grids over binary masks for robot consumers
-- Document failure classes; allow sensor fusion *on the consumer side* without making LiDAR required
-- Validate on motion sequences, not stills
+### 12. Precision / calib mismatch (FP32 export, FP16 engine, INT8 without calibration)
 
-**Phase to address:** Spatial post-processing phase after raw depth works; do not ship free-space in v1 without this.
+**What goes wrong:**  
+INT8 or aggressive FP16 without validation tanks recall; blame “ORT bug.”
 
-**Confidence:** HIGH
+**Prevention:**  
+Default FP16 on Jetson with golden parity; INT8 only after calibration story (defer INT8 from v0.2 core if needed).
+
+**Phase ownership:** TRT export settings; parity tests.
+
+### 13. Provider priority mistakes (ORT CUDA EP listed but fails → CPU without banner)
+
+**What goes wrong:**  
+`InferenceSession` succeeds on CPU EP; profile still says GPU edge.
+
+**Prevention:**  
+Assert expected providers after session create; expose `session.get_providers()` in status; fail or badge on unexpected CPU.
+
+**Phase ownership:** ORT loader + honesty contracts.
+
+### 14. Threading + non-thread-safe sessions
+
+**What goes wrong:**  
+ORT/TRT sessions shared across detect loop + ad hoc API infer without locks; rare corruption or driver crashes.
+
+**Prevention:**  
+One infer mutex per session (v1 YOLO worker already serializes via loop design — keep it); no multi-threaded session run unless documented.
+
+**Phase ownership:** Worker integration.
+
+### 15. Profile default still `cpu-fallback` while docs push jetson TRT
+
+**What goes wrong:**  
+Makers run default serve, never hit ORT/TRT, conclude “edge doesn’t work.”
+
+**Prevention:**  
+Docs: explicit `--profile jetson` / `desktop-gpu` + artifact paths; do not auto-switch default profile in CI-hostile ways (v1 decision: keep cpu-fallback default).
+
+**Phase ownership:** Docs + CLI UX.
 
 ---
 
-## Performance / Latency Traps
+## Minor Pitfalls
 
-### Running full-resolution depth + open-vocab detection every frame
-
-**What goes wrong:**  
-Edge dies; desktop gets warm; UI freezes under multi-model load.
-
-**Prevention:**
-- Resolution pyramid: detect at 640-class, depth at fixed model input (e.g. 518), display at stream res
-- Schedule heavy models (open-vocab, large depth) on demand or lower rate
-- Profile **combined** pipeline, not each model in isolation
-
-**Phase:** Runtime optimization / model routing  
-**Confidence:** HIGH
-
-### Measuring the wrong latency
-
-**What goes wrong:**  
-Reports “12 ms inference” while capture buffers add 100 ms and WebSocket JSON adds more.
-
-**Prevention:**
-- Instrument full pipeline with monotonic timestamps on every frame
-- Budget: capture ≤ X, infer ≤ Y, encode ≤ Z, total age ≤ robot control period
-- Prefer binary frames (msgpack/protobuf/flatbuffers) for robot stream; JSON for debug only
-
-**Phase:** Streaming API  
-**Confidence:** HIGH
-
-### UI path starving the robot path
-
-**What goes wrong:**  
-JPEG encode + canvas overlays + browser WebRTC compete with inference for GPU/CPU.
-
-**Prevention:**
-- Offload overlay rendering to client when possible; server sends structured detections + optional low-res depth preview
-- Cap UI stream FPS independently of perception publish rate
-- Never block inference thread on UI clients
-
-**Phase:** Web dashboard architecture  
-**Confidence:** HIGH
-
-### Unbounded queues / “process every frame”
-
-**What goes wrong:**  
-Latency grows without bound under load; robot acts on ancient state.
-
-**Prevention:**
-- Latest-frame-wins mailboxes between stages
-- Explicit backpressure; drop with metrics (`frames_dropped`)
-- Alert when age-at-emit exceeds threshold
-
-**Phase:** Pipeline architecture  
-**Confidence:** HIGH
-
-### Cold start and model load treated as “runtime”
-
-**What goes wrong:**  
-First-frame multi-second stall; makers think product is broken.
-
-**Prevention:**
-- Warmup inference on startup; progress UI for weight download/load
-- Cache compiled engines (TensorRT) on device
-- Separate install-time download from run-time start
-
-**Phase:** Packaging / runtime UX  
-**Confidence:** MEDIUM–HIGH
-
-### Quantization / export accuracy cliffs
-
-**What goes wrong:**  
-FP16/INT8 TensorRT looks fine on COCO demo images, fails on maker’s warehouse lighting; depth edges smear after export.
-
-**Prevention:**
-- Validate quantized models on *target domain* clips, not only public benchmarks
-- Keep FP16 as default edge path; INT8 only with calibration set from real cameras
-- Regression tests: mAP / depth AbsRel / free-space IoU pre- and post-export
-
-**Phase:** Edge export  
-**Confidence:** HIGH (deployment literature); exact numbers model-dependent
+| Pitfall | Prevention | Phase |
+|---------|------------|-------|
+| Leaving v1 honesty log text after live TRT ships (“still PyTorch”) | Update CLI strings when loader is real; golden-test help text | Honesty contracts |
+| Caching ONNX next to `.pt` without cache root policy | Use `SENTRY_MODEL_CACHE` layout for onnx/engine subdirs | Cache / packaging |
+| Forgetting `imgsz` in engine fingerprint | Include imgsz + precision in cache key | TRT lifecycle |
+| YOLOE export “works” so continuous OV on Jetson is enabled | Keep OV off/on-demand; out of v0.2 live edge dual-model | Scope control |
+| Measuring FPS on synthetic static frames only | Include USB capture + depth for any published e2e number | Docs / validation |
 
 ---
 
-## Camera & Hardware Traps
+## Phase-Specific Warnings (v0.2 roadmap mapping)
 
-### “Any USB camera works” without a support matrix
+Suggested ownership when roadmap phases are cut (names indicative):
 
-**What goes wrong:**  
-MJPEG vs YUYV bandwidth issues, auto-focus hunting, rolling shutter on fast robots, IR-cut flicker, 30 FPS claimed but 8 FPS delivered over USB2 hubs.
+| Phase topic | Likely pitfall | Mitigation |
+|-------------|----------------|------------|
+| **Backend selection & honesty** | Silent backend lies; sticky vs per-frame resolve | `backend_requested` vs `backend_live`; strict vs opt-in fallback |
+| **Live ORT (fixed-class YOLO)** | Custom postprocess drift; provider CPU silent; Jetson wheel matrix | Prefer Ultralytics ORT path or golden parity; provider asserts; JP-matched wheels |
+| **Live TRT (NVIDIA/Jetson)** | Engine SKU copy; inline build on serve; workspace OOM | On-device build; fingerprint cache; no serve-time build by default |
+| **Honest fallback** | Fallback thrash; torch shadow path | Sticky degraded state; explicit `fallback_to_torch` |
+| **Dual-model / memory** | TRT YOLO + torch DAV2 OOM | Isolate then combine; OV off; measure resident VRAM |
+| **CI without GPU** | Untested loaders or GPU-required CI | Mocks + contract tests; hardware checklist outside GHA |
+| **Jetson packaging docs** | JetPack soup; FPS overclaim; AGPL omission | Verify-on-device matrix; no hero FPS; license table for artifacts |
+| **Device policy** | `CUDA_VISIBLE_DEVICES` split brain | Single resolution + logged triple |
 
-**Prevention:**
-- Publish a **supported cameras** list + known-bad list
-- Prefer fixed-focus, global-shutter when motion is high (document as recommendation)
-- Normalize capture via a camera abstraction (V4L2 / OpenCV / GStreamer) with explicit fourcc, FPS, buffer size
-- Disable autofocus/autoexposure for reproducible perception when possible (or document the cost)
-
-**Phase:** Camera layer  
-**Confidence:** HIGH
-
-### Network / RTSP cameras as first-class without latency honesty
-
-**What goes wrong:**  
-IP cameras add 100–500 ms buffering; H.264 GOPs delay keyframes; Wi-Fi drops freeze the world.
-
-**Prevention:**
-- Label sources with expected latency class: local USB < RTSP LAN < RTSP Wi-Fi
-- Prefer low-latency RTSP settings; document camera firmware knobs
-- Timestamp frames at receive time and, if available, RTP/camera time
-- Watchdog on stream stall → clear last detections rather than holding stale obstacles forever
-
-**Phase:** Camera ingestion  
-**Confidence:** HIGH
-
-### No extrinsics: camera height / pitch unknown
-
-**What goes wrong:**  
-Free-space and “distance to floor obstacles” become fiction.
-
-**Prevention:**
-- Onboarding: mount height, pitch, and optional roll
-- Sensible defaults with big UI warnings when unset
-- Optional auto pitch-from-vanishing / ground segmentation later — not required for v1 if manual entry works
-
-**Phase:** Spatial calibration  
-**Confidence:** HIGH
-
-### Multi-camera extension points that assume identical models/timebases
-
-**What goes wrong:**  
-v1 “extension ready” code hard-codes single camera global state; multi-cam later requires rewrite.
-
-**Prevention:**
-- Namespace all state by `camera_id`
-- Frame messages carry camera_id + timestamp + intrinsics_id
-- Do not fuse multi-cam in v1, but do not use process-global “the frame”
-
-**Phase:** Architecture foundations  
-**Confidence:** HIGH
-
-### Thermal / power throttling on edge
-
-**What goes wrong:**  
-Jetson works on desk with fan; in robot enclosure FPS collapses mid-run.
-
-**Prevention:**
-- Document power modes, cooling requirements, sustained FPS not peak FPS
-- Runtime adaptive quality (drop depth rate when thermal throttle detected)
-
-**Phase:** Edge deployment docs + runtime  
-**Confidence:** MEDIUM–HIGH
+**Ordering rationale (avoid rewrite):**  
+1) Honesty contracts → 2) ORT with mocks/CI → 3) TRT on-device lifecycle → 4) sticky fallback → 5) dual-model memory validation → 6) docs matrix / FPS discipline throughout.
 
 ---
 
-## Model & Accuracy Traps
+## Anti-Patterns Checklist (PR review)
 
-### Indoor metric model outdoors (and reverse)
-
-**What goes wrong:**  
-Depth Anything V2 ships **separate** metric weights for indoor (Hypersim, max_depth 20) and outdoor (Virtual KITTI, max_depth 80). Wrong head → systematically wrong distances.
-
-**Prevention:**
-- Explicit scene mode in UI/API: `indoor` | `outdoor` | `relative_general`
-- Auto-suggest based on user environment; never silent default to outdoor on a tabletop robot
-- Consider Metric3D-class models if true zero-shot metric across domains is required — still validate
-
-**Phase:** Depth model integration  
-**Confidence:** HIGH  
-**Sources:** [DA-V2 metric README](https://github.com/DepthAnything/Depth-Anything-V2/tree/main/metric_depth)
-
-### Temporal flicker / frame-to-frame depth inconsistency
-
-**What goes wrong:**  
-Single-image models have no temporal prior; robot sees vibrating obstacles. (Video Depth Anything and similar address this but cost more.)
-
-**Prevention:**
-- Temporal filter on depth and tracks on detections
-- Evaluate on video, not only images
-- Optional “stable mode” that trades latency for consistency
-
-**Phase:** Post-processing  
-**Confidence:** HIGH
-
-### Detector class set mismatch (COCO ≠ maker world)
-
-**What goes wrong:**  
-Fixed-class COCO models miss cables, cones, pet gates, custom tools; open-vocab is slower and flaky on short prompts.
-
-**Prevention:**
-- Ship fixed-class for reliability + open-vocab as optional query path (matches product intent)
-- Document default classes; provide fine-tune / custom weights hook
-- For open-vocab: prompt templates, confidence floors, rate limits
-
-**Phase:** Detection features  
-**Confidence:** HIGH
-
-### Domain shift: lab demo → garage robot
-
-**What goes wrong:**  
-Benchmarks pass; dusty floors, HDR windows, night IR LEDs destroy performance.
-
-**Prevention:**
-- Maintain a **maker domain eval set** (diverse amateur videos)
-- Night / motion-blur / rolling-shutter stress tests in CI-ish eval scripts
-- Expose confidence; fail soft
-
-**Phase:** Evaluation harness (ongoing)  
-**Confidence:** HIGH
-
-### Training-data / license landmines
-
-**What goes wrong:**  
-Depth-Anything-V2-Small is Apache-2.0; **Base/Large/Giant are CC-BY-NC-4.0** (non-commercial). Makers building products or companies using Sentry AI as dependency hit license walls. YOLO/Ultralytics AGPL history and dual-licensing also surprise commercial users.
-
-**Prevention:**
-- Default stack = commercially friendly licenses only
-- Document every bundled weight’s license in a `THIRD_PARTY_MODELS.md`
-- Optional “research weights” install path clearly marked non-commercial
-- Prefer Apache/MIT/BSD model weights for the default maker path
-
-**Phase:** Stack selection (blocker for defaults)  
-**Confidence:** HIGH  
-**Sources:** [Depth Anything V2 LICENSE section](https://github.com/DepthAnything/Depth-Anything-V2)
-
-### HuggingFace / OpenCV preprocessing mismatches
-
-**What goes wrong:**  
-Same weights, different resize/upsampling → different depth (DA-V2 notes OpenCV vs Pillow differences in Transformers pipeline).
-
-**Prevention:**
-- One canonical preprocess path in Sentry; lock it in tests
-- Golden-image regression for depth and boxes
-
-**Phase:** Model integration  
-**Confidence:** HIGH
-
-### Black borders / letterboxing pollution
-
-**What goes wrong:**  
-Metric3D warns: black padding at boundaries harms depth. Letterboxed detector inputs shift boxes if undo is wrong.
-
-**Prevention:**
-- Crop padding; correct box mapping from letterbox space
-- Unit tests for coordinate transforms
-
-**Phase:** Pre/post-processing  
-**Confidence:** HIGH
+- [ ] Shipping `.engine` in repo or multi-SKU release assets  
+- [ ] `pip install tensorrt` / generic `onnxruntime-gpu` recommended for Jetson  
+- [ ] Status shows `tensorrt` while loader is torch  
+- [ ] Per-frame fallback without sticky state  
+- [ ] Custom ORT postprocess without torch golden compare  
+- [ ] Dual-model FPS table without methodology  
+- [ ] AGPL silence after adding `.onnx` distribution  
+- [ ] Default pytest requires GPU, Jetson, or weight download  
+- [ ] Serve blocks on first-frame engine build  
+- [ ] Ignoring `CUDA_VISIBLE_DEVICES` in device logs  
 
 ---
 
-## Product / Scope Traps
+## What This Milestone Should Explicitly Not “Fix” via Shortcuts
 
-### Building control / planning “just a little”
-
-**What goes wrong:**  
-Scope expands into nav stack; half-baked control becomes liability; perception quality work stalls.
-
-**Prevention:**
-- Out of scope remains out of scope: **perception stream only**
-- Provide example consumer snippets (ROS2 node, Python client) — not a full navigator
-- API designed so many controllers can subscribe without Sentry owning behavior
-
-**Phase:** All phases — enforce at review  
-**Confidence:** HIGH
-
-### Chat / VLM / voice before solid depth+detect
-
-**What goes wrong:**  
-Demo candy delays the core value: reliable local spatial awareness.
-
-**Prevention:**
-- v1 = camera → depth + detect + free-space + web overlays + stream API
-- Extension hooks only for voice/VLM
-
-**Phase:** Roadmap ordering  
-**Confidence:** HIGH
-
-### Dense SLAM / full mapping in v1
-
-**What goes wrong:**  
-Multi-month detour; monocular SLAM failure modes dominate; makers still just wanted “don’t hit the chair.”
-
-**Prevention:**
-- Stick to depth + obstacles; mapping later
-- If odometry appears, keep it optional and labeled experimental
-
-**Phase:** Scope control  
-**Confidence:** HIGH
-
-### Dashboard that cannot drive debugging
-
-**What goes wrong:**  
-Pretty video, no way to see latency, model version, intrinsics, or confidence — makers cannot tell why the robot is wrong.
-
-**Prevention:**
-- Developer controls: thresholds, model toggles, colormap, freeze-frame, latency HUD
-- Export debug bundle (frame + config + outputs) for issue reports
-
-**Phase:** Web UI  
-**Confidence:** HIGH
-
-### Plugin architecture too early / too late
-
-**What goes wrong:**  
-Too early: abstract soup, no working pipeline. Too late: god-object rewrite for ROS2/multi-cam.
-
-**Prevention:**
-- Thin interfaces early: `CameraSource`, `DepthModel`, `Detector`, `Publisher`
-- One working concrete path first; plugins second
-
-**Phase:** Architecture foundations  
-**Confidence:** MEDIUM–HIGH
-
-### Assuming ROS2 is free
-
-**What goes wrong:**  
-ROS2 middleware (RMW), QoS, and security add complexity; makers on pure Python/HTTP bounce off.
-
-**Prevention:**
-- REST/WebSocket first-class; ROS2 as optional bridge package
-- Don’t block v1 on ROS2
-
-**Phase:** Integration phase after core API  
-**Confidence:** HIGH
-
----
-
-## Security & Safety Notes
-
-### Perception is not a safety system
-
-**What goes wrong:**  
-Users treat free-space as a safety interlock. Missed detection → injury/property damage. Open-source liability narratives escalate.
-
-**Prevention:**
-- Explicit safety disclaimer: not certified, not for life-critical use
-- Recommend independent emergency stop and contact sensing on physical robots
-- Avoid “safe/unsafe” language in API; use occupancy/confidence
-- Log enough for post-mortems without claiming functional safety (ISO 26262 etc. out of scope)
-
-**Phase:** Docs + API semantics  
-**Confidence:** HIGH
-
-### Local network exposure of camera streams
-
-**What goes wrong:**  
-Web UI binds `0.0.0.0` with no auth; household camera becomes LAN-visible; later internet-exposed via port forward.
-
-**Prevention:**
-- Default bind localhost; opt-in LAN with warning
-- Optional auth token for remote access
-- No cloud upload by default (privacy constraint)
-
-**Phase:** Web server defaults  
-**Confidence:** HIGH
-
-### Model / weight supply chain
-
-**What goes wrong:**  
-Auto-download from mutable URLs; compromised weights or ToS surprises.
-
-**Prevention:**
-- Pin hashes for downloaded weights
-- Document mirror/offline install
-- Prefer user-controlled model directory
-
-**Phase:** Packaging  
-**Confidence:** MEDIUM–HIGH
-
-### Prompt injection via open-vocabulary / future VLM features
-
-**What goes wrong:**  
-Untrusted scene text or UI prompts influence behavior when VLM/voice arrives.
-
-**Prevention:**
-- Treat open-vocab queries as untrusted input; sandbox side effects
-- No tool execution from model text in v1
-
-**Phase:** When open-vocab / VLM ships  
-**Confidence:** MEDIUM
-
-### Stale perception as a hazard
-
-**What goes wrong:**  
-Stream stalls; last “all clear” free-space remains true while robot moves.
-
-**Prevention:**
-- Messages carry `timestamp` and `ttl` / `max_age`
-- Consumers must invalidate stale data; document this contract
-- On stream loss: publish explicit `stream_stale` state
-
-**Phase:** API contract  
-**Confidence:** HIGH
-
----
-
-## Checklist for Planning
-
-Use this when writing the roadmap and phase plans.
-
-### Geometry & depth
-- [ ] API distinguishes relative vs metric depth; no silent “meters” on relative models
-- [ ] Indoor/outdoor/relative model modes are first-class
-- [ ] Camera intrinsics + mount extrinsics captured before promising metric free-space
-- [ ] Free-space uses temporal smoothing + documented failure modes
-- [ ] Tape-measure / known-distance validation scenes in eval set
-
-### Latency & runtime
-- [ ] End-to-end latency budget defined for desktop and at least one edge target
-- [ ] Latest-frame-wins pipeline; drop metrics exposed
-- [ ] UI stream decoupled from robot perception stream
-- [ ] Dual model tiers: quality (desktop) vs fast (edge)
-- [ ] Export path (ONNX/TensorRT) planned before locking model choices
-
-### Cameras
-- [ ] Abstraction for USB / RTSP / file sources with capability probes
-- [ ] Supported camera matrix and latency classes documented
-- [ ] Autofocus/exposure guidance for makers
-- [ ] `camera_id` namespacing from day one
-
-### Models & licensing
-- [ ] Default weights are commercially usable licenses
-- [ ] `THIRD_PARTY_MODELS.md` with license + citation per weight
-- [ ] Fixed-class detector reliable path + optional open-vocab
-- [ ] Golden-image preprocess regression tests
-
-### Product & safety
-- [ ] Messaging: perception aid, not FSD/autonomy
-- [ ] No motor control in scope
-- [ ] Safety disclaimer + stale-data contract
-- [ ] Localhost-first web UI; privacy by default
-- [ ] Known-failure gallery in docs
-
-### Phase mapping (suggested)
-
-| Concern | Address in |
-|--------|------------|
-| Depth type system, model licenses, camera abstraction | Foundations / stack phase |
-| Intrinsics calibration UX | Camera bring-up phase |
-| Dual-path streaming + latency budgets | Architecture / API phase |
-| Metric depth + free-space post-processing | Spatial perception phase |
-| Fixed + open-vocab detection | Detection phase |
-| Web overlays + developer controls | Dashboard phase |
-| Jetson/Pi profiles, TensorRT export | Edge deployment phase |
-| ROS2 bridge, multi-cam, voice | Extensions only after core |
-
-### Highest-cost mistakes if deferred
-1. Freezing a “depth in meters” API that is actually relative  
-2. Building UI-coupled pipeline that cannot meet robot latency  
-3. Defaulting to non-commercial model weights  
-4. Shipping free-space without extrinsics/temporal logic  
-5. Branding as FSD-class autonomy without safety boundaries  
+| Shortcut | Why it is a pitfall amplifier |
+|----------|-------------------------------|
+| Prebuilt engines for “all Jetsons” | SKU non-portability at scale |
+| Drop Ultralytics entirely in week one | Postprocess drift + longer schedule |
+| Live ORT/TRT for depth + YOLOE same milestone | Dual/triple-model memory and scope explosion |
+| Publish Ultralytics bench FPS as Sentry FPS | Control-loop overclaim |
+| Treat export as license clean | AGPL still in play |
 
 ---
 
 ## Sources
 
-| Source | Use | Confidence |
-|--------|-----|------------|
-| [Depth Anything V2](https://github.com/DepthAnything/Depth-Anything-V2) + [metric fine-tunes](https://github.com/DepthAnything/Depth-Anything-V2/tree/main/metric_depth) | Relative vs metric split; indoor/outdoor heads; licenses | HIGH |
-| [Depth Anything V2 paper](https://arxiv.org/abs/2406.09414) | Model family context | HIGH |
-| [Metric3D](https://github.com/YvanYin/Metric3D) | Focal length / point cloud distortion; canonical camera | HIGH |
-| [MiDaS](https://pytorch.org/hub/intelisl_midas_v2/) | Relative inverse depth definition | HIGH |
-| [ZoeDepth](https://github.com/isl-org/ZoeDepth) | Metric+relative combination lineage (archived) | MEDIUM |
-| [Ultralytics deployment practices](https://docs.ultralytics.com/guides/model-deployment-practices/) | Quantization / deployment | HIGH |
-| [Ultralytics Jetson guide](https://docs.ultralytics.com/guides/nvidia-jetson/) | TensorRT device-specificity, DLA | HIGH |
-| [OpenCV camera calibration](https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html) | Intrinsics workflow | HIGH |
-| Sentry AI `PROJECT.md` constraints | Product scope, multi-target, local OSS | HIGH |
+| Source | Confidence | Use |
+|--------|------------|-----|
+| [docs/export/yolo26-onnx-tensorrt.md](../../docs/export/yolo26-onnx-tensorrt.md) | HIGH | On-device engine rules, no prebuilt engines |
+| [docs/export/jetson-packaging.md](../../docs/export/jetson-packaging.md) | HIGH | Jetson profile honesty, CI without Jetson |
+| [docs/desktop-gpu.md](../../docs/desktop-gpu.md) | HIGH | Primary path; no dual-model FPS guarantee |
+| [THIRD_PARTY_MODELS.md](../../THIRD_PARTY_MODELS.md) | HIGH | AGPL YOLO/YOLOE |
+| [src/sentry_ai/config/profile_runtime.py](../../src/sentry_ai/config/profile_runtime.py) | HIGH | v1 preferred_backend → device policy (not live TRT) |
+| [src/sentry_ai/cli.py](../../src/sentry_ai/cli.py) honesty logs | HIGH | Current silent-lie prevention baseline |
+| [src/sentry_ai/models/device.py](../../src/sentry_ai/models/device.py) | HIGH | CUDA request fallback patterns |
+| [.planning/PROJECT.md](../PROJECT.md) v0.2 goals | HIGH | Live ORT/TRT scope, CI, depth stays torch |
+| [.planning/research/STACK.md](./STACK.md) | HIGH | ORT/TRT backend matrix guidance |
+| NVIDIA TensorRT docs (engine portability) | HIGH | SKU/arch binding |
+| Ultralytics export / Jetson guides | MEDIUM–HIGH | Export API; bench numbers are **not** Sentry e2e |
 
 ---
 
-*Research dimension: pitfalls only. Does not commit stack or feature picks — feeds roadmap risk flags and phase ordering.*
+*PITFALLS for v0.2 Edge Runtime — live ORT/TRT fixed-class YOLO on existing Ultralytics PyTorch stack. Supersedes v1.0 monocular-product PITFALLS research for roadmap input; depth metric/FSD pitfalls remain valid product constraints but are not the focus of this milestone.*

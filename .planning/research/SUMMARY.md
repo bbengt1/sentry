@@ -1,347 +1,311 @@
-# Research Summary: Sentry AI
+# Project Research Summary
 
-**Date:** 2026-08-07  
-**Domain:** Camera-only (vision-only) robotics perception for open-source maker tools  
-**Confidence:** HIGH
+**Project:** Sentry AI  
+**Domain:** Live edge inference (ORT + TensorRT) for fixed-class YOLO on an existing camera-only perception stack  
+**Milestone:** v0.2 Edge Runtime  
+**Researched:** 2026-08-09  
+**Confidence:** HIGH (code-verified plug-in surface + package pins); MEDIUM (JetPack/ORT wheel matrix, YOLO26 custom-decode effort if ever needed)
 
 ## Executive Summary
 
-Sentry AI is a **product-shaped, camera-only perception layer** for maker robots: commodity USB/IP cameras in, monocular depth + free-space/obstacles + object detections out, via a local OSS pipeline with a realtime web developer console and a clean robot-facing stream API. Experts in this space (DepthAI pipelines, Isaac ROS DNN graphs, Ultralytics multi-source predict, Nav2 costmap consumers) converge on the same shape — a **directed stage pipeline** with typed messages, latest-frame drop policy, UI as subscriber not control loop, and a hard boundary that **perception never owns motion control**.
+v0.2 turns Sentry’s **export-recipe honesty** into **live edge backends** for fixed-class YOLO only. v1.0 already ships FrameBus → DetectionLoop → Ultralytics PyTorch worker → PerceptionStore, plus profiles that *name* `tensorrt` / `onnxruntime` but still load `.pt`. Experts in this space (Ultralytics AutoBackend, Isaac ROS encode→infer→decode, Jetson on-device engines) converge on the same product move: **swap the detector loader at construction time**, keep the loop/API frozen, and make **preferred vs live backend** impossible to lie about.
 
-**Recommended approach:** Python 3.11 + FastAPI single process hosting a Frame Bus and plugin workers (YOLO26 fixed-class, YOLOE open-vocab, Depth Anything V2 Small depth), Spatial Post for free-space, Vite/React overlays, WebSocket/REST `/v1` perception stream. Develop on desktop GPU (PyTorch); export ONNX → TensorRT for Jetson; degrade gracefully on Pi-class. Ship **relative depth honestly labeled**, metric as optional/calibrated mode; free-space as simple occupancy/obstacles — not SLAM, not Nav2, not FSD.
+**Recommended approach:** Keep Ultralytics `YOLO(weights).predict()` as the live ORT/TRT path (`YOLO("*.onnx")` / `YOLO("*.engine")` via AutoBackend). Add an `onnx` extra (`onnxruntime>=1.20,<1.29`); **never** add a project `tensorrt` pip extra (system/JetPack only). Introduce a serve-time factory (`build_detection_worker`) + artifact path resolution + sticky fallback so `preferred_backend` selects real loaders. Depth (DAV2) and open-vocab (YOLOE) stay PyTorch this milestone. Desktop GPU remains torch-default; Jetson is first-class for on-device TRT; Pi/CPU is best-effort ORT with no dual-model FPS claims.
 
-**Key risks:** (1) calling relative depth “meters,” (2) UI FPS ≠ robot latency, (3) desktop-only pipeline that cannot reach Jetson/Pi, (4) naive free-space thresholds without extrinsics/temporal logic, (5) FSD branding that overpromises autonomy. Mitigate with explicit depth typing in the API schema, dual-rate latest-frame pipeline, runtime profiles from day one, Spatial Post as the sole free-space semantic owner, and perception-only product language.
+**Key risks and mitigations:** (1) **Silent backend lies** — report `backend_requested` vs `backend_live` + reason; sticky resolve once at worker start. (2) **Engine SKU non-portability** — on-device build only; no multi-SKU `.engine` in git/wheel/releases. (3) **JetPack matrix soup** — document verify-on-device; no generic PyPI `onnxruntime-gpu` on Jetson. (4) **Postprocess drift** — prefer Ultralytics predict over custom ORT decode in v0.2. (5) **Dual-model VRAM** (TRT YOLO + torch depth) — isolate loaders first, then measure; open-vocab stays off. (6) **CI without GPU** — mocks + selection/fallback contract tests; no Jetson in GHA. (7) **AGPL not laundered by export** — document `.onnx`/`.engine` lineage same as `.pt`.
 
----
-
-## Recommended Stack
-
-Condensed from [STACK.md](./STACK.md). Full versions and install notes live there.
-
-| Layer | Choice | Rationale |
-|-------|--------|-----------|
-| Language | **Python 3.11** | CV/ML + async web in one process; Jetson/Pi wheels mature |
-| API | **FastAPI 0.141 + Uvicorn + Pydantic 2** | REST controls + WebSocket stream; OpenAPI free |
-| Capture | **OpenCV headless** first; **PyAV/GStreamer** when RTSP/CSI hurts | Maker DX first; reliability upgrade path |
-| Fixed detect | **YOLO26** (`s` desktop / `n` edge) via **Ultralytics 8.4.x** | Current flagship; NMS-free; strong Jetson TRT path |
-| Open-vocab | **YOLOE** (YOLO-World fallback) | Realtime open-vocab; not Grounding DINO on live path |
-| Depth | **Depth Anything V2 Small** (+ metric indoor/outdoor heads) | SOTA open monocular; Small is realtime-capable |
-| Free-space | **NumPy/OpenCV** postprocess (threshold / ground plane / morphology) | No second dense occupancy net in v1 |
-| Backends | Dev **PyTorch** → portable **ONNX** → NVIDIA **TensorRT FP16** | Multi-target without rewrite |
-| Frontend | **Vite + React 19 + TS**; MJPEG/WS JPEG preview; canvas overlays | Localhost dashboard; WebRTC later if lag hurts |
-| Packaging | `uv` + `pyproject.toml`; JetPack-matched on Jetson | Pin locks; engines built **on device** |
-
-**Opinionated defaults:** single process; device-abstracted backends; commercially friendly default weights (DAV2 Small is Apache-2.0; Base/Large are CC-BY-NC — do not default to NC weights); Ultralytics AGPL documented for commercial forks.
-
-**Do not use as core:** cloud CV APIs, MediaPipe as perception spine, Detectron2/MMDetection runtime, Kafka/Redis bus, Electron shell, required ROS2, LiDAR SDKs.
+Full dimension docs: [STACK.md](./STACK.md) · [FEATURES.md](./FEATURES.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [PITFALLS.md](./PITFALLS.md)
 
 ---
 
-## Product Scope
+## Key Findings
+
+### Recommended Stack (additions only)
+
+Condensed from [STACK.md](./STACK.md). Core v1.0 stack (Python 3.11, FastAPI, Ultralytics detect extra, DAV2 depth) **unchanged**.
+
+| Addition | Pin / rule | Role |
+|----------|------------|------|
+| **`onnx` extra** | `onnxruntime>=1.20,<1.29` (prefer 1.28.x) | Live CPU ORT for `preferred_backend=onnxruntime` |
+| **`onnxruntime-gpu`** | Same band; **manual/desktop only** | Optional CUDA EP; not co-extra with CPU ORT; **not** for Jetson PyPI |
+| **System TensorRT** | JetPack / host install | Deserialize Ultralytics `.engine`; **no** `tensorrt` in `pyproject` extras |
+| **Ultralytics AutoBackend** | via existing `detect` extra (≥8.4.33,<9) | `*.onnx` → ONNXBackend; `*.engine` → TensorRTBackend |
+| **Artifacts** | `yolo26{n,s}.onnx` / `.engine` on device | Export offline via `scripts/export/export_yolo.py` |
+
+**Opinionated stack decision (roadmap-binding):**  
+**Live path = Ultralytics-native** (`YOLO("model.onnx|engine")` + existing `results_to_detections`). Do **not** build a parallel custom `InferenceSession` + YOLO26 head decoder in v0.2 unless Ultralytics path is proven blocked. Custom `OrtBackend`/`TrtBackend` under `InferenceBackend` remains a **future slim-edge** option; Architecture’s encode→infer→decode split still informs factory boundaries and tests.
+
+**Do not add:** `tensorrt` / `tensorrt-cu*` extras, `torch-tensorrt`, OpenVINO live, Triton as required runtime, live ORT/TRT for depth or YOLOE, prebuilt multi-SKU engines in the wheel.
+
+**Install matrix (makers):**
+
+```bash
+# CI / CPU ORT
+uv sync --extra dev --extra detect --extra onnx
+
+# Desktop torch (unchanged primary)
+uv sync --extra dev --extra detect --extra depth
+
+# Jetson TRT: detect + JetPack system TRT; engines built on board
+```
+
+### Expected Features
 
 Condensed from [FEATURES.md](./FEATURES.md).
 
-### v1 table stakes (must ship)
+**Must have (table stakes):**
 
-| Feature | Notes |
-|---------|-------|
-| Commodity camera ingest | USB UVC + file/synthetic P0; RTSP P1 |
-| Monocular depth map stream | Relative OK if labeled; metric optional |
-| Free-space / obstacle regions | From depth — not full costmaps/SLAM |
-| Fixed-class object detection | COCO-class YOLO26; conf + class filters |
-| Live web overlays | RGB + boxes + depth colormap + free-space |
-| Interactive controls | Thresholds, stage toggles, depth cutoffs |
-| Perception stream API | Depth + detections + free-space; `frame_id` + timestamps |
-| Local OSS inference | Offline after model cache; no mandatory cloud |
-| FPS / stage latency telemetry | UI + API metadata |
-| Graceful camera failure | Reconnect; clear error states |
+- **Profile-selected live backend** — `preferred_backend` drives real loaders (`torch` | `onnxruntime` | `tensorrt`), not export hints
+- **Live fixed-class YOLO on ORT** — load `.onnx`, same `Detection` schema
+- **Live fixed-class YOLO on TensorRT** — on-device `.engine`; NVIDIA desktop + Jetson first-class
+- **Same Detection / overlays / `/v1`** — robots and Live Preview backend-agnostic
+- **Honest missing-artifact & missing-deps behavior** — never silent torch under a TRT/ORT label
+- **Torch remains desktop default** — `desktop-gpu` stays `preferred_backend: torch`
+- **Depth stays PyTorch; open-vocab stays PyTorch on-demand** — scope lock
+- **FrameBus keep-latest preserved** — no queue redesign; slower edge = higher drops, expected
+- **CI without Jetson** — mock loaders; selection + fallback matrix tests
+- **Jetson docs: build engine → serve** — close EDGE-03 export→live loop
+- **Backend identity in telemetry** — `backend_live` (and requested) visible to operators
 
-**Quality bar:** overlay parity with API (single truth); coordinate honesty; safe defaults.
+**Should have (differentiators):**
 
-### v1 differentiators (product story)
+- One serve path, multiple backends (profile switch, not pipeline rewrite)
+- Profiles as real deployment units (`jetson` / `cpu-fallback` executable)
+- Export → live continuity (same artifacts from `export_yolo.py`)
+- Mockable selection for contributors without NVIDIA hardware
+- Operator-visible backend in stream/status metadata
 
-1. **Any camera first** — not OAK/RealSense/ZED lock-in  
-2. **Integrated depth + free-space + detection product** — composed pipeline, not glue-your-own  
-3. **Realtime interactive web developer console** — controls, not passive viz  
-4. **Schema-stable robot API** (`/v1`, completeness flags) — HTTP/WS before ROS2  
-5. **Fixed-class + open-vocab together** — open-vocab is P1, not P0 blocker  
-6. **Desktop + edge path** — model tiers and backend abstraction from day one  
-7. **Honest monocular limits** — relative vs metric, known failure modes in-product  
+**Defer (v0.3+ / never as core this milestone):**
 
-### Deferred (post-v1 / never as core)
+| Defer | Why |
+|-------|-----|
+| Live ORT/TRT for depth (DAV2) | Separate export + correctness project |
+| Live ORT/TRT for YOLOE | Dual continuous models unmeasured; export experimental |
+| Prebuilt multi-SKU engines in releases | Non-portable |
+| OpenVINO / NCNN / CoreML live | Extra surface; enum-only today |
+| Auto-export / engine build at serve start | Multi-minute hang; non-deterministic |
+| Pi dual-model published FPS tables | Unmeasured liability |
+| Drop Ultralytics on edge in week one | Postprocess drift + schedule risk |
 
-| Later | Never as core |
-|-------|----------------|
-| Jetson TensorRT / Pi lite packs (after desktop correctness) | Required LiDAR/radar/ultrasonic |
-| Metric depth + scale calibration helpers | Full SLAM / dense mapping (v1) |
-| Optional stereo / RealSense-as-source adapters | Robot control / motion planning |
-| ROS2 bridge package | Multi-camera fusion (v1) |
-| Multi-cam, lightweight occupancy history | Mandatory cloud inference |
-| Scene chat / VLM, voice I/O | Fleet SaaS / FSD product claims |
-| Segmentation / pose plugins | Training/labeling platform |
+**Honest fallback matrix (product policy seed):**
 
----
+| Requested | Missing | Default behavior |
+|-----------|---------|------------------|
+| `onnxruntime` / `tensorrt` | artifact or runtime | Hard-fail when strict; soft mode: loud torch fallback + `live_backend=torch` + reason |
+| `tensorrt` | CUDA | Hard-fail (no CPU TRT fiction) |
+| Mid-frame infer error | — | Existing loop: empty dets + `error`; **do not** re-resolve backend per frame |
 
-## Architecture Blueprint
+### Architecture Plug-in
 
 Condensed from [ARCHITECTURE.md](./ARCHITECTURE.md).
 
-### Components
+**Thesis:** Plug ORT/TRT under **ModelWorker** at **serve construction**. Do **not** touch DetectionLoop, FrameBus, PerceptionStore, `/v1`, or Live Preview merge.
 
 ```
-Camera Sources → Frame Bus → Model Workers (depth || detection || open-vocab)
-                      │              │
-                      │              ▼
-                      │       Spatial Post (free-space / obstacles)
-                      │              │
-                      ▼              ▼
-               Perception State Store (latest + short ring)
-                      │
-          ┌───────────┴───────────┐
-          ▼                       ▼
-   Web Dev UI              Perception Stream API
-   (overlays+controls)     (WS/REST → robots)
+ProfileRuntime.preferred_backend
+        │
+        ▼
+build_detection_worker(rt)          ← NEW factory (only wiring change in cli.serve)
+        │
+        ├─ torch/cpu  → YoloDetectionWorker(.pt)          [existing]
+        ├─ onnxruntime → YOLO("*.onnx") path via factory  [v0.2]
+        └─ tensorrt    → YOLO("*.engine") path via factory [v0.2]
+                │
+                ▼
+        DetectionLoop (UNCHANGED) → PerceptionStore → /v1 + overlays
 ```
 
-| Component | Owns | Does not own |
-|-----------|------|--------------|
-| **Camera Source** | USB/RTSP/file/synthetic capture | Models, UI |
-| **Frame Bus** | `frame_id`, timestamps, keep-latest drop | Inference |
-| **Depth / Detection Workers** | Model outputs per frame | Free-space semantics, UI |
-| **Spatial Post** | Free-space masks, obstacle cues | Path planning |
-| **State Store** | Merged `PerceptionFrame` + completeness | Persistence DB (v1) |
-| **Stream API** | `/v1` wire protocol | Motor commands |
-| **Web UI** | Presentation + config RPC | Hot-path inference |
-| **Plugin Registry** | Sources/models/sinks entry points | Business logic |
+**Major components:**
 
-**Hard rules:** sources → bus only; workers never open cameras; UI/robots read State only; Spatial Post is sole free-space definition; UI overlays derive from the same `PerceptionFrame` robots see.
+1. **`build_detection_worker`** — backend selection, artifact resolve, sticky fallback decision, returns duck-typed ModelWorker  
+2. **Artifact path resolution** — explicit config/env → cache `{stem}.onnx|.engine` → CWD allowlist → miss → policy  
+3. **`preferred_backend` vs `live_backend`** — intent vs what actually loaded; banner + status must show both when they differ  
+4. **YoloDetectionWorker** — remains default desktop torch path  
+5. **Export scripts** — offline producers only; serve never `model.export` on hot path  
+6. **InferenceBackend protocol** — keep for mocks/tests; optional native Ort/Trt later; **not** required for Ultralytics-native v0.2 path  
 
-### Data flow
+**Frozen checklist:** FrameBus keep-latest · DetectionLoop · PerceptionStore · assemble/`/v1` · depth/OV/free-space workers · perception-only boundary · localhost default.
 
-- **Hot path:** Frame → parallel workers → Spatial Post → State merge (same-frame timeout) → WS/REST + UI  
-- **Cold path:** UI/REST config → Control plane → workers reconfigure next frames  
-- **Queue policy:** keep-latest depth 1 everywhere that matters; count drops; never unbounded capture queues  
-- **Async rates OK:** e.g. det 15 Hz, depth 8 Hz with completeness flags  
+**imgsz contract:** export imgsz must match serve preprocess (default 640); mismatch = silent wrong boxes.
 
-### Schema direction
+### Critical Pitfalls (watch-outs)
 
-```text
-PerceptionFrame {
-  frame_id, camera_id, timestamps,
-  completeness: {depth, detections, free_space},
-  depth?: {kind: relative|metric, unit?, data},
-  detections?: [...],
-  free_space?: {obstacles, masks?},
-  stats: {fps, latency, dropped_frames}
-}
-```
+Condensed from [PITFALLS.md](./PITFALLS.md). Top risks for roadmap/PRs:
 
-### Build order (dependency-driven)
-
-1. Schemas + plugin stubs + config  
-2. Camera ingest + Frame Bus  
-3. API shell + live preview  
-4. Fixed-class detection worker + overlays  
-5. Depth worker + colormap stream  
-6. Free-space / obstacles (Spatial Post)  
-7. Unified perception stream polish  
-8. Developer controls polish  
-9. Open-vocab path  
-10. Edge packaging  
-11. Extension stubs (ROS2, multi-cam `camera_id`, voice no-op)  
-
-**Why detection before depth:** faster validate worker pattern. **Why free-space after depth:** free-space consumes depth. **Why edge late but not last:** abstract `device` from phase 2 — do not hardcode desktop CUDA.
+1. **Silent backend lies** — Status shows `tensorrt` while torch runs. **Avoid:** `backend_requested` / `backend_live` / `fallback_reason`; sticky resolve once; integration tests without artifacts.  
+2. **Engine SKU non-portability** — Copying `.engine` desktop→Jetson or cross-Orin. **Avoid:** on-device build only; machine-local cache fingerprint; refuse multi-SKU release assets.  
+3. **JetPack matrix blindness** — Generic PyPI `onnxruntime-gpu` / pip `tensorrt` on Jetson. **Avoid:** system TRT; Jetson Zoo / JP-matched ORT wheels in docs only (not lockfile).  
+4. **Fallback thrash** — Per-frame retry ORT/TRT→torch. **Avoid:** sticky degraded state; one resolve per process (or explicit reconfigure).  
+5. **Postprocess drift** — Custom ORT decode ≠ Ultralytics letterbox/head. **Avoid:** Ultralytics-native load first; golden parity if custom path ever lands.  
+6. **Dual-model memory** — TRT YOLO + torch DAV2 OOM on Orin Nano-class. **Avoid:** isolate backends first; jetson defaults (n + Small + OV off); measure before claims.  
+7. **CI fake confidence** — GPU-required tests or untested loaders. **Avoid:** mock selection/fallback in GHA; hardware checklist outside merge gate.  
+8. **FPS overclaim** — Ultralytics bench ≠ Sentry e2e dual-model. **Avoid:** measure-on-device language; latency fields over hero FPS tables.  
+9. **AGPL laundering** — “We only ship ONNX so AGPL is gone.” **Avoid:** extend THIRD_PARTY_MODELS for exported artifacts; keep detect optional.  
+10. **Inline engine build on serve** — First-frame multi-minute hang. **Avoid:** export CLI separate; serve loads existing engines only.
 
 ---
 
-## Critical Pitfalls to Design Around
+## Implications for Roadmap
 
-Top risks from [PITFALLS.md](./PITFALLS.md) — bake into phase plans, not docs-only.
+Phases continue from **v1.0 Phases 1–7** (shipped). v0.2 = **Phases 8–12** (five phases).
 
-1. **Relative depth sold as meters** — Type API as `relative | metric_estimated | metric_calibrated`; never name relative fields `depth_m`; indoor vs outdoor metric heads are different weights.  
-2. **Demo FPS ≠ control-loop latency** — Separate preview path from robot stream; instrument capture→infer→emit age; latest-frame drop; dual-rate heavy models.  
-3. **Desktop-only trap** — Runtime profiles (`desktop-gpu`, `jetson`, `cpu-fallback`); export path before locking models; TensorRT engines built on target SKU.  
-4. **Naive free-space thresholds** — Extrinsics (height/pitch), temporal smoothing, obstacle likelihood over flickering binary masks; document glass/textureless failures.  
-5. **FSD overclaim + safety misuse** — Perception stream only; no “safe to proceed”; stale-data TTL; localhost-first UI; e-stop is consumer’s job.  
-6. **License landmines** — Default DAV2 **Small** (Apache-2.0); mark NC weights as research-only; document Ultralytics AGPL; `THIRD_PARTY_MODELS.md`.  
-7. **Camera chaos** — Intrinsics/extrinsics profiles; support matrix; RTSP latency class honesty; `camera_id` from day one.  
+### Phase 8: Backend Selection & Honesty Contracts
+**Rationale:** Blocks every other edge plan — v1 residual is “preferred_backend is cosplay.” Structure before loaders.  
+**Delivers:** `build_detection_worker` factory wired in `cli.serve`; artifact path candidates on `ProfileRuntime`; `preferred_backend` vs `live_backend` (+ reason) in banner/status; torch-only path still works; v1 “not live” strings prepared for replacement.  
+**Addresses:** Profile-selected backend skeleton; backend identity telemetry seed; CI contract tests for selection map.  
+**Avoids:** Silent backend lies; per-frame resolve thrash; device string `"tensorrt"` to Ultralytics.  
+**REQ seeds:** `BACKEND-01`, `BACKEND-02`, `BACKEND-03`, `EDGE-RT-01`  
+**Research flag:** Standard patterns — skip deep research; code sites known (`cli.serve`, `profile_runtime`).
 
-**Highest-cost if deferred:** freezing a fake-metric API; UI-coupled pipeline; non-commercial default weights; free-space without temporal/extrinsics logic; autonomy branding.
+### Phase 9: Live ORT Fixed-Class YOLO
+**Rationale:** Portable intermediate; CI-friendly (`onnx` extra + CPU EP); proves export→live before TRT hardware matrix.  
+**Delivers:** Live load of `.onnx` via Ultralytics AutoBackend; `cpu-fallback` profile actually runs ORT when artifact+extra present; same `Detection` schema; honest fail/fallback when package or onnx missing; unit/mocks without GPU.  
+**Uses:** `onnxruntime` extra; Ultralytics ONNXBackend; existing `results_to_detections`.  
+**Implements:** Factory branch for `onnxruntime`; artifact resolve for `.onnx`.  
+**Avoids:** Custom postprocess drift; silent CPU EP when GPU claimed (provider assert if GPU ORT documented); Jetson PyPI GPU wheel advice.  
+**REQ seeds:** `EDGE-RT-02`, `EDGE-RT-03`, `BACKEND-04`  
+**Research flag:** **Light research** if YOLO26 ONNX I/O or Ultralytics provider selection surprises appear — spike one exported `yolo26n.onnx` early.
 
----
+### Phase 10: Live TensorRT Fixed-Class YOLO
+**Rationale:** Milestone claim for Jetson first-class; depends on factory + honesty from Phase 8; shares Detection contract with ORT.  
+**Delivers:** Live `.engine` load (system TRT); `jetson` (+ optional desktop TRT) profile real path; on-device engine lifecycle docs/script path only; no serve-time build by default; fingerprint/cache guidance.  
+**Uses:** System/JetPack TensorRT; Ultralytics TensorRTBackend; on-device `export_yolo.py --format engine`.  
+**Avoids:** Multi-SKU engines in repo; pip `tensorrt` extra; inline first-frame build; engine copy as supported deploy.  
+**REQ seeds:** `EDGE-RT-04`, `EDGE-RT-05`, `EDGE-RT-06`  
+**Research flag:** **Needs research-phase** for JetPack/TRT binding notes and desktop vs Jetson install matrix (SKU-specific; verify-on-device language).
 
-## Implications for Requirements
+### Phase 11: Sticky Fallback, Dual-Model Guardrails & Status Surface
+**Rationale:** Soft vs strict modes and dual-model VRAM only make sense once both loaders exist; thrash and OOM are field killers.  
+**Delivers:** Documented fallback matrix (`fallback_to_torch` soft default vs strict edge); sticky degraded state; status/API fields for live backend + reason; dual-model guidance (detect TRT + depth torch); no OV continuous with TRT+DAV2; device triple logging (`CUDA_VISIBLE_DEVICES` / requested / visible).  
+**Avoids:** Fallback thrash; dual-model OOM surprise; split-brain GPU indices; FPS marketing tables.  
+**REQ seeds:** `BACKEND-05`, `BACKEND-06`, `EDGE-RT-07`  
+**Research flag:** Standard once loaders exist; optional VRAM measure checklist on real Orin — manual, not GHA.
 
-Aligns with and refines [PROJECT.md](../PROJECT.md) Active requirements:
+### Phase 12: Edge Packaging Docs, CI Hardening & Milestone Polish
+**Rationale:** Table stakes “Jetson first-class” is incomplete without export→serve narrative; CI mocks must gate merge.  
+**Delivers:** Updated `docs/export/jetson-packaging.md` + `yolo26-onnx-tensorrt.md` (live path, not recipes-only); CLI honesty strings fully replaced; CI selection/fallback matrix green without Jetson; AGPL/`THIRD_PARTY_MODELS` for `.onnx`/`.engine`; hardware validation checklist (manual); no dual-model FPS guarantees.  
+**Avoids:** Stale “still PyTorch” banners; AGPL silence; hero FPS; GPU-required default pytest.  
+**REQ seeds:** `EDGE-RT-08`, `EDGE-RT-09`, `BACKEND-07`  
+**Research flag:** Skip — documentation and test hardening on known surfaces.
 
-| Keep / refine | Decision |
-|---------------|----------|
-| Camera-only depth + free-space | **Keep.** v1 free-space = simple occupancy/obstacles from depth, not Nav2-grade costmaps. |
-| USB / network / file sources | **Keep.** USB + file P0; RTSP P1. |
-| Local OSS models | **Keep.** Offline after cache; no cloud-required path. |
-| Web overlays + interactive controls | **Keep.** Developer-first, not chat-first. |
-| Fixed-class + open-vocab | **Keep.** Fixed-class P0; open-vocab P1 (not MVP blocker). |
-| Perception stream API | **Keep.** HTTP/WebSocket first; ROS2 later plugin. |
-| Single-cam + extension points | **Keep.** `camera_id` in schemas from day one; no fusion in v1. |
-| Desktop + edge multi-target | **Keep.** Profiles + backend abstraction early; full Jetson pack after correctness. |
-| Extensibility (voice, multi-cam, ROS2) | **Keep as stubs only** in v1. |
+### Phase Ordering Rationale
 
-**Clarify in requirements language:**
+- **Honesty/factory first** — every loader depends on preferred vs live truth (PITFALLS #5).  
+- **ORT before TRT** — portable, lockfile-friendly, proves Detection parity without Jetson (FEATURES + STACK).  
+- **TRT next** — hardware/docs matrix; reuses factory + Detection contract.  
+- **Fallback + dual-model after both loaders** — policy needs real failure modes; VRAM only after single-backend isolation.  
+- **Docs/CI last (but mocks from Phase 9 onward)** — contract tests ship with first loader; packaging narrative closes milestone.  
+- **Never on critical path:** DetectionLoop rewrite, depth/YOLOE edge backends, OpenVINO, ROS2, multi-cam fusion.
 
-1. **Depth contract:** relative monocular is acceptable for v1; metric is optional/experimental with explicit `depth_kind` labeling.  
-2. **Free-space contract:** image-plane / coarse occupancy from depth — not metric LiDAR-grade without calibration metadata.  
-3. **Boundary:** Sentry never sends velocity/commands; consumers own control and e-stop.  
-4. **Do not expand v1** into SLAM, multi-cam fusion, voice, cloud-mandatory, or control stack.  
+### Research Flags
 
----
-
-## Implications for Roadmap Phases
-
-Suggested **7 phases** at standard granularity. Order follows architecture build order + feature critical path + pitfall prevention.
-
-### Phase 1: Foundations & Contracts
-**Goal:** Repo skeleton, shared schemas, plugin registry stubs, config schema, license-aware model policy.  
-**Delivers:** `Frame` / `PerceptionFrame` types, `camera_id` + timestamps, depth_kind enum, `THIRD_PARTY_MODELS.md` stub, device-abstract backend protocols, CI smoke with synthetic frames.  
-**Features:** Schema-stable API foundation; extensibility hooks (stubs).  
-**Avoids:** Ad-hoc dicts; non-commercial default weights; process-global “the frame.”  
-**Research flag:** Standard patterns — skip deep research.
-
-### Phase 2: Camera Ingest + Frame Bus + Preview
-**Goal:** Realtime capture loop without models; prove “camera works.”  
-**Delivers:** USB + file + synthetic sources; keep-latest Frame Bus; drop metrics; FastAPI health + WS/MJPEG preview; minimal web page.  
-**Features:** Commodity camera ingest; graceful failure handling; one-command local start path.  
-**Avoids:** Models bound to OpenCV capture; unbounded queues; `0.0.0.0` default bind.  
-**Research flag:** Light research if RTSP/GStreamer reliability bites; OpenCV path is standard.
-
-### Phase 3: Fixed-Class Detection
-**Goal:** First robot-usable signal + worker pattern.  
-**Delivers:** YOLO26 detection worker; boxes on UI; detections in stream JSON; conf threshold control; FPS telemetry.  
-**Features:** Fixed-class detection; live detection overlays; partial stream API.  
-**Avoids:** Open-vocab as primary; UI-only detection path.  
-**Research flag:** Standard (Ultralytics predict well documented).
-
-### Phase 4: Monocular Depth
-**Goal:** Spatial awareness primitive with honest semantics.  
-**Delivers:** Depth Anything V2 Small worker; depth colormap UI; depth in stream with `depth_kind`; optional metric indoor/outdoor mode labeled; preprocess golden tests.  
-**Features:** Monocular depth map stream; local OSS depth path.  
-**Avoids:** Silent “meters” on relative models; letterbox pollution; preprocess mismatch.  
-**Research flag:** **Needs research** — model size vs FPS on desktop; metric head selection; export path spike.
-
-### Phase 5: Free-Space / Obstacles + Unified Stream
-**Goal:** Core product thesis: actionable occupancy robots can consume.  
-**Delivers:** Spatial Post (threshold/bands + optional ground prior); obstacle list; free-space overlay; merged `PerceptionFrame` with completeness; REST snapshot + WS `/v1/stream` docs; stale/TTL contract.  
-**Features:** Free-space/obstacles; machine-readable perception API; frame identity quality bar.  
-**Avoids:** Naive binary thresholds only; SLAM scope creep; “safe to proceed” language.  
-**Research flag:** **Needs research** — free-space algorithm spike (near-field vs ground-plane vs BEV strip); binary WS vs PNG16 depth encoding.
-
-### Phase 6: Developer Controls + Open-Vocab
-**Goal:** Interactive console differentiator + flexible detection.  
-**Delivers:** Full control plane (thresholds, stage toggles, source switch, rates); open-vocab worker (on-demand / lower rate); schema versioning polish; known-failure docs in UI.  
-**Features:** Interactive controls; open-vocabulary detection; model toggle / A-B inspection.  
-**Avoids:** Restart-to-tune; always-on heavy open-vocab on edge; chat/VLM as primary UI.  
-**Research flag:** Medium — YOLOE export/edge maturity; prompt UX.
-
-### Phase 7: Edge Profiles + Extension Stubs
-**Goal:** Multi-target claim real; future-proof without rewrite.  
-**Delivers:** `desktop` / `jetson` / `cpu` profiles; YOLO26n + DAV2-Small edge path; ONNX/TensorRT export recipes; headless mode; ROS2 bridge scaffold; multi-cam schema tests; voice plugin no-op; safety/privacy disclaimers finalized.  
-**Features:** Multi-target runtime; plugin extension points; optional ROS2 later path.  
-**Avoids:** Copying TRT engines across SKUs; claiming Pi full-pipeline realtime without honest FPS; building full ROS2/voice products.  
-**Research flag:** **Needs research** — Jetson shared-GPU scheduling; JetPack matrix; sustained thermal FPS.
-
-### Phase ordering rationale
-
-```
-Schemas → Bus → Preview → Detection → Depth → Free-space → Unified API
-                                                              ↓
-                                                    Controls + Open-vocab
-                                                              ↓
-                                                         Edge + stubs
-```
-
-- **Dependencies:** free-space needs depth; unified stream needs ≥2 products; controls need something to control; edge needs stable models.  
-- **Demo value:** each phase is a vertical slice makers can run.  
-- **Pitfall timing:** depth typing and licenses in Phase 1; latency architecture in Phase 2; free-space quality in Phase 5; edge rewrite risk deferred only after abstraction exists.
-
-### Research flags summary
-
-| Needs `/gsd:plan-phase` research | Standard patterns (skip) |
-|----------------------------------|---------------------------|
-| Phase 4 (depth model + metric) | Phase 1 (foundations) |
-| Phase 5 (free-space algorithm + stream encoding) | Phase 2 (capture/bus — mostly) |
-| Phase 7 (Jetson/Pi packaging) | Phase 3 (YOLO detection) |
-| Phase 6 partial (YOLOE edge export) | — |
+| Phase | Flag | Why |
+|-------|------|-----|
+| 8 | Standard | Known construction site; selection pure wiring |
+| 9 | Light spike | One ONNX golden path; provider honesty |
+| 10 | **Research-phase recommended** | JetPack/TRT/engine fingerprint; on-device lifecycle |
+| 11 | Standard + manual measure | Policy code + optional Orin VRAM checklist |
+| 12 | Standard | Docs/tests |
 
 ---
 
-## Open Questions Remaining
+## REQ-ID Seeds (for requirements / roadmap)
 
-Resolved only by phase spikes, not blockers for roadmap:
+Use these as stable IDs when writing REQUIREMENTS.md / ROADMAP acceptance. Families: **EDGE-RT** (edge runtime capability), **BACKEND** (selection, honesty, packaging).
 
-1. **Free-space v1 algorithm:** near-field depth threshold vs ground-plane RANSAC vs bird’s-eye occupancy strip — which is good enough for reactive avoidance?  
-2. **Depth model runtime pick:** DAV2 Small relative-only first vs ship metric indoor head immediately; desktop + Jetson FPS budgets.  
-3. **Open-vocab schedule:** always-on YOLOE vs on-demand query mode (prefer on-demand on edge).  
-4. **Stream transport:** WebSocket JSON + PNG16/JPEG vs binary msgpack/protobuf for robot clients.  
-5. **Edge floor:** minimum Jetson class for “full pipeline” first-class claim; Pi messaging as “spatial awareness lite.”  
-6. **Calibration UX depth:** how much intrinsics/extrinsics onboarding is required before metric free-space is offered?  
-7. **Shared GPU scheduling:** depth vs detection priority when both GPU-bound on Jetson (measure, don’t theorize).
+### BACKEND family — selection, honesty, status
+
+| ID | Seed requirement |
+|----|------------------|
+| **BACKEND-01** | Serve constructs fixed-class detector via a factory driven by `ProfileRuntime.preferred_backend` (not hard-coded `YoloDetectionWorker` only). |
+| **BACKEND-02** | Runtime exposes both `backend_requested` and `backend_live` (and `fallback_reason` when they differ) in CLI banner and operator-visible status/telemetry. |
+| **BACKEND-03** | Artifact resolution order: explicit config/env → model cache `{stem}.onnx\|.engine` → allowlisted CWD → miss (never invent paths). |
+| **BACKEND-04** | Missing ORT package or `.onnx` when `preferred_backend=onnxruntime` yields hard-fail **or** documented loud torch fallback — never silent. |
+| **BACKEND-05** | Backend resolve is sticky for process lifetime (or explicit reconfigure); no per-frame fallback thrash. |
+| **BACKEND-06** | Soft (`fallback_to_torch: true`) vs strict (`false`) modes documented; jetson-class may default stricter for field honesty. |
+| **BACKEND-07** | CI contract tests cover selection map + missing-artifact matrix without Jetson, system TRT, or weight download in default pytest. |
+
+### EDGE-RT family — live inference capability
+
+| ID | Seed requirement |
+|----|------------------|
+| **EDGE-RT-01** | `desktop-gpu` remains live torch (`.pt`) by default; ORT/TRT are opt-in via profile/config. |
+| **EDGE-RT-02** | Live ONNX Runtime path for **fixed-class YOLO only** produces schema-identical `list[Detection]` (bbox xyxy, conf, class_id/name). |
+| **EDGE-RT-03** | `cpu-fallback` profile with ORT deps + `.onnx` artifact runs live ORT (not torch-only honesty note). |
+| **EDGE-RT-04** | Live TensorRT path for fixed-class YOLO loads on-device `.engine` via system TRT (no project `tensorrt` pip extra). |
+| **EDGE-RT-05** | `jetson` profile with engine + system TRT runs live TensorRT; missing engine/deps are honest (fail or loud fallback). |
+| **EDGE-RT-06** | Engines are built on target device only; product docs forbid cross-SKU/desktop→Jetson engine copy; no multi-SKU engines in git/wheel. |
+| **EDGE-RT-07** | Depth remains PyTorch/HF and open-vocab remains PyTorch on-demand; no live ORT/TRT for those stages this milestone. |
+| **EDGE-RT-08** | Docs: Jetson on-device engine build → `sentry serve --profile jetson` measured path; no dual-model FPS guarantees. |
+| **EDGE-RT-09** | Live Preview boxes and `/v1` detections remain single-truth for the same frame product rules regardless of backend. |
+
+**Non-goals as negative seeds (do not assign as ship requirements):** live depth ORT/TRT; live YOLOE ORT/TRT; OpenVINO first-class; auto-build engine on serve; Pi dual-model FPS tables; DetectionLoop/FrameBus redesign.
 
 ---
 
-## Confidence & Gaps
+## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | **HIGH** | Versions verified PyPI 2026-08-07; Ultralytics YOLO26/YOLOE + DAV2 well documented |
-| Features | **HIGH** | Gap analysis vs OAK/RealSense/ZED/YOLO/Nav2/Foxglove; aligns with PROJECT.md |
-| Architecture | **HIGH** topology; **MEDIUM** free-space algorithm & process-vs-thread on Pi | DepthAI/Isaac ROS patterns strong; free-space needs spike |
-| Pitfalls | **HIGH** geometry/latency; **MEDIUM** product/legal edge cases | Metric scale, latency, licenses are well-sourced |
+| Stack | **HIGH** | PyPI ORT 1.28 + Ultralytics AutoBackend verified; Jetson wheel URLs MEDIUM (verify on board) |
+| Features | **HIGH** | Scope locked by PROJECT.md + code; packaging friction MEDIUM |
+| Architecture | **HIGH** | DetectionLoop duck-typing and single serve wiring site code-verified; native vs Ultralytics path opinionated above |
+| Pitfalls | **HIGH** | Honesty, SKU engines, CI, AGPL patterns match v1 decisions + export docs |
 
-**Overall confidence:** **HIGH** for roadmap structure and stack direction.
+**Overall confidence:** **HIGH** for roadmap structure and phase order; **MEDIUM** for exact JetPack cells and any future custom YOLO26 decode.
 
-### Gaps to address during planning
+### Gaps to Address
 
-| Gap | Handle during |
-|-----|----------------|
-| Exact free-space derivation | Phase 5 research spike |
-| Shared-GPU Jetson scheduling | Phase 7 measurement |
-| Binary WS framing details | Phase 5 stream polish |
-| YOLOE TensorRT export maturity | Phase 6; keep PyTorch/ONNX fallback |
-| Pi sustained dual-model FPS | Phase 7; honest “lite” profile |
-| LAN auth model | When leaving localhost (Phase 2 defaults + Phase 7 remote UI) |
-| Exact CUDA index (`cu128` etc.) | Re-check pytorch.org at install time |
-| Ultralytics AGPL commercial plan | Document for contributors; not a v1 OSS blocker |
+| Gap | When / how |
+|-----|------------|
+| Soft vs strict default for jetson profile | Product decision in Phase 8/11 planning — recommend soft for makers, strict opt-in or profile flag for field |
+| Artifact discovery final config keys (`models.detector_onnx` / env names) | Phase 8 plan — align with `configure_model_cache` |
+| Desktop GPU ORT first-class vs CPU-ORT only | Prefer CPU ORT in `onnx` extra; document GPU ORT as manual (STACK) |
+| Ultralytics-native vs custom InferenceBackend long-term | **v0.2 = Ultralytics-native**; revisit only if edge binary size/license forces slim path |
+| Minimum Jetson SKU for “first-class” language | Docs honesty (Orin Nano vs older) — Phase 10/12; measure-on-device only |
+| YOLO26 ONNX tensor names if custom path forced | Phase 9 spike; only if Ultralytics load fails parity |
+| Dual-model VRAM budgets | Phase 11 manual checklist per SKU — not merge-blocking numbers |
+
+### Resolved research tension
+
+| Tension | Resolution for roadmap |
+|---------|------------------------|
+| STACK: Ultralytics-native ORT/TRT vs ARCHITECTURE: custom OrtBackend/TrtBackend | **Ship Ultralytics-native in v0.2**; factory + honesty + artifact paths are the architecture plug-in. Keep `InferenceBackend` for mocks; native backends deferred. |
+| FEATURES: hard-fail default vs ARCHITECTURE: soft fallback default | **Soft default for maker UX** (`fallback_to_torch: true`) with **loud** live/requested mismatch; strict mode available for edge deploy. |
 
 ---
 
 ## Sources
 
-### Primary (HIGH)
+### Primary (HIGH confidence)
 
-- [Ultralytics YOLO26 / YOLOE / Export / Jetson guide](https://docs.ultralytics.com/) — detection, open-vocab, TRT, multi-source  
-- [Depth Anything V2](https://github.com/DepthAnything/Depth-Anything-V2) + [metric fine-tunes](https://github.com/DepthAnything/Depth-Anything-V2/tree/main/metric_depth) — depth + licenses + indoor/outdoor  
-- [Isaac ROS DNN Inference](https://nvidia-isaac-ros.github.io/repositories_and_packages/isaac_ros_dnn_inference/index.html) — encode/infer/decode multi-target  
-- [DepthAI pipeline docs](https://docs.luxonis.com/) — node/message pipeline model  
-- [FastAPI WebSockets](https://fastapi.tiangolo.com/advanced/websockets/) — stream API pattern  
-- [Nav2 concepts](https://docs.nav2.org/concepts/index.html) — free-space consumer expectations  
-- [Metric3D](https://github.com/YvanYin/Metric3D) — intrinsics / point-cloud distortion  
-- [OpenCV camera calibration](https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html)  
-- Sentry [PROJECT.md](../PROJECT.md) — product constraints  
+- `.planning/PROJECT.md` — v0.2 Edge Runtime scope lock  
+- `src/sentry_ai/models/detection/loop.py` — backend-agnostic DetectionLoop  
+- `src/sentry_ai/models/detection/yolo_worker.py` — torch live path + conf contract  
+- `src/sentry_ai/cli.py` — serve wiring + v1 honesty logs  
+- `src/sentry_ai/config/profile_runtime.py` — preferred_backend device policy today  
+- `src/sentry_ai/backend/protocols.py` — InferenceBackend stub  
+- `docs/export/yolo26-onnx-tensorrt.md`, `docs/export/jetson-packaging.md` — on-device engines, no pip tensorrt  
+- `THIRD_PARTY_MODELS.md` — AGPL YOLO lineage  
+- PyPI: `onnxruntime` / `onnxruntime-gpu` 1.28.0 (2026-08-09)  
+- Ultralytics AutoBackend (`onnx` / `engine` map) + ONNX/TensorRT integration docs  
+- Research dimension files: [STACK.md](./STACK.md), [FEATURES.md](./FEATURES.md), [ARCHITECTURE.md](./ARCHITECTURE.md), [PITFALLS.md](./PITFALLS.md)
 
-### Secondary (MEDIUM)
+### Secondary (MEDIUM confidence)
 
-- Foxglove / Rerun viz patterns — UI as subscriber  
-- ROS 2 composition — extension path, not v1 core  
-- Autoware perception package layout — modular workers  
-- ZoeDepth (archived) — metric lineage context only  
+- Ultralytics Jetson guide — JetPack 5/6/7 ORT wheel tables (URLs drift; verify on device)  
+- NVIDIA TensorRT engine portability rules  
+- Isaac ROS DNN encode→infer→decode pattern (architecture analogy)
 
-### Research artifacts
+### Tertiary (LOW confidence / validate later)
 
-- [STACK.md](./STACK.md)  
-- [FEATURES.md](./FEATURES.md)  
-- [ARCHITECTURE.md](./ARCHITECTURE.md)  
-- [PITFALLS.md](./PITFALLS.md)  
+- Exact Orin Nano dual-model VRAM budgets — measure per SKU  
+- Counsel interpretation of AGPL for exported graphs — document risk, not DIY legal advice  
+- Ultralytics AutoBackend stability across minor bumps — re-benchmark on pin changes  
 
 ---
 
-*Research completed: 2026-08-07*  
-*Ready for roadmap: yes*
+*Research completed: 2026-08-09*  
+*Milestone: v0.2 Edge Runtime*  
+*Ready for roadmap: yes*  
+*Suggested phases: 8–12 (Backend honesty → Live ORT → Live TRT → Fallback/dual-model → Docs/CI)*
