@@ -42,9 +42,12 @@ Reliable camera-only depth + obstacle awareness and object recognition that make
 
 ### Active
 
-<!-- Next milestone — filled by /gsd:new-milestone -->
-
-- [ ] (none yet — run `/gsd:new-milestone` to define v1.1 / v2.0)
+- [ ] Live ONNX Runtime path for fixed-class YOLO (profile-selected)
+- [ ] Live TensorRT path for fixed-class YOLO on NVIDIA / Jetson-class
+- [ ] Profiles wire preferred_backend to real loaders (not advisory-only)
+- [ ] Honest fallback when ORT/TRT engine/model missing (clear error or torch fallback)
+- [ ] Edge docs: Jetson on-device engine build + serve with tensorrt/onnxruntime profiles
+- [ ] CI-safe tests without Jetson hardware
 
 ### Out of Scope
 
@@ -95,16 +98,26 @@ Reliable camera-only depth + obstacle awareness and object recognition that make
 | Depth honesty via `depth_kind` | Never sell relative as meters | ✓ Good — v1.0 |
 | CUDA request falls back to MPS/CPU | Maker machines without CUDA | ✓ Good — post-v1 fix included |
 
-## Next Milestone Goals
+## Current Milestone: v0.2 Edge Runtime
 
-Define with `/gsd:new-milestone`. Candidate themes from v2 backlog:
+**Goal:** Make Jetson/desktop edge deployment run **live** detection on real backends (ONNX Runtime + TensorRT), not export recipes alone — while keeping PyTorch as the default desktop path.
 
-- Metric depth + calibration UX  
-- Production ROS2 bridge  
-- Multi-camera fusion  
-- Pi/lite published FPS budgets  
-- Real TensorRT/ORT live backends  
-- Scene VLM / voice plugins  
+**Target features:**
+- Live **ONNX Runtime** inference path for fixed-class YOLO (profile-selected)
+- Live **TensorRT** inference path for fixed-class YOLO on NVIDIA (desktop/Jetson), on-device engines
+- Backend selection via existing profiles (`preferred_backend` / device policy) with honest fallbacks
+- Jetson-class first-class packaging notes + measured path (no fake FPS guarantees)
+- Depth stays **PyTorch/HF** this milestone (YOLO fixed-class edge only)
+- Open-vocab remains PyTorch/on-demand (not edge live dual-model)
+- CI: mock ORT/TRT paths; no Jetson required in GitHub Actions
+- Keep perception-only, localhost default, CUDA→MPS/CPU fallback honesty
+
+**Out of this milestone (deferred):**
+- Metric depth calibration UX  
+- Production ROS2 package  
+- Multi-cam fusion  
+- Live ORT/TRT for depth / YOLOE  
+- Pi-class published dual-model FPS as first-class claim  
 
 ## Evolution
 
@@ -117,4 +130,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-09 after v1.0 milestone*
+*Last updated: 2026-08-09 — started milestone v0.2 Edge Runtime*
