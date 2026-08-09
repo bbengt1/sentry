@@ -26,3 +26,7 @@ class AppState:
     free_space_loop: Any | None = None
     open_vocab_worker: Any | None = None
     open_vocab_loop: Any | None = None
+    # Phase 8 BACK-02: factory-authored backend honesty (optional).
+    backend_requested: str | None = None
+    backend_live: str | None = None
+    backend_reason: str | None = None

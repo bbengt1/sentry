@@ -34,6 +34,9 @@ def create_app(
     free_space_loop: Any | None = None,
     open_vocab_worker: Any | None = None,
     open_vocab_loop: Any | None = None,
+    backend_requested: str | None = None,
+    backend_live: str | None = None,
+    backend_reason: str | None = None,
     serve_ui: bool = True,
 ) -> FastAPI:
     """Build FastAPI app with preview + detection + depth + pipeline + OV + /v1.
@@ -75,6 +78,10 @@ def create_app(
     app.state.free_space_loop = free_space_loop
     app.state.open_vocab_worker = open_vocab_worker
     app.state.open_vocab_loop = open_vocab_loop
+    # Phase 8 BACK-02: pass-through factory metadata (never recompute live).
+    app.state.backend_requested = backend_requested
+    app.state.backend_live = backend_live
+    app.state.backend_reason = backend_reason
     app.state.serve_ui = serve_ui
     app.state.shutdown_flag = shutdown_flag
     # Typed namespace for convenience (mirrors app.state fields).
@@ -91,6 +98,9 @@ def create_app(
         free_space_loop=free_space_loop,
         open_vocab_worker=open_vocab_worker,
         open_vocab_loop=open_vocab_loop,
+        backend_requested=backend_requested,
+        backend_live=backend_live,
+        backend_reason=backend_reason,
     )
     app.include_router(preview_router)
     app.include_router(detection_router)

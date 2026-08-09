@@ -175,6 +175,16 @@ async def api_status(request: Request) -> dict[str, Any]:
             data["ov_mode"] = str(ov_loop.get_mode())
         except Exception:  # noqa: BLE001 — status best-effort
             pass
+
+    # Phase 8 BACK-02: factory-authored backend honesty (pass-through only).
+    # Never recompute live from preferred_backend; never invent ORT/TRT live.
+    try:
+        for field in ("backend_requested", "backend_live", "backend_reason"):
+            value = getattr(request.app.state, field, None)
+            if value is not None:
+                data[field] = value
+    except Exception:  # noqa: BLE001 — status best-effort
+        pass
     return data
 
 

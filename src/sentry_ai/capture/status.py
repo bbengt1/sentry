@@ -71,3 +71,7 @@ class StatusSnapshot(BaseModel):
     ov_count: int | None = None
     ov_mode: str | None = None
     ov_frame_id: int | None = None
+    # Optional backend honesty (Phase 8 BACK-02); factory-authored only.
+    backend_requested: str | None = None
+    backend_live: str | None = None
+    backend_reason: str | None = None
