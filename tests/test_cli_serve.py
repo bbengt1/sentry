@@ -237,12 +237,29 @@ def test_serve_applies_profile_runtime() -> None:
     assert "rt.depth_model_id" in source
     assert "device=rt.device" in source
     assert "probe_device" in source
-    # Banner honesty fields (full BACK-02 rewrite lands in 08-02)
+    # Banner + create_app honesty (BACK-02)
     assert "preferred_backend" in source
-    assert "tensorrt" in source
-    assert "onnxruntime" in source
+    assert "backend_requested=" in source
+    assert "backend_live=" in source
+    assert "backend_reason=" in source
+    assert 'f"backend_requested:' in source or "backend_requested:" in source
+    assert 'f"backend_live:' in source or "backend_live:" in source
+    # Structured fields replace prose-only export-target claims
+    assert "export target" not in source.lower() or "backend_live" in source
     # No hard-coded fixed-class YoloDetectionWorker construction in serve
     assert "YoloDetectionWorker(" not in source
+
+
+def test_serve_wires_backend_honesty_into_create_app() -> None:
+    """BACK-02: create_app receives factory backend_* kwargs from serve locals."""
+    source = inspect.getsource(cli_mod.serve)
+    assert "backend_requested=backend_requested" in source
+    assert "backend_live=backend_live" in source
+    assert "backend_reason=backend_reason" in source
+    # Banner prints structured fields when detection built
+    assert "backend_requested:" in source
+    assert "backend_live:" in source
+    assert "backend_reason:" in source
 
 
 def test_serve_profile_default_is_cpu_fallback() -> None:

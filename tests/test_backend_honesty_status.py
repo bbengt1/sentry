@@ -181,3 +181,21 @@ def test_create_app_attaches_backend_to_app_state() -> None:
     assert getattr(deps, "backend_reason", None) == "trt_loader_not_implemented"
 
 
+def test_live_preview_html_has_backend_metric() -> None:
+    """Live Preview footer shows backend requested → live from /api/status."""
+    from pathlib import Path
+
+    html_path = (
+        Path(__file__).resolve().parents[1]
+        / "src"
+        / "sentry_ai"
+        / "ui"
+        / "static"
+        / "index.html"
+    )
+    text = html_path.read_text(encoding="utf-8")
+    assert "metric-backend" in text
+    assert "backend_requested" in text
+    assert "backend_live" in text
+
+
