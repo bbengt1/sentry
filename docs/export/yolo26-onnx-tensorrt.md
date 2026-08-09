@@ -1,13 +1,35 @@
 # YOLO26 → ONNX / TensorRT
 
-Export fixed-class **YOLO26** weights with Ultralytics `model.export`. Live
-Sentry detection still runs the **PyTorch** Ultralytics path; these recipes are
-for offline edge packaging.
+Export fixed-class **YOLO26** weights with Ultralytics `model.export`, and run
+**live fixed-class detection via ONNX Runtime** when serve conditions are met.
+
+| Path | When |
+|------|------|
+| **Live ORT** | `preferred_backend=onnxruntime` + allowlisted `.onnx` present + `onnx` extra installed → `backend_live=onnxruntime` (Ultralytics-native `YOLO("*.onnx")`) |
+| **Soft torch fallback** | Missing artifact, missing `onnxruntime` dep, or rejected path → live stays **torch** with an honest reason (`ort_artifact_missing` / `ort_dep_missing` / `path_rejected`) |
+| **Offline export** | Recipes below produce `.onnx` / on-device `.engine` artifacts for edge packaging |
+| **TensorRT** | Still **non-live** in serve (policy / export target until a future TRT phase); build **on-device** only |
 
 **Licenses:** Ultralytics YOLO26 is **AGPL-3.0**. Read
 [`THIRD_PARTY_MODELS.md`](../../THIRD_PARTY_MODELS.md) before redistribution.
 
 ## Prerequisites
+
+### Live fixed-class ORT (serve)
+
+```bash
+uv sync --extra detect --extra onnx
+# Optional: point at an allowlisted artifact
+#   export SENTRY_DETECTOR_ONNX=/path/to/yolo26n.onnx
+#   # or place yolo26n.onnx under the model cache / cwd (allowlisted stems)
+uv run sentry serve --profile cpu-fallback --source synthetic
+```
+
+CPU `onnxruntime` (the `onnx` extra) is enough for makers and CI. GPU ORT is
+an optional system install — **not** required in CI. Default pytest never
+loads real `.onnx` graphs or downloads weights.
+
+### Offline export
 
 ```bash
 uv sync --extra detect
@@ -37,11 +59,13 @@ YOLO("yolo26n.pt").export(format="onnx", imgsz=640, simplify=True)
 | Topic | Honest expectation |
 |-------|--------------------|
 | Portability | ONNX is the portable graph; still validate ops on the target runtime |
+| Live serve | With `cpu-fallback` (preferred `onnxruntime`) + this artifact + `onnx` extra → live ORT; otherwise soft torch fallback |
 | CPU / Pi | Useful for experiments; **spatial awareness lite / best-effort** — no unmeasured dual-model realtime FPS claim |
-| CI | Default pytest never runs real `model.export` or weight downloads |
+| CI | Default pytest never runs real `model.export` or weight downloads; live ORT unit tests mock the load path |
 
 Known allowlisted basenames: `yolo26n.pt`, `yolo26s.pt`, `yolo26m.pt`
-(see `sentry_ai.models.cache.KNOWN_WEIGHTS`).
+(and matching `.onnx` stems via artifact resolution —
+see `sentry_ai.models.cache.KNOWN_WEIGHTS` / `resolve_detector_artifact`).
 
 ## TensorRT engine (GPU only)
 
@@ -78,18 +102,24 @@ Cross-SKU “copy the engine file” is **not** a supported deployment path.
 
 ## Profile alignment
 
-| Profile | Detector tier | Export starting point |
-|---------|---------------|------------------------|
-| `jetson` | `n` → `yolo26n.pt` | Build **on-device** engine on Jetson |
-| `desktop-gpu` | `s` → `yolo26s.pt` | Desktop ONNX/engine for lab only; rebuild on edge |
-| `cpu-fallback` | `n` → `yolo26n.pt` | Prefer ONNX; TRT not applicable |
+| Profile | Detector tier | Live serve | Export starting point |
+|---------|---------------|------------|------------------------|
+| `jetson` | `n` → `yolo26n.pt` | Soft torch until live TRT ships; `preferred_backend=tensorrt` is policy | Build **on-device** engine on Jetson |
+| `desktop-gpu` | `s` → `yolo26s.pt` | Live **torch** | Desktop ONNX/engine for lab only; rebuild TRT on edge |
+| `cpu-fallback` | `n` → `yolo26n.pt` | Live **onnxruntime** when `.onnx` + `onnx` extra present; else soft torch | Prefer ONNX; TRT not applicable |
 
-`preferred_backend: tensorrt` on the jetson profile is a **device policy /
-export target hint**. Live `sentry serve` still uses PyTorch unless a future
-InferenceBackend ships.
+`preferred_backend: tensorrt` on the jetson profile remains a **device policy /
+export target hint** — live TensorRT is not claimed until a future phase.
 
-## Deferred (not in v1 product)
+`preferred_backend: onnxruntime` on `cpu-fallback` **can be live** when an
+allowlisted `.onnx` resolves and the `onnx` extra (onnxruntime) is installed.
+Missing artifact or dependency does **not** silently claim ORT — serve soft-falls
+to torch with a stable reason code.
 
-- First-class ONNX Runtime / TensorRT `InferenceBackend` inside Sentry
+## Deferred (not in this release)
+
+- Live TensorRT `InferenceBackend` inside Sentry (future phase)
 - Prebuilt engines on GitHub Releases
-- CI jobs that require Jetson or system TensorRT
+- CI jobs that require Jetson, system TensorRT, or GPU ORT
+- Custom ORT `InferenceSession` + hand-written YOLO26 decoder (live path uses
+  Ultralytics-native `YOLO("*.onnx")` instead)

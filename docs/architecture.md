@@ -49,6 +49,7 @@ Stage toggles use **enable flags** inside loops (skip compute) — they do not
 | *(core)* | FastAPI, OpenCV headless, capture, free-space, API, UI static |
 | `detect` | Ultralytics YOLO26 + YOLOE |
 | `depth` | torch + transformers + HF hub (DAV2 Small) |
+| `onnx` | CPU ONNX Runtime for live fixed-class YOLO ORT path |
 | `dev` | pytest, ruff, httpx |
 
 Missing extras: `sentry serve` still runs capture + Live Preview and logs an
@@ -62,10 +63,13 @@ Built-in profiles (`desktop-gpu`, `jetson`, `cpu-fallback`) select:
 - depth tier (Small only for commercial-friendly defaults)  
 - **device policy** (`preferred_backend` + `device_id`)
 
-Live inference remains **PyTorch / Ultralytics / HF**. `preferred_backend:
-tensorrt` or `onnxruntime` is **policy + export target**, not a silent live
-TensorRT/ORT runtime in v0.1.0. CUDA requests fall back to MPS or CPU when
-unavailable. Export packaging: [export/](export/).
+Live inference is **PyTorch / Ultralytics / HF** by default. Fixed-class YOLO
+may run **live via ONNX Runtime** when `preferred_backend=onnxruntime`, an
+allowlisted `.onnx` artifact resolves, and the optional `onnx` extra is
+installed; otherwise serve soft-falls to torch with an honest reason code.
+`preferred_backend: tensorrt` remains **policy + export target** (live TRT is
+not claimed yet). CUDA requests fall back to MPS or CPU when unavailable.
+Export packaging: [export/](export/).
 
 ## Boundaries (non-negotiable)
 

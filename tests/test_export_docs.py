@@ -41,6 +41,30 @@ def test_export_index_offline_and_pytorch_live() -> None:
     assert "profile" in lowered
 
 
+def test_export_docs_live_ort_conditions_and_onnx_extra() -> None:
+    """Live fixed-class ORT conditions + install path (ORT-03 honesty)."""
+    yolo = _read("yolo26-onnx-tensorrt.md").lower()
+    readme = _read("README.md").lower()
+    blob = yolo + "\n" + readme
+    assert "onnxruntime" in blob or "onnx runtime" in blob
+    assert "live" in blob
+    assert "extra onnx" in blob or "--extra onnx" in blob
+    assert "uv sync" in blob
+    # Soft-fallback honesty when artifact/dep missing
+    assert (
+        "soft-fall" in blob
+        or "soft fall" in blob
+        or "missing" in blob
+        or "fallback" in blob
+    )
+    assert (
+        "ort_artifact_missing" in blob
+        or "artifact" in blob
+        or "dependency" in blob
+        or "dep" in blob
+    )
+
+
 def test_yolo26_onnx_tensorrt_on_device_and_no_engine_copy() -> None:
     text = _read("yolo26-onnx-tensorrt.md")
     lowered = text.lower()

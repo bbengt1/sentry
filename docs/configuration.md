@@ -33,8 +33,13 @@ automatic switch to `desktop-gpu` when CUDA is detected.
 | `device.preferred_backend` + `device_id` | Device policy for workers |
 | `models.allow_cloud` | Must stay `false` on default path |
 
-`preferred_backend: tensorrt` does **not** enable live TensorRT inference.
-Live path is still PyTorch (CUDA if available). See [architecture.md](architecture.md).
+`preferred_backend: tensorrt` does **not** enable live TensorRT inference
+(soft torch fallback until a future TRT phase).
+`preferred_backend: onnxruntime` **can** enable live fixed-class ORT when a
+valid allowlisted `.onnx` is present and the `onnx` extra is installed
+(`uv sync --extra detect --extra onnx`); missing artifact or dependency
+soft-falls to torch with a stable reason. See [architecture.md](architecture.md)
+and [export/yolo26-onnx-tensorrt.md](export/yolo26-onnx-tensorrt.md).
 
 ### Device fallback
 
