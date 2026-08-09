@@ -1,8 +1,9 @@
-"""BACK-01 / EDGE-RT-03: build_detection_worker honesty + soft ORT/TRT stubs."""
+"""BACK-01 / EDGE-RT-03 / ORT-01: build_detection_worker honesty + live ORT."""
 
 from __future__ import annotations
 
 import inspect
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -46,24 +47,117 @@ def test_jetson_tensorrt_soft_stub() -> None:
     assert isinstance(build.worker, YoloDetectionWorker)
 
 
-def test_cpu_fallback_ort_soft_stub() -> None:
+def test_cpu_fallback_ort_soft_stub_artifact_missing() -> None:
+    """Default cpu-fallback without fixture artifact soft-falls (not live ORT)."""
     rt = _rt_for_profile("cpu-fallback")
     build = build_detection_worker(rt, model=FakeModel())
     assert build.backend_requested == "onnxruntime"
     assert build.backend_live == "torch"
-    assert build.backend_reason == "ort_loader_not_implemented"
+    assert build.backend_reason == "ort_artifact_missing"
     assert isinstance(build.worker, YoloDetectionWorker)
+    assert str(build.worker._weights).endswith(".pt")
 
 
 @pytest.mark.parametrize(
     "profile",
     ["desktop-gpu", "jetson", "cpu-fallback"],
 )
-def test_backend_live_never_ort_or_trt(profile: str) -> None:
+def test_backend_live_not_ort_or_trt_without_fixtures(profile: str) -> None:
+    """Without live ORT fixtures, backend_live stays torch for default profiles."""
     rt = _rt_for_profile(profile)
     build = build_detection_worker(rt, model=FakeModel())
     assert build.backend_live not in {"onnxruntime", "tensorrt"}
     assert build.backend_live == "torch"
+
+
+def test_live_ort_success_with_artifact_and_dep(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """preferred=onnxruntime + resolved .onnx + dep available → live ORT."""
+    onnx_path = tmp_path / "yolo26n.onnx"
+    onnx_path.write_bytes(b"fake-onnx")
+
+    monkeypatch.setattr(
+        factory_mod,
+        "_try_resolve_artifact",
+        lambda rt, *, preferred: (onnx_path, None),
+    )
+    monkeypatch.setattr(factory_mod, "_onnxruntime_available", lambda: True)
+
+    rt = _rt_for_profile("cpu-fallback")
+    build = build_detection_worker(rt, model=FakeModel())
+
+    assert build.backend_requested == "onnxruntime"
+    assert build.backend_live == "onnxruntime"
+    assert build.backend_reason is None
+    assert isinstance(build.worker, YoloDetectionWorker)
+    assert str(build.worker._weights).endswith(".onnx")
+    assert Path(build.worker._weights) == onnx_path
+    # Live ORT must not claim ORT while still holding torch .pt weights
+    assert not str(build.worker._weights).endswith(".pt")
+
+
+def test_ort_soft_fallback_dep_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Artifact present but onnxruntime not importable → ort_dep_missing."""
+    onnx_path = tmp_path / "yolo26n.onnx"
+    onnx_path.write_bytes(b"fake-onnx")
+
+    monkeypatch.setattr(
+        factory_mod,
+        "_try_resolve_artifact",
+        lambda rt, *, preferred: (onnx_path, None),
+    )
+    monkeypatch.setattr(factory_mod, "_onnxruntime_available", lambda: False)
+
+    rt = _rt_for_profile("cpu-fallback")
+    build = build_detection_worker(rt, model=FakeModel())
+
+    assert build.backend_requested == "onnxruntime"
+    assert build.backend_live == "torch"
+    assert build.backend_reason == "ort_dep_missing"
+    assert isinstance(build.worker, YoloDetectionWorker)
+    assert str(build.worker._weights).endswith(".pt")
+
+
+def test_ort_soft_fallback_path_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """path_rejected on explicit/env path → torch soft-fallback."""
+    monkeypatch.setattr(
+        factory_mod,
+        "_try_resolve_artifact",
+        lambda rt, *, preferred: (None, "path_rejected"),
+    )
+    monkeypatch.setattr(factory_mod, "_onnxruntime_available", lambda: True)
+
+    rt = _rt_for_profile("cpu-fallback")
+    build = build_detection_worker(rt, model=FakeModel())
+
+    assert build.backend_requested == "onnxruntime"
+    assert build.backend_live == "torch"
+    assert build.backend_reason == "path_rejected"
+    assert isinstance(build.worker, YoloDetectionWorker)
+
+
+def test_never_live_ort_with_pt_weights(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """backend_live=onnxruntime only when worker weights end with .onnx."""
+    onnx_path = tmp_path / "yolo26n.onnx"
+    onnx_path.write_bytes(b"fake-onnx")
+
+    monkeypatch.setattr(
+        factory_mod,
+        "_try_resolve_artifact",
+        lambda rt, *, preferred: (onnx_path, None),
+    )
+    monkeypatch.setattr(factory_mod, "_onnxruntime_available", lambda: True)
+
+    rt = _rt_for_profile("cpu-fallback")
+    build = build_detection_worker(rt, model=FakeModel())
+    if build.backend_live == "onnxruntime":
+        assert str(build.worker._weights).endswith(".onnx")
+        assert not str(build.worker._weights).endswith(".pt")
 
 
 def test_worker_duck_type_process_conf() -> None:
