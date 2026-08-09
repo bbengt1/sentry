@@ -50,6 +50,12 @@ depth = [
   "huggingface-hub>=0.23,<2",
   "pillow>=10,<13",
 ]
+# Live ONNX Runtime path for fixed-class YOLO (Phase 9). CPU ORT is enough for
+# CI and makers; GPU ORT is an optional system install — not required in CI.
+# Install: uv sync --extra dev --extra detect --extra onnx
+onnx = [
+  "onnxruntime>=1.20,<1.29",
+]
 
 [project.scripts]
 sentry = "sentry_ai.cli:main"
