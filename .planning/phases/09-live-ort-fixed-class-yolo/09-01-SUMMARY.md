@@ -83,7 +83,7 @@ Each task was committed atomically:
 2. **Task 2: Optional onnx extra pin (ORT-03 packaging)** - `17002be` (feat)
 3. **Task 3: Docs honesty for live ORT + export keyword tests (ORT-03)** - `4c392f3` (docs)
 
-**Plan metadata:** `611e9e1` (docs: complete plan) + `177b8a3` (chore: uv.lock onnx extra)
+**Plan metadata:** `611e9e1` (docs: complete plan); lockfile follow-up on same branch (chore: uv.lock onnx extra)
 
 ## Files Created/Modified
 
