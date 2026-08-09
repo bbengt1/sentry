@@ -49,7 +49,11 @@ def test_yolo26_onnx_tensorrt_on_device_and_no_engine_copy() -> None:
     assert "on-device" in lowered or "on device" in lowered
     assert "ultralytics" in lowered or "model.export" in lowered
     # Non-portability / forbid cross-SKU copy
-    assert "do not copy" in lowered or "never copy" in lowered or "not portable" in lowered
+    assert (
+        "do not copy" in lowered
+        or "never copy" in lowered
+        or "not portable" in lowered
+    )
     assert ".engine" in text or "engine" in lowered
     assert "jetpack" in lowered or "sku" in lowered
 
@@ -74,7 +78,11 @@ def test_depth_export_feasibility_and_relative_honesty() -> None:
     assert "small" in lowered
     # Relative vs metric honesty — no silent meters
     assert "relative" in lowered
-    assert "depth_kind" in lowered or "metric_estimated" in lowered or "meters" in lowered
+    assert (
+        "depth_kind" in lowered
+        or "metric_estimated" in lowered
+        or "meters" in lowered
+    )
     assert "community" in lowered or "onnx" in lowered or "tensorrt" in lowered
 
 

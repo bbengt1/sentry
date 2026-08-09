@@ -44,7 +44,14 @@ def test_help_exits_zero_and_mentions_formats() -> None:
 
 def test_validate_weights_accepts_known_basenames() -> None:
     mod = _import_export_module()
-    for name in ("yolo26n.pt", "yolo26s.pt", "yolo26m.pt", "yoloe-26n-seg.pt", "yoloe-26s-seg.pt"):
+    known = (
+        "yolo26n.pt",
+        "yolo26s.pt",
+        "yolo26m.pt",
+        "yoloe-26n-seg.pt",
+        "yoloe-26s-seg.pt",
+    )
+    for name in known:
         assert mod.validate_weights(name) == name
 
 

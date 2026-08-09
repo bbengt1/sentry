@@ -20,7 +20,11 @@ def test_safety_doc_non_autonomy_and_privacy() -> None:
     assert "localhost" in lowered
     assert "safety interlock" in lowered or "not a safety" in lowered
     # Non-autonomy positioning
-    assert "not autonom" in lowered or "non-autonom" in lowered or "autonomous" in lowered
+    assert (
+        "not autonom" in lowered
+        or "non-autonom" in lowered
+        or "autonomous" in lowered
+    )
     assert "cmd_vel" in lowered or "motor" in lowered or "path_plan" in lowered
     assert "allow_cloud" in lowered or "cloud" in lowered
     assert "e-stop" in lowered or "estop" in lowered or "emergency" in lowered
@@ -30,7 +34,11 @@ def test_safety_doc_non_autonomy_and_privacy() -> None:
     # Headless ≠ auth
     assert "headless" in lowered or "--no-ui" in text
     # LAN unauthenticated risk
-    assert "unauth" in lowered or "no auth" in lowered or "without authentication" in lowered
+    assert (
+        "unauth" in lowered
+        or "no auth" in lowered
+        or "without authentication" in lowered
+    )
 
 
 def test_readme_links_safety_doc() -> None:

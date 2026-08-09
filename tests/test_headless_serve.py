@@ -49,9 +49,8 @@ def test_headless_create_app_root_not_html() -> None:
             assert "<!doctype html" not in body
             assert "<html" not in body
             data = resp.json()
-            assert "headless" in data.get("detail", "").lower() or "ui disabled" in data.get(
-                "detail", ""
-            ).lower()
+            detail = data.get("detail", "").lower()
+            assert "headless" in detail or "ui disabled" in detail
             assert data.get("v1") == "/v1/snapshot"
     finally:
         loop.stop()
@@ -99,7 +98,11 @@ def test_headless_api_status_and_v1_snapshot() -> None:
             # Seeded store → 200 PerceptionFrame; empty would be 404 (existing).
             assert snap.status_code == 200
             body = snap.json()
-            assert "schema_version" in body or "completeness" in body or "frame_id" in body
+            assert (
+                "schema_version" in body
+                or "completeness" in body
+                or "frame_id" in body
+            )
     finally:
         loop.stop()
 
