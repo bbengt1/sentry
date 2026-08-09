@@ -2,6 +2,8 @@
 
 Camera-only perception for maker robotics — depth awareness, obstacle signals, and object recognition as a **perception stream only** (no motor commands).
 
+**Release:** [v0.1.0](https://github.com/bbengt1/sentry/releases/tag/v0.1.0) · **Docs hub:** [`docs/README.md`](docs/README.md) · **Changelog:** [`CHANGELOG.md`](CHANGELOG.md)
+
 ## Naming
 
 | Surface | Name |
@@ -11,6 +13,23 @@ Camera-only perception for maker robotics — depth awareness, obstacle signals,
 | CLI | **`sentry`** |
 
 This project is **not** the [getsentry](https://sentry.io) error-tracking product. The PyPI package `sentry` is unrelated; install and import **`sentry-ai`** / **`sentry_ai`**.
+
+## Documentation
+
+| Guide | Description |
+|-------|-------------|
+| [docs/README.md](docs/README.md) | **Documentation index** |
+| [docs/desktop-gpu.md](docs/desktop-gpu.md) | Primary end-to-end maker path |
+| [docs/architecture.md](docs/architecture.md) | Pipeline spine and boundaries |
+| [docs/api-reference.md](docs/api-reference.md) | HTTP / WebSocket API |
+| [docs/cli.md](docs/cli.md) | CLI commands |
+| [docs/configuration.md](docs/configuration.md) | Profiles, env, model cache |
+| [docs/perception-frame.md](docs/perception-frame.md) | Robot wire contract |
+| [docs/camera-sources.md](docs/camera-sources.md) | USB / RTSP / file matrix |
+| [docs/safety-and-privacy.md](docs/safety-and-privacy.md) | Non-autonomy and privacy |
+| [docs/export/](docs/export/) | ONNX / TensorRT export recipes |
+| [docs/development.md](docs/development.md) | Contributing and tests |
+| [THIRD_PARTY_MODELS.md](THIRD_PARTY_MODELS.md) | Model licenses |
 
 ## Requirements
 
@@ -352,6 +371,10 @@ Default depth weights are **Depth Anything V2 Small (Apache-2.0)**. AGPL and
 CC-BY-NC weights are **non-default**. See [`THIRD_PARTY_MODELS.md`](THIRD_PARTY_MODELS.md).
 
 Core path is **local OSS only** (`allow_cloud: false` by default).
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/development.md](docs/development.md).
 
 ## License
 
