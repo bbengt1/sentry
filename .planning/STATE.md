@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.2
 milestone_name: Edge Runtime
-status: executing
+status: verifying
 stopped_at: v0.2 ROADMAP.md written (phases 8–12); REQUIREMENTS traceability filled
-last_updated: "2026-08-09T19:41:33.778Z"
+last_updated: "2026-08-09T19:45:35.655Z"
 last_activity: 2026-08-09
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
-  percent: 0
+  completed_plans: 2
+  percent: 20
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-08-09)
 
 Phase: 8 of 12 (Backend Selection & Honesty) — v0.2 phases 8–12  
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-08-09
 
-Progress: [█████░░░░░] 50%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -44,7 +44,7 @@ Progress: [█████░░░░░] 50%
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 8 | 1/2 | 3min | 3min |
+| 8 | 2/2 | 6min | 3min |
 | 9 | 0/2 | - | - |
 | 10 | 0/2 | - | - |
 | 11 | 0/2 | - | - |
@@ -56,6 +56,7 @@ Progress: [█████░░░░░] 50%
 - Trend: —
 
 | Phase 08 P01 | 3min | 3 tasks | 7 files |
+| Phase 08 P02 | 3min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,9 @@ Decisions are logged in PROJECT.md Key Decisions table. v0.2 roadmap-binding:
 - [Phase 08]: Soft stub ORT/TRT with torch worker + reason codes (not construct-time raise)
 - [Phase 08]: Factory sole author of backend_live; Phase 8 never emits live ORT/TRT
 - [Phase 08]: path_rejected raises on explicit/env; cache/CWD miss returns None
+- [Phase 08]: Route never recomputes live from preferred_backend — pass-through only
+- [Phase 08]: Structured banner fields replace prose-only export-target notes
+- [Phase 08]: Footer shows requested → live; appends reason when they differ
 
 ### Pending Todos
 
@@ -96,6 +100,6 @@ See also: `milestones/v1.0-MILESTONE-AUDIT.md`.
 
 ## Session Continuity
 
-Last session: 2026-08-09T19:41:33.771Z
-Stopped at: v0.2 ROADMAP.md written (phases 8–12); REQUIREMENTS traceability filled  
+Last session: 2026-08-09T19:45:25.077Z
+Stopped at: Completed 08-02-PLAN.md — Phase 8 ready for verification 
 Next: `/gsd:plan-phase 8`

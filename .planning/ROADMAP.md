@@ -28,7 +28,7 @@ Audit: [milestones/v1.0-MILESTONE-AUDIT.md](milestones/v1.0-MILESTONE-AUDIT.md)
 
 **Milestone Goal:** Fixed-class YOLO runs **live** on ONNX Runtime and TensorRT (profile-selected) on desktop and Jetson-class NVIDIA — not export recipes alone. Depth and open-vocab stay PyTorch. Perception spine (DetectionLoop / FrameBus / PerceptionStore / `/v1`) stays frozen.
 
-- [ ] **Phase 8: Backend Selection & Honesty** - Factory wires `preferred_backend` to real loaders; status shows requested vs live
+- [x] **Phase 8: Backend Selection & Honesty** - Factory wires `preferred_backend` to real loaders; status shows requested vs live (completed 2026-08-09)
 - [ ] **Phase 9: Live ORT Fixed-Class YOLO** - Profile-selected ONNX Runtime path produces schema-identical detections
 - [ ] **Phase 10: Live TensorRT Fixed-Class YOLO** - On-device `.engine` path for Jetson/desktop NVIDIA
 - [ ] **Phase 11: Sticky Fallback & Dual-Model Guardrails** - Documented sticky fail/fallback; depth/OV remain torch
@@ -51,7 +51,7 @@ Audit: [milestones/v1.0-MILESTONE-AUDIT.md](milestones/v1.0-MILESTONE-AUDIT.md)
 
 Plans:
 - [x] 08-01-PLAN.md — Factory + artifact resolution + profile wiring
-- [ ] 08-02-PLAN.md — Status/banner honesty (`backend_requested` / `backend_live`)
+- [x] 08-02-PLAN.md — Status/banner honesty (`backend_requested` / `backend_live`)
 
 ### Phase 9: Live ORT Fixed-Class YOLO
 **Goal**: Makers can run fixed-class YOLO live via ONNX Runtime when the profile prefers `onnxruntime` and a valid `.onnx` artifact is present — same Detection wire contract as PyTorch
@@ -124,7 +124,7 @@ Plans:
 | 5. Free-Space & Unified Stream | v1.0 | 3/3 | Complete | 2026-08-08 |
 | 6. Developer Controls & Open-Vocab | v1.0 | 2/2 | Complete | 2026-08-08 |
 | 7. Edge Profiles & Extension Stubs | v1.0 | 3/3 | Complete | 2026-08-08 |
-| 8. Backend Selection & Honesty | v0.2 | 1/2 | In Progress|  |
+| 8. Backend Selection & Honesty | v0.2 | 2/2 | Complete   | 2026-08-09 |
 | 9. Live ORT Fixed-Class YOLO | v0.2 | 0/2 | Not started | - |
 | 10. Live TensorRT Fixed-Class YOLO | v0.2 | 0/2 | Not started | - |
 | 11. Sticky Fallback & Dual-Model Guardrails | v0.2 | 0/2 | Not started | - |
