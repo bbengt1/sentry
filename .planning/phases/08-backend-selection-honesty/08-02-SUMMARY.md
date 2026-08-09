@@ -82,7 +82,7 @@ Each task was committed atomically (TDD: test → feat):
 1. **Task 1: StatusSnapshot + create_app + /api/status honesty** — `014154f` (test) + `1110bc1` (feat)
 2. **Task 2: Serve banner + Live Preview footer honesty** — `bbac54a` (test) + `5493e35` (feat)
 
-**Plan metadata:** docs commit after SUMMARY
+**Plan metadata:** `6df0515` (docs: complete plan)
 
 ## Files Created/Modified
 
