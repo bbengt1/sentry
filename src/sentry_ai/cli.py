@@ -351,7 +351,7 @@ def serve(
     bind = f"{host}:{port}"
 
     # Optional fixed-class detection (requires `uv sync --extra detect`).
-    # backend_* locals stash WorkerBuild honesty fields for 08-02 banner/status.
+    # backend_* locals from WorkerBuild feed banner + create_app (BACK-02).
     worker: Any | None = None
     det_loop: Any | None = None
     ov_worker: Any | None = None
@@ -448,6 +448,9 @@ def serve(
         free_space_loop=free_space_loop,
         open_vocab_worker=ov_worker,
         open_vocab_loop=ov_loop,
+        backend_requested=backend_requested,
+        backend_live=backend_live,
+        backend_reason=backend_reason,
         serve_ui=not no_ui,
     )
 
@@ -463,20 +466,13 @@ def serve(
         f"probe: available={probe.available} "
         f"backend={probe.backend} device_id={probe.device_id}"
     )
-    # Honesty logs: preferred_backend is export target / device policy only.
-    if str(rt.preferred_backend) == "tensorrt":
-        typer.echo(
-            "note: preferred_backend=tensorrt → live path is still PyTorch "
-            "CUDA if available; build engines via export recipes "
-            "(not silent TRT inference)",
-            err=True,
-        )
-    elif str(rt.preferred_backend) == "onnxruntime":
-        typer.echo(
-            "note: preferred_backend=onnxruntime → live path is PyTorch CPU; "
-            "ORT is the export target (not silent ORT inference)",
-            err=True,
-        )
+    # BACK-02: structured honesty fields from factory (sole author of live).
+    if backend_requested is not None:
+        typer.echo(f"backend_requested: {backend_requested}")
+    if backend_live is not None:
+        typer.echo(f"backend_live: {backend_live}")
+    if backend_reason is not None:
+        typer.echo(f"backend_reason: {backend_reason}", err=True)
     typer.echo(f"source: {src.name} camera_id={getattr(src, 'camera_id', src.name)}")
     if no_ui:
         typer.echo(f"bind: http://{bind}/  (headless API)")

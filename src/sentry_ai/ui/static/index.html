@@ -250,6 +250,7 @@
       <div>FS FPS: <strong id="metric-free-fps">—</strong></div>
       <div>OV ms: <strong id="metric-ov-ms">—</strong></div>
       <div>OV FPS: <strong id="metric-ov-fps">—</strong></div>
+      <div>Backend: <strong id="metric-backend">—</strong></div>
       <div>Bind: <strong id="metric-bind">—</strong></div>
 
       <div class="control-row" id="stage-controls">
@@ -368,6 +369,7 @@
       var elFreeFps = document.getElementById("metric-free-fps");
       var elOvMs = document.getElementById("metric-ov-ms");
       var elOvFps = document.getElementById("metric-ov-fps");
+      var elBackend = document.getElementById("metric-backend");
       var elBind = document.getElementById("metric-bind");
       var elConf = document.getElementById("metric-conf");
       var confSlider = document.getElementById("conf-slider");
@@ -443,6 +445,26 @@
           ? String(data.frames_dropped)
           : "—";
         elBind.textContent = (data && data.bind) ? String(data.bind) : "—";
+
+        // Phase 8 BACK-02: backend requested → live (factory-authored only).
+        if (elBackend) {
+          var req = data && data.backend_requested ? String(data.backend_requested) : null;
+          var live = data && data.backend_live ? String(data.backend_live) : null;
+          if (req || live) {
+            var pair = (req || "—") + " → " + (live || "—");
+            var reason = data && data.backend_reason ? String(data.backend_reason) : null;
+            if (reason && req && live && req !== live) {
+              elBackend.textContent = pair + " (" + reason + ")";
+              elBackend.title = reason;
+            } else {
+              elBackend.textContent = pair;
+              elBackend.removeAttribute("title");
+            }
+          } else {
+            elBackend.textContent = "—";
+            elBackend.removeAttribute("title");
+          }
+        }
 
         elDetections.textContent =
           (data && typeof data.detections_count === "number")
