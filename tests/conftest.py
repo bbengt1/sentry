@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import time
 from collections.abc import Callable
 from types import SimpleNamespace
@@ -9,6 +10,12 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pytest
+
+# Typer/Rich help collapses under zero-width CI TTYs.
+os.environ["COLUMNS"] = "120"
+os.environ["NO_COLOR"] = "1"
+os.environ["TERM"] = "dumb"
+os.environ["FORCE_COLOR"] = "0"
 
 if TYPE_CHECKING:
     from sentry_ai.capture.image_frame import ImageFrame

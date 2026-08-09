@@ -14,6 +14,7 @@ from sentry_ai.sources.list_cameras import (
     list_local_cameras,
     probe_camera_index,
 )
+from tests.cli_helpers import cli_help_output
 
 runner = CliRunner()
 
@@ -257,16 +258,14 @@ def test_format_with_continuity_device() -> None:
 
 
 def test_cli_cameras_command_registered() -> None:
-    result = runner.invoke(app, ["--help"])
-    assert result.exit_code == 0
-    assert "cameras" in result.stdout
+    out = cli_help_output(app, "--help")
+    assert "cameras" in out
 
 
 def test_cli_cameras_help() -> None:
-    result = runner.invoke(app, ["cameras", "--help"])
-    assert result.exit_code == 0
-    assert "max-index" in result.stdout
-    assert "avfoundation" in result.stdout.lower() or "Continuity" in result.stdout
+    out = cli_help_output(app, "cameras", "--help")
+    assert "max-index" in out
+    assert "avfoundation" in out.lower() or "Continuity" in out
 
 
 def test_cli_cameras_runs_with_mock(monkeypatch: Any) -> None:

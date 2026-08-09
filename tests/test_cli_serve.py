@@ -10,32 +10,29 @@ from sentry_ai import cli as cli_mod
 from sentry_ai.cli import _build_serve_source, app
 from sentry_ai.sources.opencv_source import FileSource, RtspSource, UsbSource
 from sentry_ai.sources.synthetic import SyntheticSource
+from tests.cli_helpers import cli_help_output
 
 runner = CliRunner()
 
 
 def test_serve_help_shows_localhost_default() -> None:
-    result = runner.invoke(app, ["serve", "--help"])
-    assert result.exit_code == 0
-    out = result.stdout
+    out = cli_help_output(app, "serve", "--help")
     assert "127.0.0.1" in out
     # Privacy opt-in language for non-localhost binds
     assert "0.0.0.0" in out or "LAN" in out or "auth" in out.lower()
 
 
 def test_serve_command_registered() -> None:
-    result = runner.invoke(app, ["--help"])
-    assert result.exit_code == 0
-    assert "serve" in result.stdout
+    out = cli_help_output(app, "--help")
+    assert "serve" in out
 
 
 def test_serve_host_option_default_is_loopback() -> None:
     """Inspect Typer option default without binding a server."""
-    result = runner.invoke(app, ["serve", "--help"])
-    assert result.exit_code == 0
+    out = cli_help_output(app, "serve", "--help")
     # Typer help format: --host TEXT  [default: 127.0.0.1]
-    assert "127.0.0.1" in result.stdout
-    lower = result.stdout.lower()
+    assert "127.0.0.1" in out
+    lower = out.lower()
     assert "default" in lower
 
 
@@ -242,19 +239,17 @@ def test_serve_applies_profile_runtime() -> None:
 
 def test_serve_profile_default_is_cpu_fallback() -> None:
     """Serve default profile remains cpu-fallback (no CUDA auto-switch)."""
-    result = runner.invoke(app, ["serve", "--help"])
-    assert result.exit_code == 0
-    assert "cpu-fallback" in result.stdout
-    lower = result.stdout.lower()
+    out = cli_help_output(app, "serve", "--help")
+    assert "cpu-fallback" in out
+    lower = out.lower()
     assert "model tier" in lower or "device policy" in lower or "profile" in lower
 
 
 def test_serve_help_shows_no_ui() -> None:
     """EDGE-05: serve --help documents --no-ui headless flag."""
-    result = runner.invoke(app, ["serve", "--help"])
-    assert result.exit_code == 0
-    assert "--no-ui" in result.stdout
-    lower = result.stdout.lower()
+    out = cli_help_output(app, "serve", "--help")
+    assert "--no-ui" in out
+    lower = out.lower()
     assert "headless" in lower or "live preview" in lower or "ui" in lower
 
 
