@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v0.2
 milestone_name: Edge Runtime
-status: verifying
-stopped_at: v0.2 ROADMAP.md written (phases 8–12); REQUIREMENTS traceability filled
-last_updated: "2026-08-09T19:45:35.655Z"
+status: ready_for_next
+stopped_at: Phase 8 verified passed (5/5); ready for Phase 9
+last_updated: "2026-08-09T19:48:00Z"
 last_activity: 2026-08-09
 progress:
   total_phases: 5
@@ -21,24 +21,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-09)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots — without proprietary sensors or cloud AI.  
-**Current focus:** Phase 8 — Backend Selection & Honesty (v0.2 Edge Runtime)
+**Current focus:** Phase 9 — Live ORT Fixed-Class YOLO (v0.2 Edge Runtime)
 
 ## Current Position
 
-Phase: 8 of 12 (Backend Selection & Honesty) — v0.2 phases 8–12  
-Plan: 2 of 2
-Status: Phase complete — ready for verification
+Phase: 8 of 12 (Backend Selection & Honesty) — **verified passed**  
+Plan: 2 of 2  
+Status: Phase 8 complete and verified — next is Phase 9  
 Last activity: 2026-08-09
 
-Progress: [██████████] 100%
+Progress: [██████████] 100% of Phase 8 plans (milestone 20%)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 18 (v1.0)
+- Total plans completed: 18 (v1.0) + 2 (v0.2 Phase 8)
 - Average duration: —
-- Total execution time: 0 hours (v0.2)
+- Total execution time: ~6 min plans (v0.2 Phase 8)
 
 **By Phase (v0.2):**
 
@@ -52,7 +52,7 @@ Progress: [██████████] 100%
 
 **Recent Trend:**
 
-- Last 5 plans: v1.0 Phase 07 complete
+- Phase 8 verified 2026-08-09 (5/5 must-haves)
 - Trend: —
 
 | Phase 08 P01 | 3min | 3 tasks | 7 files |
@@ -76,6 +76,7 @@ Decisions are logged in PROJECT.md Key Decisions table. v0.2 roadmap-binding:
 - [Phase 08]: Route never recomputes live from preferred_backend — pass-through only
 - [Phase 08]: Structured banner fields replace prose-only export-target notes
 - [Phase 08]: Footer shows requested → live; appends reason when they differ
+- [Phase 08 verified]: All roadmap SCs + BACK-01/02/04 + EDGE-RT-01..03 satisfied in code
 
 ### Pending Todos
 
@@ -84,7 +85,7 @@ None yet.
 ### Blockers/Concerns
 
 - Phase 10 may need light JetPack/TRT research at plan time (SKU matrix)
-- Soft vs strict default for jetson profile — decide in Phase 8/11 planning
+- Soft vs strict default for jetson profile — decide in Phase 11 planning (Phase 8 soft-stub is shipped)
 
 ## Deferred Items
 
@@ -98,8 +99,10 @@ From v1.0 close (carried forward; non-blocking for v0.2):
 
 See also: `milestones/v1.0-MILESTONE-AUDIT.md`.
 
+Live ORT/TRT inference deferred to Phases 9–10 (intentional Phase 8 soft-stub).
+
 ## Session Continuity
 
-Last session: 2026-08-09T19:45:25.077Z
-Stopped at: Completed 08-02-PLAN.md — Phase 8 ready for verification 
-Next: `/gsd:plan-phase 8`
+Last session: 2026-08-09T19:48:00Z  
+Stopped at: Phase 8 verification **passed** (5/5) — `08-VERIFICATION.md`  
+Next: `/gsd:plan-phase 9` (Live ORT Fixed-Class YOLO)
