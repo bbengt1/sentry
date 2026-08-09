@@ -29,7 +29,7 @@ Audit: [milestones/v1.0-MILESTONE-AUDIT.md](milestones/v1.0-MILESTONE-AUDIT.md)
 **Milestone Goal:** Fixed-class YOLO runs **live** on ONNX Runtime and TensorRT (profile-selected) on desktop and Jetson-class NVIDIA — not export recipes alone. Depth and open-vocab stay PyTorch. Perception spine (DetectionLoop / FrameBus / PerceptionStore / `/v1`) stays frozen.
 
 - [x] **Phase 8: Backend Selection & Honesty** - Factory wires `preferred_backend` to real loaders; status shows requested vs live (completed 2026-08-09)
-- [ ] **Phase 9: Live ORT Fixed-Class YOLO** - Profile-selected ONNX Runtime path produces schema-identical detections
+- [x] **Phase 9: Live ORT Fixed-Class YOLO** - Profile-selected ONNX Runtime path produces schema-identical detections (completed 2026-08-09)
 - [ ] **Phase 10: Live TensorRT Fixed-Class YOLO** - On-device `.engine` path for Jetson/desktop NVIDIA
 - [ ] **Phase 11: Sticky Fallback & Dual-Model Guardrails** - Documented sticky fail/fallback; depth/OV remain torch
 - [ ] **Phase 12: Docs, CI & Packaging Polish** - Export→serve narrative, AGPL lineage, CI without Jetson
@@ -66,7 +66,7 @@ Plans:
 
 Plans:
 - [x] 09-01-PLAN.md — Live Ultralytics-native ORT worker path + `onnx` extra
-- [ ] 09-02-PLAN.md — Detection parity / golden tests (CPU ORT or mocks)
+- [x] 09-02-PLAN.md — Detection parity / golden tests (CPU ORT or mocks)
 
 ### Phase 10: Live TensorRT Fixed-Class YOLO
 **Goal**: Jetson-class and NVIDIA desktop can run fixed-class YOLO live via TensorRT from an on-device `.engine` — no multi-SKU engines in the wheel, no pip `tensorrt` app dependency
@@ -125,7 +125,7 @@ Plans:
 | 6. Developer Controls & Open-Vocab | v1.0 | 2/2 | Complete | 2026-08-08 |
 | 7. Edge Profiles & Extension Stubs | v1.0 | 3/3 | Complete | 2026-08-08 |
 | 8. Backend Selection & Honesty | v0.2 | 2/2 | Complete   | 2026-08-09 |
-| 9. Live ORT Fixed-Class YOLO | v0.2 | 1/2 | In Progress|  |
+| 9. Live ORT Fixed-Class YOLO | v0.2 | 2/2 | Complete   | 2026-08-09 |
 | 10. Live TensorRT Fixed-Class YOLO | v0.2 | 0/2 | Not started | - |
 | 11. Sticky Fallback & Dual-Model Guardrails | v0.2 | 0/2 | Not started | - |
 | 12. Docs, CI & Packaging Polish | v0.2 | 0/2 | Not started | - |
