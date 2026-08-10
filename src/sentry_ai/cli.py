@@ -71,16 +71,42 @@ def _build_serve_source(
             if notes:
                 typer.echo(f"usb notes: {notes}")
 
-        # Continuity Camera: OpenCV often binds FaceTime while labels say
-        # Continuity. Prefer FFmpeg AVFoundation by device list/name.
-        use_ffmpeg = False
-        if info is not None and _is_continuity_camera(info):
-            use_ffmpeg = True
+        # Continuity: open by AVFoundation uniqueID (not OpenCV/FFmpeg index).
+        # Indices often bind FaceTime while labels still say Continuity.
+        is_cont = info is not None and _is_continuity_camera(info)
         sel = str(device).strip().lower()
         if sel in {"continuity", "iphone", "ipad", "ios", "auto"}:
-            use_ffmpeg = True
+            is_cont = True
 
-        if use_ffmpeg:
+        if is_cont and info is not None and info.unique_id:
+            try:
+                from sentry_ai.sources.avfoundation_unique import (
+                    AvFoundationUniqueSource,
+                )
+
+                typer.echo(
+                    "usb backend: AVFoundation uniqueID "
+                    f"(true Continuity identity: {info.unique_id[:18]}…)"
+                )
+                typer.echo(
+                    "Note: macOS may still light the laptop camera LED for "
+                    "privacy; the video should be from the iPhone if Continuity "
+                    "is active (check the Continuity UI on the phone)."
+                )
+                return AvFoundationUniqueSource(
+                    unique_id=info.unique_id,
+                    camera_id=camera_id or f"usb{idx}",
+                    device_label=info.name,
+                )
+            except Exception as exc:  # noqa: BLE001
+                typer.echo(
+                    f"usb note: uniqueID Continuity path failed ({exc}); "
+                    "trying ffmpeg/OpenCV",
+                    err=True,
+                )
+
+        # Fallback: FFmpeg by name/index (better than OpenCV for Continuity).
+        if is_cont:
             try:
                 from sentry_ai.sources.ffmpeg_avfoundation import (
                     FfmpegAvFoundationSource,
@@ -97,7 +123,6 @@ def _build_serve_source(
                         devices=ff_devs,
                     )
                     if matched is None and ff_devs:
-                        # Fall back to same numeric index if listed.
                         for fi, fn in ff_devs:
                             if fi == idx:
                                 matched = (fi, fn)
@@ -108,30 +133,14 @@ def _build_serve_source(
                             f"usb backend: ffmpeg avfoundation "
                             f"IDX {ff_idx} — {ff_name}"
                         )
-                        typer.echo(
-                            "(OpenCV often mis-binds Continuity to FaceTime; "
-                            "FFmpeg selects the iPhone device reliably.)"
-                        )
                         return FfmpegAvFoundationSource(
                             device_index=ff_idx,
                             camera_id=camera_id or f"usb{ff_idx}",
                             device_label=ff_name,
                         )
-                    typer.echo(
-                        "usb backend: ffmpeg available but no Continuity "
-                        "device match; falling back to OpenCV",
-                        err=True,
-                    )
-                else:
-                    typer.echo(
-                        "usb note: install ffmpeg for reliable Continuity "
-                        "(brew install ffmpeg); using OpenCV",
-                        err=True,
-                    )
             except Exception as exc:  # noqa: BLE001
                 typer.echo(
-                    f"usb note: ffmpeg Continuity path failed ({exc}); "
-                    "using OpenCV",
+                    f"usb note: ffmpeg Continuity path failed ({exc})",
                     err=True,
                 )
 

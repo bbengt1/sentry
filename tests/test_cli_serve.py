@@ -81,10 +81,10 @@ def test_build_serve_source_usb() -> None:
     assert src.target == 1
 
 
-def test_build_serve_source_continuity_uses_ffmpeg_when_available() -> None:
+def test_build_serve_source_continuity_uses_unique_id() -> None:
     from unittest.mock import patch
 
-    from sentry_ai.sources.ffmpeg_avfoundation import FfmpegAvFoundationSource
+    from sentry_ai.sources.avfoundation_unique import AvFoundationUniqueSource
     from sentry_ai.sources.list_cameras import LocalCameraInfo
 
     fake = LocalCameraInfo(
@@ -92,23 +92,11 @@ def test_build_serve_source_continuity_uses_ffmpeg_when_available() -> None:
         available=True,
         name="Brent iPhone Camera",
         notes=("Continuity Camera",),
+        unique_id="AAAA-BBBB-CCCC-0001",
     )
-    with (
-        patch(
-            "sentry_ai.sources.list_cameras.resolve_usb_device",
-            return_value=(1, fake),
-        ),
-        patch(
-            "sentry_ai.sources.ffmpeg_avfoundation.ffmpeg_available",
-            return_value=True,
-        ),
-        patch(
-            "sentry_ai.sources.ffmpeg_avfoundation.list_ffmpeg_av_video_devices",
-            return_value=[
-                (0, "FaceTime HD Camera"),
-                (1, "Brent iPhone Camera"),
-            ],
-        ),
+    with patch(
+        "sentry_ai.sources.list_cameras.resolve_usb_device",
+        return_value=(1, fake),
     ):
         src = _build_serve_source(
             source="usb",
@@ -117,8 +105,8 @@ def test_build_serve_source_continuity_uses_ffmpeg_when_available() -> None:
             url=None,
             camera_id=None,
         )
-    assert isinstance(src, FfmpegAvFoundationSource)
-    assert src.device_index == 1
+    assert isinstance(src, AvFoundationUniqueSource)
+    assert src.unique_id == "AAAA-BBBB-CCCC-0001"
 
 
 def test_build_serve_source_file_requires_path() -> None:

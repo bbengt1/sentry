@@ -84,9 +84,13 @@ Use the printed **IDX** with:
 uv run sentry serve --source usb --device continuity
 # or: --device auto   |  --device 1  (explicit OPEN=yes IDX)
 
-# Continuity on macOS uses **FFmpeg AVFoundation** when `ffmpeg` is on PATH
-# (`brew install ffmpeg`). OpenCV alone often opens FaceTime even when the
-# selected label says Continuity — serve prints `usb backend: ffmpeg …`.
+# Continuity on macOS opens by **AVFoundation uniqueID** (true Continuity
+# identity from `sentry cameras`). OpenCV/FFmpeg *indices* often bind FaceTime
+# even when the label says Continuity. Serve prints:
+#   usb backend: AVFoundation uniqueID (true Continuity identity: …)
+# Needs Xcode CLT (`xcode-select --install`) to compile the capture helper once.
+# macOS may still light the laptop camera LED for privacy — check the iPhone
+# Continuity Camera UI and that Live Preview moves when you move the phone.
 ```
 
 ## Manual verification checklist
