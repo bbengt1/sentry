@@ -81,7 +81,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 10-01-PLAN.md — Live Ultralytics-native TRT worker path (system TensorRT)
+- [x] 10-01-PLAN.md — Live Ultralytics-native TRT worker path (system TensorRT)
 - [ ] 10-02-PLAN.md — On-device engine lifecycle + Jetson packaging notes
 
 ### Phase 11: Sticky Fallback & Dual-Model Guardrails
@@ -127,7 +127,7 @@ Plans:
 | 7. Edge Profiles & Extension Stubs | v1.0 | 3/3 | Complete | 2026-08-08 |
 | 8. Backend Selection & Honesty | v0.2 | 2/2 | Complete   | 2026-08-09 |
 | 9. Live ORT Fixed-Class YOLO | v0.2 | 2/2 | Complete   | 2026-08-09 |
-| 10. Live TensorRT Fixed-Class YOLO | v0.2 | 0/2 | Not started | - |
+| 10. Live TensorRT Fixed-Class YOLO | v0.2 | 1/2 | In Progress|  |
 | 11. Sticky Fallback & Dual-Model Guardrails | v0.2 | 0/2 | Not started | - |
 | 12. Docs, CI & Packaging Polish | v0.2 | 0/2 | Not started | - |
 
