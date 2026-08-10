@@ -48,3 +48,27 @@ def test_pyproject_text_documents_onnx_install() -> None:
     text = PYPROJECT.read_text(encoding="utf-8")
     assert "onnxruntime>=1.20,<1.29" in text
     assert "--extra onnx" in text or "extra onnx" in text
+
+
+def test_wheel_force_include_has_no_engines_or_onnx() -> None:
+    """Wheel force-include ships profiles + UI static only — never model artifacts."""
+    text = PYPROJECT.read_text(encoding="utf-8")
+    assert 'packages = ["src/sentry_ai"]' in text or "packages = [" in text
+    assert "src/sentry_ai/config/profiles" in text
+    assert "src/sentry_ai/ui/static" in text
+    data = tomllib.loads(text)
+    force = (
+        data.get("tool", {})
+        .get("hatch", {})
+        .get("build", {})
+        .get("targets", {})
+        .get("wheel", {})
+        .get("force-include", {})
+    )
+    assert force, "expected hatch wheel force-include for profiles + UI static"
+    for src, dst in force.items():
+        assert not str(src).endswith((".engine", ".onnx", ".pt")), src
+        assert not str(dst).endswith((".engine", ".onnx", ".pt")), dst
+    joined_src = " ".join(str(s) for s in force)
+    assert "profiles" in joined_src
+    assert "static" in joined_src or "ui" in joined_src
