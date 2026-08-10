@@ -83,6 +83,10 @@ Use the printed **IDX** with:
 # Prefer Continuity by name (not laptop FaceTime index 0):
 uv run sentry serve --source usb --device continuity
 # or: --device auto   |  --device 1  (explicit OPEN=yes IDX)
+
+# Continuity on macOS uses **FFmpeg AVFoundation** when `ffmpeg` is on PATH
+# (`brew install ffmpeg`). OpenCV alone often opens FaceTime even when the
+# selected label says Continuity — serve prints `usb backend: ffmpeg …`.
 ```
 
 ## Manual verification checklist

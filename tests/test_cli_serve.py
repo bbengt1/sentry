@@ -59,9 +59,16 @@ def test_build_serve_source_usb() -> None:
         name="Test Continuity",
         notes=("Continuity Camera",),
     )
-    with patch(
-        "sentry_ai.sources.list_cameras.resolve_usb_device",
-        return_value=(1, fake),
+    with (
+        patch(
+            "sentry_ai.sources.list_cameras.resolve_usb_device",
+            return_value=(1, fake),
+        ),
+        # Force OpenCV path in this unit test (live Continuity uses FFmpeg).
+        patch(
+            "sentry_ai.sources.ffmpeg_avfoundation.ffmpeg_available",
+            return_value=False,
+        ),
     ):
         src = _build_serve_source(
             source="usb",
@@ -72,6 +79,46 @@ def test_build_serve_source_usb() -> None:
         )
     assert isinstance(src, UsbSource)
     assert src.target == 1
+
+
+def test_build_serve_source_continuity_uses_ffmpeg_when_available() -> None:
+    from unittest.mock import patch
+
+    from sentry_ai.sources.ffmpeg_avfoundation import FfmpegAvFoundationSource
+    from sentry_ai.sources.list_cameras import LocalCameraInfo
+
+    fake = LocalCameraInfo(
+        index=1,
+        available=True,
+        name="Brent iPhone Camera",
+        notes=("Continuity Camera",),
+    )
+    with (
+        patch(
+            "sentry_ai.sources.list_cameras.resolve_usb_device",
+            return_value=(1, fake),
+        ),
+        patch(
+            "sentry_ai.sources.ffmpeg_avfoundation.ffmpeg_available",
+            return_value=True,
+        ),
+        patch(
+            "sentry_ai.sources.ffmpeg_avfoundation.list_ffmpeg_av_video_devices",
+            return_value=[
+                (0, "FaceTime HD Camera"),
+                (1, "Brent iPhone Camera"),
+            ],
+        ),
+    ):
+        src = _build_serve_source(
+            source="usb",
+            device="continuity",
+            path=None,
+            url=None,
+            camera_id=None,
+        )
+    assert isinstance(src, FfmpegAvFoundationSource)
+    assert src.device_index == 1
 
 
 def test_build_serve_source_file_requires_path() -> None:

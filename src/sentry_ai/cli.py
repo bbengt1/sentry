@@ -53,7 +53,10 @@ def _build_serve_source(
             fps=30.0,
         )
     if name == "usb":
-        from sentry_ai.sources.list_cameras import resolve_usb_device
+        from sentry_ai.sources.list_cameras import (
+            _is_continuity_camera,
+            resolve_usb_device,
+        )
         from sentry_ai.sources.opencv_source import UsbSource
 
         try:
@@ -67,6 +70,72 @@ def _build_serve_source(
             notes = "; ".join(info.notes)
             if notes:
                 typer.echo(f"usb notes: {notes}")
+
+        # Continuity Camera: OpenCV often binds FaceTime while labels say
+        # Continuity. Prefer FFmpeg AVFoundation by device list/name.
+        use_ffmpeg = False
+        if info is not None and _is_continuity_camera(info):
+            use_ffmpeg = True
+        sel = str(device).strip().lower()
+        if sel in {"continuity", "iphone", "ipad", "ios", "auto"}:
+            use_ffmpeg = True
+
+        if use_ffmpeg:
+            try:
+                from sentry_ai.sources.ffmpeg_avfoundation import (
+                    FfmpegAvFoundationSource,
+                    ffmpeg_available,
+                    list_ffmpeg_av_video_devices,
+                    match_ffmpeg_device_index,
+                )
+
+                if ffmpeg_available():
+                    ff_devs = list_ffmpeg_av_video_devices()
+                    matched = match_ffmpeg_device_index(
+                        info.name if info else None,
+                        prefer_continuity=True,
+                        devices=ff_devs,
+                    )
+                    if matched is None and ff_devs:
+                        # Fall back to same numeric index if listed.
+                        for fi, fn in ff_devs:
+                            if fi == idx:
+                                matched = (fi, fn)
+                                break
+                    if matched is not None:
+                        ff_idx, ff_name = matched
+                        typer.echo(
+                            f"usb backend: ffmpeg avfoundation "
+                            f"IDX {ff_idx} — {ff_name}"
+                        )
+                        typer.echo(
+                            "(OpenCV often mis-binds Continuity to FaceTime; "
+                            "FFmpeg selects the iPhone device reliably.)"
+                        )
+                        return FfmpegAvFoundationSource(
+                            device_index=ff_idx,
+                            camera_id=camera_id or f"usb{ff_idx}",
+                            device_label=ff_name,
+                        )
+                    typer.echo(
+                        "usb backend: ffmpeg available but no Continuity "
+                        "device match; falling back to OpenCV",
+                        err=True,
+                    )
+                else:
+                    typer.echo(
+                        "usb note: install ffmpeg for reliable Continuity "
+                        "(brew install ffmpeg); using OpenCV",
+                        err=True,
+                    )
+            except Exception as exc:  # noqa: BLE001
+                typer.echo(
+                    f"usb note: ffmpeg Continuity path failed ({exc}); "
+                    "using OpenCV",
+                    err=True,
+                )
+
+        typer.echo("usb backend: opencv VideoCapture")
         return UsbSource(
             device=idx,
             camera_id=camera_id or f"usb{idx}",
