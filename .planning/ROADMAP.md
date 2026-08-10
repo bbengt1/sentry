@@ -32,7 +32,7 @@ Audit: [milestones/v1.0-MILESTONE-AUDIT.md](milestones/v1.0-MILESTONE-AUDIT.md)
 - [x] **Phase 9: Live ORT Fixed-Class YOLO** - Profile-selected ONNX Runtime path produces schema-identical detections (completed 2026-08-09)
 - [x] **Phase 10: Live TensorRT Fixed-Class YOLO** - On-device `.engine` path for Jetson/desktop NVIDIA (completed 2026-08-10)
 - [x] **Phase 11: Sticky Fallback & Dual-Model Guardrails** - Documented sticky fail/fallback; depth/OV remain torch (completed 2026-08-10) (completed 2026-08-10)
-- [ ] **Phase 12: Docs, CI & Packaging Polish** - Export→serve narrative, AGPL lineage, CI without Jetson
+- [x] **Phase 12: Docs, CI & Packaging Polish** - Export→serve narrative, AGPL lineage, CI without Jetson (completed 2026-08-10)
 
 ## Phase Details
 
@@ -111,8 +111,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 12-01-PLAN.md — Edge serve docs + AGPL/export lineage refresh
-- [ ] 12-02-PLAN.md — CI selection/fallback matrix hardening (no Jetson in GHA)
+- [x] 12-01-PLAN.md — Edge serve docs + AGPL/export lineage refresh
+- [x] 12-02-PLAN.md — CI selection/fallback matrix hardening (no Jetson in GHA)
 
 ## Progress
 
@@ -129,7 +129,7 @@ Plans:
 | 9. Live ORT Fixed-Class YOLO | v0.2 | 2/2 | Complete   | 2026-08-09 |
 | 10. Live TensorRT Fixed-Class YOLO | v0.2 | 2/2 | Complete   | 2026-08-10 |
 | 11. Sticky Fallback & Dual-Model Guardrails | v0.2 | 2/2 | Complete   | 2026-08-10 |
-| 12. Docs, CI & Packaging Polish | v0.2 | 0/2 | Not started | - |
+| 12. Docs, CI & Packaging Polish | v0.2 | 2/2 | Complete   | 2026-08-10 |
 
 ## Coverage Map (v0.2)
 

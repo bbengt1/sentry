@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.2
 milestone_name: Edge Runtime
-status: ready_to_execute
-stopped_at: Completed 11-02-PLAN.md
-last_updated: "2026-08-10T18:13:36.712Z"
+status: verifying
+stopped_at: Completed 12-02-PLAN.md
+last_updated: "2026-08-10T21:26:54.658Z"
 last_activity: 2026-08-10
 progress:
   total_phases: 5
-  completed_phases: 4
-  total_plans: 8
-  completed_plans: 8
-  percent: 80
+  completed_phases: 5
+  total_plans: 10
+  completed_plans: 10
+  percent: 100
 ---
 
 # Project State
@@ -21,11 +21,11 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-09)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots — without proprietary sensors or cloud AI.  
-**Current focus:** Phase 12 planned (2026-08-10) — ready for `/gsd:execute-phase 12`
+**Current focus:** Phase 12 — Docs, CI & Packaging Polish
 
 ## Current Position
 
-Phase: 11 (Sticky Fallback & Dual-Model Guardrails) — EXECUTING
+Phase: 12 (Docs, CI & Packaging Polish) — EXECUTING
 Plan: 2 of 2
 Status: Phase complete — ready for verification
 Last activity: 2026-08-10
@@ -68,6 +68,7 @@ Progress: [██████████] 100%
 | Phase 10 P02 | 2min | 2 tasks | 7 files |
 | Phase 11 P01 | 3min | 3 tasks | 9 files |
 | Phase 11 P02 | 3min | 2 tasks | 12 files |
+| Phase 12 P02 | 1min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -109,6 +110,9 @@ Decisions are logged in PROJECT.md Key Decisions table. v0.2 roadmap-binding:
 - [Phase 11]: fallback_to_torch is bool|None on StatusSnapshot with is-not-None pass-through (False preserved)
 - [Phase 11]: EDGE-RT-04: depth/OV stay PyTorch constructors outside build_detection_worker
 - [Phase 11]: Dual-model: measure-on-device YOLO+DAV2; continuous OV+TRT+DAV2 not first-class; Phase 11 deferral retired
+- [Phase 12]: Leave ci.yml byte-identical — already Jetson/GPU-free; lock with tests only
+- [Phase 12]: EDGE-CI-01 is verify-only — no factory rewrite; document matrix ownership in test docstring
+- [Phase 12]: gitignore *.engine/*.onnx next to *.pt; zero tracked engines confirmed
 
 ### Pending Todos
 
@@ -135,7 +139,7 @@ Live ORT/TRT inference deferred to Phases 9–10 (intentional Phase 8 soft-stub)
 
 ## Session Continuity
 
-Last session: 2026-08-10T18:13:36.418Z
-Stopped at: Completed 11-02-PLAN.md
+Last session: 2026-08-10T21:26:29.268Z
+Stopped at: Completed 12-02-PLAN.md
 Resume file: None
 Next: Execute 11-02-PLAN.md (dual-model scope lock + operator status surface EDGE-RT-04)

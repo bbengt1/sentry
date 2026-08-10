@@ -38,10 +38,10 @@
 
 ### Docs, CI, safety
 
-- [ ] **EDGE-DOC-01**: Jetson/desktop edge serve docs cover export → engine/onnx → `sentry serve --profile … --no-ui` (or with UI)
-- [ ] **EDGE-DOC-02**: AGPL Ultralytics remains documented for ORT/TRT artifacts derived from YOLO weights
-- [ ] **EDGE-CI-01**: Unit tests cover backend selection, missing-artifact honesty, and factory wiring without NVIDIA Jetson in CI
-- [ ] **EDGE-CI-02**: No required Jetson or TensorRT GPU in GitHub Actions
+- [x] **EDGE-DOC-01**: Jetson/desktop edge serve docs cover export → engine/onnx → `sentry serve --profile … --no-ui` (or with UI)
+- [x] **EDGE-DOC-02**: AGPL Ultralytics remains documented for ORT/TRT artifacts derived from YOLO weights
+- [x] **EDGE-CI-01**: Unit tests cover backend selection, missing-artifact honesty, and factory wiring without NVIDIA Jetson in CI
+- [x] **EDGE-CI-02**: No required Jetson or TensorRT GPU in GitHub Actions
 
 ## Future Requirements (deferred)
 
@@ -82,10 +82,10 @@
 | EDGE-RT-02 | Phase 8 | Complete |
 | EDGE-RT-03 | Phase 8 | Complete |
 | EDGE-RT-04 | Phase 11 | Complete |
-| EDGE-DOC-01 | Phase 12 | Pending |
-| EDGE-DOC-02 | Phase 12 | Pending |
-| EDGE-CI-01 | Phase 12 | Pending |
-| EDGE-CI-02 | Phase 12 | Pending |
+| EDGE-DOC-01 | Phase 12 | Complete |
+| EDGE-DOC-02 | Phase 12 | Complete |
+| EDGE-CI-01 | Phase 12 | Complete |
+| EDGE-CI-02 | Phase 12 | Complete |
 
 ---
 *Requirements defined 2026-08-09 for milestone v0.2 Edge Runtime*  
