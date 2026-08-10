@@ -79,7 +79,7 @@ Each task was committed atomically:
 1. **Task 1: Docs honesty for live TRT + on-device lifecycle (TRT-02, TRT-03)** - `0a9503f` (docs)
 2. **Task 2: Keyword/static tests for TRT-02/03 + phase suite gate** - `6bb2dc1` (test)
 
-**Plan metadata:** `1f3a5fb` (docs: complete plan)
+**Plan metadata:** `90e5daa` (docs: complete plan)
 
 ## Files Created/Modified
 
@@ -168,4 +168,4 @@ rg -n 'TRT not live yet|live TensorRT is not claimed until a future' docs/
 - FOUND: `docs/configuration.md`
 - FOUND: `src/sentry_ai/config/profiles/jetson.yaml`
 - FOUND: `tests/test_export_docs.py`
-- FOUND: commits `0a9503f`, `6bb2dc1`
+- FOUND: commits `0a9503f`, `6bb2dc1`, `90e5daa`
