@@ -1,4 +1,6 @@
-"""Serve-time fixed-class detection worker factory (BACK-01, EDGE-RT-02, ORT-01, TRT-01).
+"""Serve-time fixed-class detection worker factory.
+
+Covers BACK-01, EDGE-RT-02, ORT-01, TRT-01.
 
 Branches on ``ProfileRuntime.preferred_backend``. Torch path is fully live via
 ``YoloDetectionWorker``. Phase 9: preferred ``onnxruntime`` is live when an

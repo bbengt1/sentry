@@ -1,4 +1,4 @@
-"""BACK-01 / EDGE-RT-03 / ORT-01 / TRT-01: build_detection_worker honesty + live ORT/TRT."""
+"""Factory honesty tests: live ORT/TRT + soft-fallback reason matrix."""
 
 from __future__ import annotations
 

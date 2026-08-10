@@ -75,12 +75,12 @@ def test_status_snapshot_backend_fields_optional() -> None:
         frames_dropped=0,
         backend_requested="tensorrt",
         backend_live="torch",
-        backend_reason="trt_loader_not_implemented",
+        backend_reason="trt_artifact_missing",
     )
     dumped = filled.model_dump()
     assert dumped["backend_requested"] == "tensorrt"
     assert dumped["backend_live"] == "torch"
-    assert dumped["backend_reason"] == "trt_loader_not_implemented"
+    assert dumped["backend_reason"] == "trt_artifact_missing"
 
 
 def test_api_status_honesty_tensorrt_soft_stub() -> None:
@@ -88,7 +88,7 @@ def test_api_status_honesty_tensorrt_soft_stub() -> None:
     loop, app = _running_app(
         backend_requested="tensorrt",
         backend_live="torch",
-        backend_reason="trt_loader_not_implemented",
+        backend_reason="trt_artifact_missing",
     )
     try:
         with TestClient(app) as client:
@@ -97,7 +97,7 @@ def test_api_status_honesty_tensorrt_soft_stub() -> None:
             data = resp.json()
             assert data["backend_requested"] == "tensorrt"
             assert data["backend_live"] == "torch"
-            assert data["backend_reason"] == "trt_loader_not_implemented"
+            assert data["backend_reason"] == "trt_artifact_missing"
             # Route must never invent live ORT/TRT
             assert data["backend_live"] not in ("tensorrt", "onnxruntime")
     finally:
@@ -182,6 +182,30 @@ def test_api_status_honesty_onnxruntime_live() -> None:
         loop.stop()
 
 
+def test_api_status_honesty_tensorrt_live() -> None:
+    """Live TRT: requested=tensorrt live=tensorrt reason=None pass-through.
+
+    Status must not recompute live from preferred — factory-authored fields only.
+    """
+    loop, app = _running_app(
+        backend_requested="tensorrt",
+        backend_live="tensorrt",
+        backend_reason=None,
+    )
+    try:
+        with TestClient(app) as client:
+            resp = client.get("/api/status")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["backend_requested"] == "tensorrt"
+            assert data["backend_live"] == "tensorrt"
+            assert data.get("backend_reason") is None
+            # Pass-through: live TRT is allowed when factory authored it
+            assert data["backend_live"] == data["backend_requested"]
+    finally:
+        loop.stop()
+
+
 def test_status_snapshot_live_ort_fields() -> None:
     """StatusSnapshot accepts live=onnxruntime with reason=None."""
     snap = StatusSnapshot(
@@ -200,6 +224,23 @@ def test_status_snapshot_live_ort_fields() -> None:
     assert dumped.get("backend_reason") is None
 
 
+def test_status_snapshot_live_trt_fields() -> None:
+    """StatusSnapshot accepts live=tensorrt with reason=None."""
+    snap = StatusSnapshot(
+        source="synthetic",
+        camera_id="cam0",
+        status=SourceStatus.STREAMING,
+        capture_fps=0.0,
+        frames_dropped=0,
+        backend_requested="tensorrt",
+        backend_live="tensorrt",
+        backend_reason=None,
+    )
+    dumped = snap.model_dump()
+    assert dumped["backend_requested"] == "tensorrt"
+    assert dumped["backend_live"] == "tensorrt"
+    assert dumped.get("backend_reason") is None
+
 
 def test_create_app_attaches_backend_to_app_state() -> None:
     """create_app kwargs land on app.state (and AppState when mirrored)."""
@@ -213,15 +254,15 @@ def test_create_app_attaches_backend_to_app_state() -> None:
         bind="127.0.0.1:8000",
         backend_requested="tensorrt",
         backend_live="torch",
-        backend_reason="trt_loader_not_implemented",
+        backend_reason="trt_artifact_missing",
     )
     assert app.state.backend_requested == "tensorrt"
     assert app.state.backend_live == "torch"
-    assert app.state.backend_reason == "trt_loader_not_implemented"
+    assert app.state.backend_reason == "trt_artifact_missing"
     deps = app.state.deps
     assert getattr(deps, "backend_requested", None) == "tensorrt"
     assert getattr(deps, "backend_live", None) == "torch"
-    assert getattr(deps, "backend_reason", None) == "trt_loader_not_implemented"
+    assert getattr(deps, "backend_reason", None) == "trt_artifact_missing"
 
 
 def test_live_preview_html_has_backend_metric() -> None:
