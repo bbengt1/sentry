@@ -213,3 +213,77 @@ def test_readme_links_export_docs() -> None:
     lowered = readme.lower()
     assert "export" in lowered
     assert "onnx" in lowered or "tensorrt" in lowered or "edge" in lowered
+
+
+def test_export_docs_dual_model_measure_on_device() -> None:
+    """Dual-model: TRT/torch YOLO + torch depth may share GPU — measure on device."""
+    yolo = _read("yolo26-onnx-tensorrt.md")
+    jetson = _read("jetson-packaging.md")
+    readme = _read("README.md")
+    blob = (yolo + "\n" + jetson + "\n" + readme).lower()
+    assert "measure" in blob
+    assert "on device" in blob or "on-device" in blob
+    # Dual-model scope language present
+    assert "dual-model" in blob or "dual model" in blob
+    # YOLO + depth pairing
+    assert "depth" in blob
+    assert "yolo" in blob or "torch" in blob
+
+
+def test_export_docs_continuous_ov_not_first_class() -> None:
+    """Continuous open-vocab + TRT YOLO + DAV2 is not a first-class config."""
+    yolo = _read("yolo26-onnx-tensorrt.md").lower()
+    jetson = _read("jetson-packaging.md").lower()
+    blob = yolo + "\n" + jetson
+    assert "continuous open-vocab" in blob or "continuous" in blob
+    assert (
+        "not a first-class" in blob
+        or "not first-class" in blob
+        or "not first class" in blob
+    )
+
+
+def test_export_docs_sticky_soft_strict_shipped() -> None:
+    """Sticky / soft / strict language present; fallback_to_torch documented."""
+    yolo = _read("yolo26-onnx-tensorrt.md")
+    jetson = _read("jetson-packaging.md")
+    readme = _read("README.md")
+    blob = yolo + "\n" + jetson + "\n" + readme
+    lowered = blob.lower()
+    assert "sticky" in lowered or "once" in lowered
+    assert (
+        "fallback_to_torch" in blob
+        or "sentry_fallback_to_torch" in lowered
+        or ("soft" in lowered and "strict" in lowered)
+    )
+
+
+def test_export_docs_no_phase11_deferral_for_sticky_dual_model() -> None:
+    """Phase 11 deferral language for sticky/dual-model must be retired."""
+    yolo = _read("yolo26-onnx-tensorrt.md")
+    jetson = _read("jetson-packaging.md")
+    for name, text in (("yolo26", yolo), ("jetson", jetson)):
+        assert "Phase 11 owns" not in text, f"{name}: still defers dual-model"
+        assert "deferred to Phase 11" not in text, f"{name}: deferred phrase"
+        assert "Sticky thrash-free fallback policy (Phase 11)" not in text
+        # Dual-model scheduling "are Phase 11" style deferral
+        assert "guardrails are Phase 11" not in text
+        assert "guardrails (Phase 11)" not in text
+
+
+def test_export_docs_no_guaranteed_dual_model_fps() -> None:
+    """Forbid bare dual-model FPS product claims without methodology."""
+    yolo = _read("yolo26-onnx-tensorrt.md").lower()
+    jetson = _read("jetson-packaging.md").lower()
+    blob = yolo + "\n" + jetson
+    # Must not invent a hard dual-model FPS number as a guarantee
+    assert "30 fps dual-model" not in blob
+    assert "guaranteed" not in blob or "fps" not in blob.split("guaranteed")[0][-40:]
+    # Positive honesty: no published dual-model FPS claim language or measure-only
+    assert (
+        "no dual-model fps" in blob
+        or "no published dual-model" in blob
+        or "do not invent dual-model" in blob
+        or "no dual-model fps claim" in blob
+        or ("measure" in blob and "fps" in blob)
+    )
