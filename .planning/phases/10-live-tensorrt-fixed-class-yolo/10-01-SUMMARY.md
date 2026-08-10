@@ -81,7 +81,7 @@ Each task was committed atomically:
 3. **Task 2: TRT process parity + conf golden suite (TRT-04)** - `c968ce0` (test)
 4. **Task 3: Live TRT status honesty triple + soft reason fixtures** - `294c3cf` (test)
 
-**Plan metadata:** `b088196` (docs: complete plan)
+**Plan metadata:** `292281c` (docs: complete plan)
 
 ## Files Created/Modified
 
