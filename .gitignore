@@ -39,4 +39,8 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# Local model weights / export artifacts (never commit engines or graphs)
 *.pt
+*.engine
+*.onnx
