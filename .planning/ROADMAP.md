@@ -81,8 +81,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 10-01: Live Ultralytics-native TRT worker path (system TensorRT)
-- [ ] 10-02: On-device engine lifecycle + Jetson packaging notes
+- [ ] 10-01-PLAN.md — Live Ultralytics-native TRT worker path (system TensorRT)
+- [ ] 10-02-PLAN.md — On-device engine lifecycle + Jetson packaging notes
 
 ### Phase 11: Sticky Fallback & Dual-Model Guardrails
 **Goal**: Missing ORT/TRT artifacts or deps never thrash or silently lie; depth and open-vocab stay on existing PyTorch paths this milestone
