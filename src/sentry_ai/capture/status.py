@@ -75,3 +75,5 @@ class StatusSnapshot(BaseModel):
     backend_requested: str | None = None
     backend_live: str | None = None
     backend_reason: str | None = None
+    # Phase 11 BACK-03: soft vs strict policy surface (pass-through only).
+    fallback_to_torch: bool | None = None

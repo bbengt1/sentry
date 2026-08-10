@@ -606,6 +606,7 @@ def serve(
         backend_requested=backend_requested,
         backend_live=backend_live,
         backend_reason=backend_reason,
+        fallback_to_torch=getattr(rt, "fallback_to_torch", True),
         serve_ui=not no_ui,
     )
 

@@ -30,3 +30,5 @@ class AppState:
     backend_requested: str | None = None
     backend_live: str | None = None
     backend_reason: str | None = None
+    # Phase 11 BACK-03: soft vs strict policy (pass-through; False must survive).
+    fallback_to_torch: bool | None = None

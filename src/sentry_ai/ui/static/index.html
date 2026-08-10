@@ -446,18 +446,32 @@
           : "—";
         elBind.textContent = (data && data.bind) ? String(data.bind) : "—";
 
-        // Phase 8 BACK-02: backend requested → live (factory-authored only).
+        // Phase 8 BACK-02 / Phase 11 BACK-03: requested → live (+ reason).
+        // Show reason when live is missing OR differs from requested (strict null).
         if (elBackend) {
           var req = data && data.backend_requested ? String(data.backend_requested) : null;
           var live = data && data.backend_live ? String(data.backend_live) : null;
-          if (req || live) {
+          var reason = data && data.backend_reason ? String(data.backend_reason) : null;
+          var fb = data && typeof data.fallback_to_torch === "boolean"
+            ? data.fallback_to_torch
+            : null;
+          if (req || live || reason) {
             var pair = (req || "—") + " → " + (live || "—");
-            var reason = data && data.backend_reason ? String(data.backend_reason) : null;
-            if (reason && req && live && req !== live) {
-              elBackend.textContent = pair + " (" + reason + ")";
-              elBackend.title = reason;
+            var showReason = reason && (!live || (req && req !== live));
+            var label = showReason ? pair + " (" + reason + ")" : pair;
+            if (fb === false) {
+              label = label + " [strict]";
+            } else if (fb === true && showReason) {
+              label = label + " [soft]";
+            }
+            elBackend.textContent = label;
+            var titleParts = [];
+            if (reason) titleParts.push(reason);
+            if (fb === true) titleParts.push("fallback_to_torch=true");
+            if (fb === false) titleParts.push("fallback_to_torch=false");
+            if (titleParts.length) {
+              elBackend.title = titleParts.join("; ");
             } else {
-              elBackend.textContent = pair;
               elBackend.removeAttribute("title");
             }
           } else {

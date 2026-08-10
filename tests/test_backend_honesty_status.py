@@ -66,6 +66,7 @@ def test_status_snapshot_backend_fields_optional() -> None:
     assert data.get("backend_requested") is None
     assert data.get("backend_live") is None
     assert data.get("backend_reason") is None
+    assert data.get("fallback_to_torch") is None
 
     filled = StatusSnapshot(
         source="synthetic",
@@ -76,11 +77,28 @@ def test_status_snapshot_backend_fields_optional() -> None:
         backend_requested="tensorrt",
         backend_live="torch",
         backend_reason="trt_artifact_missing",
+        fallback_to_torch=True,
     )
     dumped = filled.model_dump()
     assert dumped["backend_requested"] == "tensorrt"
     assert dumped["backend_live"] == "torch"
     assert dumped["backend_reason"] == "trt_artifact_missing"
+    assert dumped["fallback_to_torch"] is True
+
+    strict = StatusSnapshot(
+        source="synthetic",
+        camera_id="cam0",
+        status=SourceStatus.STREAMING,
+        capture_fps=0.0,
+        frames_dropped=0,
+        backend_requested="tensorrt",
+        backend_live=None,
+        backend_reason="trt_artifact_missing",
+        fallback_to_torch=False,
+    )
+    strict_dump = strict.model_dump()
+    assert strict_dump["fallback_to_torch"] is False
+    assert strict_dump["backend_live"] is None
 
 
 def test_api_status_honesty_tensorrt_soft_stub() -> None:
@@ -89,6 +107,7 @@ def test_api_status_honesty_tensorrt_soft_stub() -> None:
         backend_requested="tensorrt",
         backend_live="torch",
         backend_reason="trt_artifact_missing",
+        fallback_to_torch=True,
     )
     try:
         with TestClient(app) as client:
@@ -98,6 +117,7 @@ def test_api_status_honesty_tensorrt_soft_stub() -> None:
             assert data["backend_requested"] == "tensorrt"
             assert data["backend_live"] == "torch"
             assert data["backend_reason"] == "trt_artifact_missing"
+            assert data["fallback_to_torch"] is True
             # Route must never invent live ORT/TRT
             assert data["backend_live"] not in ("tensorrt", "onnxruntime")
     finally:
@@ -109,15 +129,17 @@ def test_api_status_honesty_onnxruntime_soft_stub() -> None:
     loop, app = _running_app(
         backend_requested="onnxruntime",
         backend_live="torch",
-        backend_reason="ort_loader_not_implemented",
+        backend_reason="ort_artifact_missing",
+        fallback_to_torch=True,
     )
     try:
         with TestClient(app) as client:
             data = client.get("/api/status").json()
             assert data["backend_requested"] == "onnxruntime"
             assert data["backend_live"] == "torch"
-            assert data["backend_reason"] == "ort_loader_not_implemented"
+            assert data["backend_reason"] == "ort_artifact_missing"
             assert data["backend_live"] not in ("tensorrt", "onnxruntime")
+            assert data["fallback_to_torch"] is True
     finally:
         loop.stop()
 
@@ -255,14 +277,69 @@ def test_create_app_attaches_backend_to_app_state() -> None:
         backend_requested="tensorrt",
         backend_live="torch",
         backend_reason="trt_artifact_missing",
+        fallback_to_torch=False,
     )
     assert app.state.backend_requested == "tensorrt"
     assert app.state.backend_live == "torch"
     assert app.state.backend_reason == "trt_artifact_missing"
+    assert app.state.fallback_to_torch is False
     deps = app.state.deps
     assert getattr(deps, "backend_requested", None) == "tensorrt"
     assert getattr(deps, "backend_live", None) == "torch"
     assert getattr(deps, "backend_reason", None) == "trt_artifact_missing"
+    assert getattr(deps, "fallback_to_torch", None) is False
+
+
+def test_api_status_fallback_to_torch_true_pass_through() -> None:
+    """Soft policy flag False must not be dropped by truthiness checks."""
+    loop, app = _running_app(
+        backend_requested="onnxruntime",
+        backend_live="torch",
+        backend_reason="ort_artifact_missing",
+        fallback_to_torch=True,
+    )
+    try:
+        with TestClient(app) as client:
+            data = client.get("/api/status").json()
+            assert data["fallback_to_torch"] is True
+    finally:
+        loop.stop()
+
+
+def test_api_status_fallback_to_torch_false_pass_through() -> None:
+    """Strict policy: fallback_to_torch=False survives /api/status pass-through."""
+    loop, app = _running_app(
+        backend_requested="tensorrt",
+        backend_live=None,
+        backend_reason="trt_artifact_missing",
+        fallback_to_torch=False,
+    )
+    try:
+        with TestClient(app) as client:
+            data = client.get("/api/status").json()
+            assert data["fallback_to_torch"] is False
+            assert data["backend_requested"] == "tensorrt"
+            assert data.get("backend_live") is None
+            assert data["backend_reason"] == "trt_artifact_missing"
+    finally:
+        loop.stop()
+
+
+def test_api_status_does_not_recompute_live_from_preferred() -> None:
+    """Route source must not import factory or preferred_backend for live."""
+    from pathlib import Path
+
+    route_src = (
+        Path(__file__).resolve().parents[1]
+        / "src"
+        / "sentry_ai"
+        / "api"
+        / "routes_preview.py"
+    ).read_text(encoding="utf-8")
+    assert "build_detection_worker" not in route_src
+    assert "preferred_backend" not in route_src or "Never recompute" in route_src
+    # Pass-through only — no inventing live from preferred
+    assert "fallback_to_torch" in route_src
 
 
 def test_live_preview_html_has_backend_metric() -> None:
@@ -281,5 +358,9 @@ def test_live_preview_html_has_backend_metric() -> None:
     assert "metric-backend" in text
     assert "backend_requested" in text
     assert "backend_live" in text
+    assert "backend_reason" in text
+    assert "fallback_to_torch" in text
+    # Strict null-live still shows reason
+    assert "!live" in text or "showReason" in text
 
 

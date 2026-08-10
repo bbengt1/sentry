@@ -176,10 +176,16 @@ async def api_status(request: Request) -> dict[str, Any]:
         except Exception:  # noqa: BLE001 — status best-effort
             pass
 
-    # Phase 8 BACK-02: factory-authored backend honesty (pass-through only).
+    # Phase 8 BACK-02 / Phase 11 BACK-03: factory-authored honesty (pass-through).
     # Never recompute live from preferred_backend; never invent ORT/TRT live.
+    # Use ``is not None`` so fallback_to_torch=False (strict) is preserved.
     try:
-        for field in ("backend_requested", "backend_live", "backend_reason"):
+        for field in (
+            "backend_requested",
+            "backend_live",
+            "backend_reason",
+            "fallback_to_torch",
+        ):
             value = getattr(request.app.state, field, None)
             if value is not None:
                 data[field] = value
