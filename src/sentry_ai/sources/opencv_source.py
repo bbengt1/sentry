@@ -9,6 +9,7 @@ match ``sentry cameras`` / Continuity Camera probes.
 
 from __future__ import annotations
 
+import logging
 import sys
 import time
 from typing import Any
@@ -20,10 +21,16 @@ from sentry_ai.capture.image_frame import ImageFrame
 from sentry_ai.schemas.frame import Frame
 from sentry_ai.sources.errors import SourceDisconnected, SourceError
 
+logger = logging.getLogger(__name__)
+
 _URL_PREFIXES = ("rtsp://", "rtsps://", "http://", "https://")
-# Continuity / AVFoundation often need a few discarded reads after open.
-_DEVICE_WARMUP_READS = 8
-_DEVICE_WARMUP_SLEEP_S = 0.05
+# Continuity Camera often returns black frames for a second after open.
+# Do NOT release the device on slow first frames — open/close thrashing
+# prevents Continuity from ever waking.
+_DEVICE_WAKE_SETTLE_S = 0.35
+_DEVICE_WARMUP_READS = 40
+_DEVICE_WARMUP_SLEEP_S = 0.12
+_BLACK_MEAN_THRESHOLD = 1.0
 
 
 def _is_file_target(target: int | str) -> bool:
@@ -41,6 +48,19 @@ def _open_video_capture(target: int | str) -> Any:
         if api is not None:
             return cv2.VideoCapture(target, api)
     return cv2.VideoCapture(target)
+
+
+def _frame_mean(bgr: np.ndarray) -> float:
+    try:
+        return float(np.mean(bgr))
+    except Exception:  # noqa: BLE001
+        return -1.0
+
+
+def _is_black_frame(bgr: np.ndarray) -> bool:
+    """Near-all-black frames are common for cold Continuity Camera wakes."""
+    m = _frame_mean(bgr)
+    return 0.0 <= m < _BLACK_MEAN_THRESHOLD
 
 
 class OpenCVSource:
@@ -65,6 +85,7 @@ class OpenCVSource:
         self._cap: Any | None = None
         self._next_frame_id = 0
         self._is_file = _is_file_target(target)
+        self._black_warn_logged = False
 
     def open(self) -> None:
         self._cap = _open_video_capture(self.target)
@@ -74,26 +95,50 @@ class OpenCVSource:
             raise SourceError(f"failed to open source: {self.target!r}")
         # Best-effort low latency (may be ignored by some backends).
         self._cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-        # Live devices (USB / Continuity): discard a few reads so the first
-        # real frame is more likely valid after AVFoundation / Continuity wake.
-        if isinstance(self.target, int):
-            got_frame = False
-            for _ in range(_DEVICE_WARMUP_READS):
-                ok, frame = self._cap.read()
-                if ok and frame is not None:
-                    got_frame = True
-                    break
-                time.sleep(_DEVICE_WARMUP_SLEEP_S)
-            if not got_frame:
-                # Leave open — CaptureLoop will reconnect; surface a clear error.
-                self._cap.release()
-                self._cap = None
-                raise SourceError(
-                    f"opened device {self.target!r} but no frames yet "
-                    f"(macOS Continuity: unlock iPhone, leave Continuity free, "
-                    f"use the IDX with OPEN=yes from `sentry cameras`)"
-                )
+        self._black_warn_logged = False
         self._next_frame_id = 0
+
+        # Live devices: settle + warm-up. Prefer a non-black frame, but keep
+        # the capture open even if frames are black or late — Continuity often
+        # needs several seconds without open/close thrash.
+        if not isinstance(self.target, int):
+            return
+
+        time.sleep(_DEVICE_WAKE_SETTLE_S)
+        saw_any = False
+        saw_non_black = False
+        for i in range(_DEVICE_WARMUP_READS):
+            ok, frame = self._cap.read()
+            if ok and frame is not None and isinstance(frame, np.ndarray):
+                saw_any = True
+                if not _is_black_frame(frame):
+                    saw_non_black = True
+                    logger.info(
+                        "USB device %r warm-up: usable frame at attempt %s "
+                        "(mean=%.1f)",
+                        self.target,
+                        i,
+                        _frame_mean(frame),
+                    )
+                    break
+            time.sleep(_DEVICE_WARMUP_SLEEP_S)
+
+        if not saw_any:
+            logger.warning(
+                "USB device %r opened but no frames yet; leaving capture open "
+                "for reconnect. Continuity: unlock iPhone, free Continuity "
+                "Camera, re-run `sentry cameras` for OPEN=yes IDX.",
+                self.target,
+            )
+        elif not saw_non_black:
+            logger.warning(
+                "USB device %r is delivering black frames after warm-up "
+                "(common for Continuity before the iPhone stream activates). "
+                "Leave serve running; unlock iPhone; Control Center → "
+                "Continuity Camera; ensure nothing else holds the camera.",
+                self.target,
+            )
+            self._black_warn_logged = True
 
     def read(self) -> ImageFrame:
         if self._cap is None:
@@ -109,6 +154,19 @@ class OpenCVSource:
 
         if not isinstance(bgr, np.ndarray):
             raise SourceDisconnected(f"invalid frame from {self.target!r}")
+
+        if (
+            isinstance(self.target, int)
+            and not self._black_warn_logged
+            and _is_black_frame(bgr)
+        ):
+            logger.warning(
+                "USB device %r frame is all-black (mean≈0). If this is "
+                "Continuity Camera: unlock iPhone, leave Continuity free, "
+                "or pick the camera in Control Center / Photo Booth once.",
+                self.target,
+            )
+            self._black_warn_logged = True
 
         h, w = bgr.shape[:2]
         now = time.time()

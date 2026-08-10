@@ -68,7 +68,8 @@ def test_usb_open_uses_avfoundation_on_macos() -> None:
             source.close()
 
 
-def test_usb_open_no_frames_raises_clear_continuity_hint() -> None:
+def test_usb_open_keeps_capture_when_warmup_has_no_frames() -> None:
+    """Continuity wake: do not thrash open/close if first reads fail."""
     cap = MagicMock()
     cap.isOpened.return_value = True
     cap.read.return_value = (False, None)
@@ -80,8 +81,35 @@ def test_usb_open_no_frames_raises_clear_continuity_hint() -> None:
         patch("sentry_ai.sources.opencv_source.time.sleep", return_value=None),
     ):
         source = UsbSource(device=1, camera_id="usb1")
-        with pytest.raises(SourceError, match="no frames|Continuity|cameras"):
-            source.open()
+        source.open()
+        try:
+            # Capture stays open for CaptureLoop retries.
+            assert source._cap is cap
+            cap.release.assert_not_called()
+        finally:
+            source.close()
+
+
+def test_usb_open_accepts_black_then_non_black_warmup() -> None:
+    black = np.zeros((48, 64, 3), dtype=np.uint8)
+    bright = np.full((48, 64, 3), 128, dtype=np.uint8)
+    cap = MagicMock()
+    cap.isOpened.return_value = True
+    cap.read.side_effect = [
+        (True, black),
+        (True, black),
+        (True, bright),
+    ]
+
+    vc_path = "sentry_ai.sources.opencv_source.cv2.VideoCapture"
+    with (
+        patch(vc_path, return_value=cap),
+        patch("sentry_ai.sources.opencv_source.sys.platform", "linux"),
+        patch("sentry_ai.sources.opencv_source.time.sleep", return_value=None),
+    ):
+        source = UsbSource(device=1, camera_id="usb1")
+        source.open()
+        source.close()
 
 
 def test_usb_open_failure_raises_source_error() -> None:
@@ -98,16 +126,15 @@ def test_usb_open_failure_raises_source_error() -> None:
 def test_failed_read_raises_source_disconnected() -> None:
     cap = MagicMock()
     cap.isOpened.return_value = True
-    # Warm-up succeeds once; later read fails (post-open disconnect).
-    cap.read.side_effect = [
-        (True, _fake_bgr()),
-        (False, None),
-    ]
+    # Warm-up consumes one good frame; next read fails (post-open disconnect).
+    good = (True, _fake_bgr())
+    cap.read.side_effect = [good] + [(False, None)] * 50
 
     vc_path = "sentry_ai.sources.opencv_source.cv2.VideoCapture"
     with (
         patch(vc_path, return_value=cap),
         patch("sentry_ai.sources.opencv_source.sys.platform", "linux"),
+        patch("sentry_ai.sources.opencv_source.time.sleep", return_value=None),
     ):
         source = OpenCVSource(
             target=0,
