@@ -349,6 +349,24 @@ def test_serve_wires_backend_honesty_into_create_app() -> None:
     assert "backend_reason:" in source
 
 
+def test_serve_strict_fail_closed_exit_wiring() -> None:
+    """BACK-03: strict miss raises typer.Exit(1); single sticky factory call."""
+    source = inspect.getsource(cli_mod.serve)
+    assert "build_detection_worker" in source
+    # Exactly one production construct call site
+    assert source.count("build_detection_worker(") == 1
+    # Strict fail-closed before DetectionLoop
+    assert "typer.Exit" in source or "Exit(code=1)" in source
+    assert "code=1" in source
+    assert "worker is None" in source
+    assert "fallback_to_torch" in source
+    # DetectionLoop only after non-None worker
+    factory_idx = source.index("build_detection_worker(")
+    none_idx = source.index("worker is None")
+    loop_idx = source.index("DetectionLoop(")
+    assert factory_idx < none_idx < loop_idx
+
+
 def test_serve_profile_default_is_cpu_fallback() -> None:
     """Serve default profile remains cpu-fallback (no CUDA auto-switch)."""
     out = cli_help_output(app, "serve", "--help")

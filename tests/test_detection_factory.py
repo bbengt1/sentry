@@ -553,3 +553,12 @@ def test_sticky_detection_loop_does_not_import_factory() -> None:
     source = inspect.getsource(loop_mod)
     assert "build_detection_worker" not in source
     assert "from sentry_ai.models.detection.factory" not in source
+
+
+def test_serve_single_factory_call_site() -> None:
+    """Sticky: serve constructs detection worker once via factory."""
+    from sentry_ai import cli as cli_mod
+
+    source = inspect.getsource(cli_mod.serve)
+    assert source.count("build_detection_worker(") == 1
+    assert "typer.Exit" in source or "Exit(code=1)" in source

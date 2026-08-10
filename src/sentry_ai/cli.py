@@ -503,11 +503,24 @@ def serve(
         _ = tier_to_weight
         _ = tier_to_open_vocab_weight
         # Factory selects loader branch from preferred_backend (EDGE-RT-02).
+        # Sticky: called once at serve construct — DetectionLoop never re-resolves.
         build = build_detection_worker(rt, conf=0.25)
         worker = build.worker
         backend_requested = build.backend_requested
         backend_live = build.backend_live
         backend_reason = build.backend_reason
+        # Strict fail-closed (BACK-03): preferred ORT/TRT cannot go live and
+        # fallback_to_torch is false → refuse serve (do not start DetectionLoop).
+        if worker is None:
+            typer.echo(
+                "detection backend strict-fail: preferred backend cannot go live "
+                f"(requested={backend_requested} reason={backend_reason} "
+                f"fallback_to_torch={rt.fallback_to_torch}). "
+                "Set device.fallback_to_torch=true or SENTRY_FALLBACK_TO_TORCH=true "
+                "for soft torch fallback, or provide the missing artifact/dep.",
+                err=True,
+            )
+            raise typer.Exit(code=1)
         det_loop = DetectionLoop(bus, worker, store)
         # Open-vocab twin (same detect extra); default mode off.
         ov_worker = YoloeOpenVocabWorker(
@@ -615,6 +628,7 @@ def serve(
         typer.echo(f"backend_live: {backend_live}")
     if backend_reason is not None:
         typer.echo(f"backend_reason: {backend_reason}", err=True)
+    typer.echo(f"fallback_to_torch: {rt.fallback_to_torch}")
     typer.echo(f"source: {src.name} camera_id={getattr(src, 'camera_id', src.name)}")
     if no_ui:
         typer.echo(f"bind: http://{bind}/  (headless API)")

@@ -61,18 +61,39 @@ Built-in profiles (`desktop-gpu`, `jetson`, `cpu-fallback`) select:
 
 - detector / open-vocab weight tiers  
 - depth tier (Small only for commercial-friendly defaults)  
-- **device policy** (`preferred_backend` + `device_id`)
+- **device policy** (`preferred_backend` + `device_id` + `fallback_to_torch`)
 
 Live inference is **PyTorch / Ultralytics / HF** by default. Fixed-class YOLO
 may run **live via ONNX Runtime** when `preferred_backend=onnxruntime`, an
 allowlisted `.onnx` artifact resolves, and the optional `onnx` extra is
-installed; otherwise serve soft-falls to torch with an honest reason code.
-Fixed-class YOLO may run **live via TensorRT** when `preferred_backend=tensorrt`,
-an allowlisted `.engine` resolves, and system / JetPack `tensorrt` is importable;
-otherwise serve soft-falls to torch with `trt_artifact_missing` /
-`trt_dep_missing` / `path_rejected`. Engines are built **on-device** only —
-see [export/](export/) for lifecycle and packaging. CUDA requests fall back to
+installed. Fixed-class YOLO may run **live via TensorRT** when
+`preferred_backend=tensorrt`, an allowlisted `.engine` resolves, and system /
+JetPack `tensorrt` is importable. Engines are built **on-device** only — see
+[export/](export/) for lifecycle and packaging. CUDA requests fall back to
 MPS or CPU when unavailable.
+
+### Fallback chain (sticky soft default / strict opt-in)
+
+Resolve happens **once** at serve via `build_detection_worker` (factory is the
+sole author of `backend_live` / `backend_reason`). DetectionLoop never
+re-selects the preferred backend.
+
+| Step | Outcome |
+|------|---------|
+| Preferred torch/cpu | Live torch worker; reason none |
+| Preferred ORT/TRT + artifact + dep | Live `backend_live=onnxruntime` or `tensorrt` |
+| Preferred ORT/TRT miss, soft (`fallback_to_torch=true`, **default**) | Torch worker + reason; serve continues |
+| Preferred ORT/TRT miss, strict (`fallback_to_torch=false`) | `worker=None`, `backend_live=None`, reason set; serve exits non-zero |
+
+Soft remains the global default (including jetson package profiles). Operators
+opt into strict with `device.fallback_to_torch: false` or
+`SENTRY_FALLBACK_TO_TORCH=false`. See [configuration.md](configuration.md).
+
+**Residual risk:** if the factory claims live ORT/TRT (artifact + dep present)
+but Ultralytics later fails to load a corrupt engine at first inference, operators
+may still see load errors until process restart. Sticky factory resolve does not
+rewrite DetectionLoop load-failure pause — document and restart after fixing
+artifacts.
 
 ## Boundaries (non-negotiable)
 
