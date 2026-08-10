@@ -30,7 +30,7 @@ Audit: [milestones/v1.0-MILESTONE-AUDIT.md](milestones/v1.0-MILESTONE-AUDIT.md)
 
 - [x] **Phase 8: Backend Selection & Honesty** - Factory wires `preferred_backend` to real loaders; status shows requested vs live (completed 2026-08-09)
 - [x] **Phase 9: Live ORT Fixed-Class YOLO** - Profile-selected ONNX Runtime path produces schema-identical detections (completed 2026-08-09)
-- [ ] **Phase 10: Live TensorRT Fixed-Class YOLO** - On-device `.engine` path for Jetson/desktop NVIDIA
+- [x] **Phase 10: Live TensorRT Fixed-Class YOLO** - On-device `.engine` path for Jetson/desktop NVIDIA (completed 2026-08-10)
 - [ ] **Phase 11: Sticky Fallback & Dual-Model Guardrails** - Documented sticky fail/fallback; depth/OV remain torch
 - [ ] **Phase 12: Docs, CI & Packaging Polish** - Export→serve narrative, AGPL lineage, CI without Jetson
 
@@ -82,7 +82,7 @@ Plans:
 
 Plans:
 - [x] 10-01-PLAN.md — Live Ultralytics-native TRT worker path (system TensorRT)
-- [ ] 10-02-PLAN.md — On-device engine lifecycle + Jetson packaging notes
+- [x] 10-02-PLAN.md — On-device engine lifecycle + Jetson packaging notes
 
 ### Phase 11: Sticky Fallback & Dual-Model Guardrails
 **Goal**: Missing ORT/TRT artifacts or deps never thrash or silently lie; depth and open-vocab stay on existing PyTorch paths this milestone
@@ -127,7 +127,7 @@ Plans:
 | 7. Edge Profiles & Extension Stubs | v1.0 | 3/3 | Complete | 2026-08-08 |
 | 8. Backend Selection & Honesty | v0.2 | 2/2 | Complete   | 2026-08-09 |
 | 9. Live ORT Fixed-Class YOLO | v0.2 | 2/2 | Complete   | 2026-08-09 |
-| 10. Live TensorRT Fixed-Class YOLO | v0.2 | 1/2 | In Progress|  |
+| 10. Live TensorRT Fixed-Class YOLO | v0.2 | 2/2 | Complete   | 2026-08-10 |
 | 11. Sticky Fallback & Dual-Model Guardrails | v0.2 | 0/2 | Not started | - |
 | 12. Docs, CI & Packaging Polish | v0.2 | 0/2 | Not started | - |
 

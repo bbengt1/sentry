@@ -25,8 +25,8 @@
 ### Live TensorRT (fixed-class YOLO)
 
 - [x] **TRT-01**: Fixed-class YOLO can run live via TensorRT when profile prefers `tensorrt` and a valid on-device `.engine` is present
-- [ ] **TRT-02**: Docs require **on-device** engine build; project does not ship multi-SKU prebuilt engines in the wheel
-- [ ] **TRT-03**: Jetson-class packaging notes cover JetPack/system TensorRT (no generic `tensorrt` pip pin as required app dep)
+- [x] **TRT-02**: Docs require **on-device** engine build; project does not ship multi-SKU prebuilt engines in the wheel
+- [x] **TRT-03**: Jetson-class packaging notes cover JetPack/system TensorRT (no generic `tensorrt` pip pin as required app dep)
 - [x] **TRT-04**: TRT path maps results into the same `Detection` contract; conf still adjustable at runtime when supported
 
 ### Integration (existing spine)
@@ -75,8 +75,8 @@
 | ORT-03 | Phase 9 | Complete |
 | ORT-04 | Phase 9 | Complete |
 | TRT-01 | Phase 10 | Complete |
-| TRT-02 | Phase 10 | Pending |
-| TRT-03 | Phase 10 | Pending |
+| TRT-02 | Phase 10 | Complete |
+| TRT-03 | Phase 10 | Complete |
 | TRT-04 | Phase 10 | Complete |
 | EDGE-RT-01 | Phase 8 | Complete |
 | EDGE-RT-02 | Phase 8 | Complete |
