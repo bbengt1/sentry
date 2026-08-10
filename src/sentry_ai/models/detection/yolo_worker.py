@@ -109,7 +109,11 @@ class YoloDetectionWorker:
     # --- ModelWorker ----------------------------------------------------------
 
     def process(self, frame: ImageFrame | object) -> list[Detection]:
-        """Run detection on ``frame.image_bgr``; return list[Detection]."""
+        """Run detection on ``frame.image_bgr``; return list[Detection].
+
+        Missing ultralytics raises ImportError (DetectionLoop sticky-pauses).
+        Injected ``model=`` paths never hit that import.
+        """
         image_bgr = getattr(frame, "image_bgr", None)
         if image_bgr is None:
             logger.warning("YoloDetectionWorker.process: frame missing image_bgr")

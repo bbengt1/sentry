@@ -58,6 +58,24 @@ class FakeDetectionWorker:
         ]
 
 
+class DepFailDetectionWorker:
+    """Raises ImportError for missing ultralytics (detect extra)."""
+
+    name: str = "dep-fail-det"
+    process_calls = 0
+
+    def get_conf(self) -> float:
+        return 0.25
+
+    def process(self, frame: Any) -> list[Detection]:
+        DepFailDetectionWorker.process_calls += 1
+        self.process_calls = DepFailDetectionWorker.process_calls
+        raise ImportError(
+            "ultralytics is required for YoloDetectionWorker. "
+            "Install the detect extra: uv sync --extra detect"
+        )
+
+
 @dataclass
 class FakeDepthResult:
     depth_map: Any
@@ -240,6 +258,34 @@ def test_detection_loop_skips_process_when_disabled(
         )
         assert store.snapshot() is not None
         assert store.snapshot().frame_id == 3  # type: ignore[union-attr]
+    finally:
+        loop.stop()
+
+
+def test_detection_loop_sticky_pause_on_missing_ultralytics(
+    image_frame_factory: Callable[..., ImageFrame],
+) -> None:
+    """Missing detect extra pauses the loop after one ImportError (no spam)."""
+    DepFailDetectionWorker.process_calls = 0
+    bus = FrameBus()
+    store = PerceptionStore()
+    worker = DepFailDetectionWorker()
+    loop = DetectionLoop(bus, worker, store)
+    try:
+        loop.start()
+        bus.publish(image_frame_factory(frame_id=1))
+        assert _wait_until(lambda: worker.process_calls >= 1, timeout=2.0)
+        assert _wait_until(lambda: not loop.is_enabled(), timeout=2.0)
+        snap = store.snapshot()
+        assert snap is not None
+        assert snap.error is not None
+        assert "ultralytics" in snap.error.lower() or "detect extra" in snap.error
+
+        calls_after = worker.process_calls
+        bus.publish(image_frame_factory(frame_id=2))
+        bus.publish(image_frame_factory(frame_id=3))
+        time.sleep(0.1)
+        assert worker.process_calls == calls_after
     finally:
         loop.stop()
 

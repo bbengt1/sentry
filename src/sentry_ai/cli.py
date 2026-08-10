@@ -351,6 +351,8 @@ def serve(
     bind = f"{host}:{port}"
 
     # Optional fixed-class detection (requires `uv sync --extra detect`).
+    # Factory/workers import without ultralytics; probe the dep *before* starting
+    # loops so missing extras do not spam every frame with ImportError.
     # backend_* locals from WorkerBuild feed banner + create_app (BACK-02).
     worker: Any | None = None
     det_loop: Any | None = None
@@ -360,6 +362,8 @@ def serve(
     backend_live: str | None = None
     backend_reason: str | None = None
     try:
+        import importlib.util
+
         from sentry_ai.models.cache import (
             configure_model_cache,
             tier_to_open_vocab_weight,
@@ -369,6 +373,12 @@ def serve(
         from sentry_ai.models.detection.loop import DetectionLoop
         from sentry_ai.models.detection.open_vocab_loop import OpenVocabLoop
         from sentry_ai.models.detection.yoloe_worker import YoloeOpenVocabWorker
+
+        if importlib.util.find_spec("ultralytics") is None:
+            raise ImportError(
+                "ultralytics is required for detection. "
+                "Install the detect extra: uv sync --extra detect"
+            )
 
         configure_model_cache()
         # Profile-driven weights + device (EDGE-02); keep tier helpers in scope

@@ -108,6 +108,9 @@ def test_serve_source_wires_detection_loop_lifecycle() -> None:
     assert "create_app" in source
     assert "perception_store" in source
     assert "detection_worker" in source
+    # Probe ultralytics before starting loops (avoids per-frame ImportError spam)
+    assert "find_spec" in source
+    assert "ultralytics" in source
     # Graceful degrade path when detect extra missing
     assert "uv sync --extra detect" in source or "detect extra" in source.lower()
     # Stop detection before capture in finally
