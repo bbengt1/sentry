@@ -141,7 +141,19 @@ class DepthAnythingWorker:
         w = int(image_bgr.shape[1])
         rgb = bgr_to_rgb_uint8(image_bgr)
 
-        model, processor = self._ensure_model()
+        try:
+            model, processor = self._ensure_model()
+        except ImportError as exc:
+            # Soft fail: return error product instead of raising every frame.
+            return DepthResult(
+                depth_map=None,
+                kind=kind,
+                unit=unit,
+                width=w,
+                height=h,
+                error=str(exc),
+            )
+
         device = self._device if self._device is not None else resolve_device(
             self._device_arg
         )

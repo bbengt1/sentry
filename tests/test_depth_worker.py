@@ -214,3 +214,27 @@ def test_import_error_message_mentions_extra_depth(
     monkeypatch.setattr(builtins, "__import__", fake_import)
     with pytest.raises(ImportError, match="extra depth|--extra depth"):
         worker._ensure_model()
+
+
+def test_process_soft_fails_when_transformers_missing(
+    monkeypatch: pytest.MonkeyPatch,
+    image_frame_factory: Callable[..., ImageFrame],
+) -> None:
+    """Missing depth extra returns error product — does not raise every frame."""
+    worker = DepthAnythingWorker(depth_mode="relative")
+
+    import builtins
+
+    real_import = builtins.__import__
+
+    def fake_import(name: str, *args: Any, **kwargs: Any) -> Any:
+        if name == "transformers" or name.startswith("transformers."):
+            raise ImportError("no transformers")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    frame = image_frame_factory(frame_id=1)
+    result = worker.process(frame)
+    assert result.depth_map is None
+    assert result.error is not None
+    assert "depth extra" in result.error or "transformers" in result.error.lower()

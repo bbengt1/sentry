@@ -278,6 +278,56 @@ def test_depth_loop_skips_process_when_disabled(
         loop.stop()
 
 
+class DepFailDepthWorker:
+    """Returns a missing-transformers error product (no raise)."""
+
+    name: str = "dep-fail-depth"
+    process_calls = 0
+
+    def get_depth_mode(self) -> str:
+        return "relative"
+
+    def process(self, frame: Any) -> FakeDepthResult:
+        DepFailDepthWorker.process_calls += 1
+        self.process_calls = DepFailDepthWorker.process_calls
+        return FakeDepthResult(
+            depth_map=None,
+            error=(
+                "transformers is required for DepthAnythingWorker. "
+                "Install the depth extra: uv sync --extra depth"
+            ),
+        )
+
+
+def test_depth_loop_sticky_pause_on_missing_transformers(
+    image_frame_factory: Callable[..., ImageFrame],
+) -> None:
+    """Missing depth extra pauses the loop after one soft failure (no spam)."""
+    DepFailDepthWorker.process_calls = 0
+    bus = FrameBus()
+    store = PerceptionStore()
+    worker = DepFailDepthWorker()
+    loop = DepthLoop(bus, worker, store)
+    try:
+        loop.start()
+        bus.publish(image_frame_factory(frame_id=1))
+        assert _wait_until(lambda: worker.process_calls >= 1, timeout=2.0)
+        assert _wait_until(lambda: not loop.is_enabled(), timeout=2.0)
+        snap = store.snapshot_depth()
+        assert snap is not None
+        assert snap.error is not None
+        assert "transformers" in snap.error.lower() or "depth extra" in snap.error
+
+        calls_after = worker.process_calls
+        bus.publish(image_frame_factory(frame_id=2))
+        bus.publish(image_frame_factory(frame_id=3))
+        time.sleep(0.1)
+        # Sticky pause: no more process calls after dep failure.
+        assert worker.process_calls == calls_after
+    finally:
+        loop.stop()
+
+
 # ---------------------------------------------------------------------------
 # FreeSpaceLoop enable gate
 # ---------------------------------------------------------------------------

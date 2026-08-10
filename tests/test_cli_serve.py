@@ -132,6 +132,9 @@ def test_serve_source_wires_depth_loop_lifecycle() -> None:
     assert "depth_loop" in source
     assert "depth_loop.start()" in source
     assert "depth_loop.stop()" in source
+    # Probe transformers/torch before starting loop (avoids per-frame ImportError spam)
+    assert "find_spec" in source
+    assert "transformers" in source
     # Graceful degrade path when depth extra missing
     assert "uv sync --extra depth" in source or "depth extra" in source.lower()
     # Stop depth before bare capture loop.stop() in finally

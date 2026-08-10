@@ -404,12 +404,27 @@ def serve(
         backend_reason = None
 
     # Optional monocular depth (requires `uv sync --extra depth`).
+    # Modules import without transformers; probe the dep *before* starting the
+    # loop so missing extras do not spam every frame with ImportError.
     depth_worker: Any | None = None
     depth_loop: Any | None = None
     try:
+        import importlib.util
+
         from sentry_ai.models.cache import configure_model_cache
         from sentry_ai.models.depth.loop import DepthLoop
         from sentry_ai.models.depth.worker import DepthAnythingWorker
+
+        if importlib.util.find_spec("transformers") is None:
+            raise ImportError(
+                "transformers is required for DepthAnythingWorker. "
+                "Install the depth extra: uv sync --extra depth"
+            )
+        if importlib.util.find_spec("torch") is None:
+            raise ImportError(
+                "torch is required for DepthAnythingWorker. "
+                "Install the depth extra: uv sync --extra depth"
+            )
 
         configure_model_cache()  # HF_HOME under SENTRY_MODEL_CACHE
         depth_worker = DepthAnythingWorker(
