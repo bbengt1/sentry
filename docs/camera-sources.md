@@ -74,24 +74,41 @@ Continuity only appears when macOS currently exposes the device:
 - iPhone unlocked / recently unlocked; not already used as a camera elsewhere  
 - macOS Ventura or later  
 
-If Continuity is listed with **OPEN=no**, AVFoundation sees it but OpenCV cannot
-stream yet — re-check Continuity is active, then re-run `sentry cameras`.
+### Continuity vs laptop FaceTime (important)
 
-Use the printed **IDX** with:
+OpenCV/FFmpeg **indices** labeled “Brent’s iPhone Camera” often deliver the
+**built-in FaceTime** stream (laptop). Measured correlation ≈ 0.97 with FaceTime
+when Continuity is listed but not streaming. Sentry therefore:
+
+- Opens Continuity **only** by AVFoundation **uniqueID** (never FFmpeg/OpenCV
+  index for Continuity devices).
+- **Fails** if the uniqueID stream stays black (does not fall back to the laptop).
+- Prints: `usb backend: AVFoundation uniqueID (true Continuity identity: …)`
+
+If serve errors with a black Continuity stream:
+
+1. Unlock iPhone; **Settings → General → AirPlay & Continuity → Continuity Camera** on  
+2. Same Apple ID, Bluetooth + Wi‑Fi; phone near Mac  
+3. Confirm Continuity Camera UI on the phone while streaming  
+4. Test in **Photo Booth** → select the iPhone camera (not FaceTime HD)  
+5. Optional: USB cable + Trust This Computer  
+
+macOS may still light the **laptop camera LED** for privacy even when video is
+from the iPhone — verify by moving the **phone**, not the laptop.
+
+`OPEN=yes` in `sentry cameras` for Continuity only means OpenCV opened *some*
+index; it is **not** proof Continuity is streaming.
 
 ```bash
-# Prefer Continuity by name (not laptop FaceTime index 0):
+# Continuity by uniqueID (only correct path):
 uv run sentry serve --source usb --device continuity
-# or: --device auto   |  --device 1  (explicit OPEN=yes IDX)
+# or: --device auto   (prefers Continuity uniqueID when listed)
 
-# Continuity on macOS opens by **AVFoundation uniqueID** (true Continuity
-# identity from `sentry cameras`). OpenCV/FFmpeg *indices* often bind FaceTime
-# even when the label says Continuity. Serve prints:
-#   usb backend: AVFoundation uniqueID (true Continuity identity: …)
-# Needs Xcode CLT (`xcode-select --install`) to compile the capture helper once.
-# macOS may still light the laptop camera LED for privacy — check the iPhone
-# Continuity Camera UI and that Live Preview moves when you move the phone.
+# FaceTime / UVC by index (laptop or external USB):
+uv run sentry serve --source usb --device 0
 ```
+
+Needs Xcode CLT (`xcode-select --install`) once to compile `capture_av_device`.
 
 ## Manual verification checklist
 

@@ -33,6 +33,7 @@ __all__ = [
 ]
 
 # Length-prefixed JPEG frames on stdout (4-byte big-endian length + payload).
+# Info.plist (embedded via -sectcreate) opts into Continuity Camera device type.
 _SWIFT_CAPTURE = r"""
 import AVFoundation
 import CoreImage
@@ -46,7 +47,7 @@ final class Recorder: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
     let context = CIContext(options: nil)
     let lock = NSLock()
     var lastPTS: TimeInterval = 0
-    let minInterval: TimeInterval = 1.0 / 30.0
+    let minInterval: TimeInterval = 1.0 / 24.0
     var writing = false
 
     func captureOutput(
@@ -54,16 +55,16 @@ final class Recorder: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
         didOutput sampleBuffer: CMSampleBuffer,
         from connection: AVCaptureConnection
     ) {
-        let now = CFAbsoluteTimeGetCurrent()
-        if now - lastPTS < minInterval { return }
-        lastPTS = now
-
+        // Serialize rate-limit + write under one lock so length-prefixed JPEGs
+        // never interleave (stdout desync → huge invalid lengths).
         lock.lock()
-        if writing {
+        let now = CFAbsoluteTimeGetCurrent()
+        if writing || (now - lastPTS) < minInterval {
             lock.unlock()
             return
         }
         writing = true
+        lastPTS = now
         lock.unlock()
         defer {
             lock.lock()
@@ -87,8 +88,11 @@ final class Recorder: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
 
         var be = UInt32(data.count).bigEndian
         let header = Data(bytes: &be, count: 4)
-        FileHandle.standardOutput.write(header)
-        FileHandle.standardOutput.write(data as Data)
+        // Single write reduces partial-frame risk on the pipe.
+        var packet = Data()
+        packet.append(header)
+        packet.append(data as Data)
+        FileHandle.standardOutput.write(packet)
     }
 }
 
@@ -106,9 +110,15 @@ guard let device = AVCaptureDevice(uniqueID: uid) else {
     fail("AVCaptureDevice not found for uniqueID")
 }
 
+// Hint system preference so Continuity is treated as the active camera.
+if #available(macOS 13.0, *) {
+    AVCaptureDevice.userPreferredCamera = device
+}
+
 let session = AVCaptureSession()
 session.beginConfiguration()
-session.sessionPreset = .hd1280x720
+// .high lets Continuity pick a working format; fixed presets can black-screen.
+session.sessionPreset = .high
 
 let input: AVCaptureDeviceInput
 do {
@@ -138,12 +148,29 @@ if #available(macOS 13.0, *) {
 }
 fputs(
   "capture_av_device: started name=\(device.localizedName) "
-  + "continuity=\(contFlag) uid=\(device.uniqueID)\n",
+  + "continuity=\(contFlag) suspended=\(device.isSuspended) "
+  + "connected=\(device.isConnected) uid=\(device.uniqueID)\n",
   stderr
 )
 
 // Keep process alive
 RunLoop.main.run()
+"""
+
+_INFO_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key>
+  <string>ai.sentry.capture-av-device</string>
+  <key>CFBundleName</key>
+  <string>capture_av_device</string>
+  <key>NSCameraUsageDescription</key>
+  <string>Sentry AI needs camera access for Continuity Camera and USB capture.</string>
+  <key>NSCameraUseContinuityCameraDeviceType</key>
+  <true/>
+</dict>
+</plist>
 """
 
 
@@ -162,7 +189,7 @@ def ensure_capture_av_binary(
     binary = _cache_bin_dir() / "capture_av_device"
     # Recompile if missing or source marker version changes.
     marker = _cache_bin_dir() / "capture_av_device.version"
-    version = "2"
+    version = "4"  # serialize stdout packets; Continuity Info.plist
     if (
         binary.is_file()
         and binary.stat().st_size > 0
@@ -176,6 +203,8 @@ def ensure_capture_av_binary(
         with tempfile.TemporaryDirectory(prefix="sentry-avcap-") as tmp:
             src = Path(tmp) / "capture_av_device.swift"
             src.write_text(_SWIFT_CAPTURE, encoding="utf-8")
+            plist = Path(tmp) / "Info.plist"
+            plist.write_text(_INFO_PLIST, encoding="utf-8")
             proc = run(
                 [
                     "swiftc",
@@ -197,6 +226,15 @@ def ensure_capture_av_binary(
                     "UniformTypeIdentifiers",
                     "-framework",
                     "Foundation",
+                    # Embed Info.plist so Continuity Camera device type is allowed.
+                    "-Xlinker",
+                    "-sectcreate",
+                    "-Xlinker",
+                    "__TEXT",
+                    "-Xlinker",
+                    "__info_plist",
+                    "-Xlinker",
+                    str(plist),
                 ],
                 capture_output=True,
                 text=True,
@@ -217,6 +255,20 @@ def ensure_capture_av_binary(
         return None
 
 
+_CONTINUITY_BLACK_HELP = (
+    "Continuity Camera opened by uniqueID but the stream is black "
+    "(iPhone listed, not delivering video). OpenCV/FFmpeg indices would "
+    "silently show the laptop FaceTime camera — that path is disabled. "
+    "Fix Continuity, then retry:\n"
+    "  • Unlock iPhone; Settings → General → AirPlay & Continuity → "
+    "Continuity Camera ON\n"
+    "  • Same Apple ID, Bluetooth + Wi‑Fi, phone near Mac\n"
+    "  • Look for Continuity Camera UI on the iPhone lock screen while streaming\n"
+    "  • Quit other apps using the camera; try Photo Booth → select iPhone camera\n"
+    "  • Optional: plug iPhone in USB and Trust This Computer"
+)
+
+
 class AvFoundationUniqueSource:
     """Stream frames from a macOS camera opened by AVFoundation uniqueID."""
 
@@ -228,12 +280,16 @@ class AvFoundationUniqueSource:
         *,
         camera_id: str = "usb0",
         device_label: str | None = None,
+        require_non_black: bool = False,
+        warm_up_seconds: float = 12.0,
     ) -> None:
         if not unique_id or not str(unique_id).strip():
             raise ValueError("unique_id is required")
         self.unique_id = str(unique_id).strip()
         self.camera_id = camera_id
         self.device_label = device_label
+        self.require_non_black = bool(require_non_black)
+        self.warm_up_seconds = float(warm_up_seconds)
         self._proc: subprocess.Popen[bytes] | None = None
         self._next_frame_id = 0
         self._bin: Path | None = None
@@ -263,22 +319,28 @@ class AvFoundationUniqueSource:
             self.close()
             raise SourceError("capture_av_device stdout missing")
 
-        # Brief wait for first frame (Continuity wake).
-        deadline = time.time() + 10.0
+        # Wait for first *real* frame. Continuity often delivers near-black
+        # frames (mean ~7–8 with JPEG noise) while iPhone is not streaming —
+        # treat those as black. FaceTime desk scenes are typically mean >> 20.
+        min_mean = 12.0 if self.require_non_black else 1.0
+        deadline = time.time() + max(self.warm_up_seconds, 1.0)
         last_err = "no frames"
         while time.time() < deadline:
             try:
                 frame = self.read()
                 mean = float(np.mean(frame.image_bgr))
-                if mean >= 1.0:
+                # Low stddev + low mean = solid black / letterbox noise.
+                std = float(np.std(frame.image_bgr))
+                if mean >= min_mean and (not self.require_non_black or std >= 5.0):
                     self._next_frame_id = 0
                     logger.info(
-                        "AVFoundation uniqueID warm-up ok mean=%.1f label=%s",
+                        "AVFoundation uniqueID warm-up ok mean=%.1f std=%.1f label=%s",
                         mean,
+                        std,
                         self.device_label,
                     )
                     return
-                last_err = f"black frame mean={mean:.1f}"
+                last_err = f"black/flat frame mean={mean:.1f} std={std:.1f}"
             except SourceDisconnected as exc:
                 last_err = str(exc)
                 if self._proc.poll() is not None:
@@ -289,6 +351,27 @@ class AvFoundationUniqueSource:
                         f"capture_av_device exited: {err.decode('utf-8', 'replace')}"
                     ) from exc
                 time.sleep(0.05)
+
+        if self.require_non_black:
+            # Drain stderr for continuity= / suspended= diagnostics.
+            extra = ""
+            try:
+                if self._proc is not None and self._proc.stderr is not None:
+                    # Non-blocking-ish: helper writes a single start line.
+                    import select
+
+                    if select.select([self._proc.stderr], [], [], 0.05)[0]:
+                        extra = (
+                            self._proc.stderr.read(800) or b""
+                        ).decode("utf-8", "replace")
+            except Exception:  # noqa: BLE001
+                pass
+            self.close()
+            detail = f"{_CONTINUITY_BLACK_HELP}\n(last={last_err})"
+            if extra.strip():
+                detail = f"{detail}\nhelper: {extra.strip()}"
+            raise SourceError(detail)
+
         logger.warning(
             "AVFoundation uniqueID still %s after warm-up; leaving open. "
             "Confirm Continuity on iPhone lock screen is active.",

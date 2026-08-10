@@ -556,6 +556,16 @@ def resolve_usb_device(
 
     key = str(selector).strip().lower()
     if key == "" or key == "auto":
+        # Prefer Continuity with uniqueID (capture path does not need OpenCV OPEN).
+        cont_uid = [
+            c
+            for c in all_named
+            if _is_continuity_camera(c) and c.unique_id
+        ]
+        if cont_uid:
+            open_uid = [c for c in cont_uid if c.available]
+            pick = open_uid[0] if open_uid else cont_uid[0]
+            return int(pick.index), pick  # type: ignore[arg-type]
         for c in open_cams:
             if _is_continuity_camera(c):
                 return int(c.index), c  # type: ignore[arg-type]
@@ -574,18 +584,29 @@ def resolve_usb_device(
 
     continuity_keys = {"continuity", "iphone", "ipad", "ios"}
     if key in continuity_keys:
+        cont_all = [c for c in all_named if _is_continuity_camera(c)]
+        # Prefer a Continuity entry that has AVFoundation uniqueID (true identity).
+        # OpenCV OPEN=yes is *not* trusted for Continuity — indices often bind
+        # FaceTime while labels say Continuity; capture uses uniqueID instead.
+        with_uid = [c for c in cont_all if c.unique_id]
+        if with_uid:
+            # Prefer OPEN only as a soft signal; uniqueID is what matters.
+            open_uid = [c for c in with_uid if c.available]
+            pick = open_uid[0] if open_uid else with_uid[0]
+            return int(pick.index), pick  # type: ignore[arg-type]
         for c in open_cams:
             if _is_continuity_camera(c):
                 return int(c.index), c  # type: ignore[arg-type]
-        # Continuity listed but OPEN=no
-        closed = [c for c in all_named if _is_continuity_camera(c)]
-        if closed:
+        if cont_all:
             names = ", ".join(
-                f"IDX {c.index} {c.name!r} OPEN=no" for c in closed
+                f"IDX {c.index} {c.name!r} OPEN={'yes' if c.available else 'no'} "
+                f"uid={'yes' if c.unique_id else 'no'}"
+                for c in cont_all
             )
             raise ValueError(
-                f"Continuity Camera found but not openable by OpenCV ({names}). "
-                "Unlock iPhone, free Continuity, re-run: uv run sentry cameras"
+                f"Continuity Camera listed but missing uniqueID ({names}). "
+                "Need Swift DiscoverySession (xcode-select --install), then: "
+                "uv run sentry cameras"
             )
         raise ValueError(
             "no Continuity / iPhone camera listed. "

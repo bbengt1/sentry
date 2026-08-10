@@ -71,42 +71,53 @@ def _build_serve_source(
             if notes:
                 typer.echo(f"usb notes: {notes}")
 
-        # Continuity: open by AVFoundation uniqueID (not OpenCV/FFmpeg index).
-        # Indices often bind FaceTime while labels still say Continuity.
+        # Continuity: open ONLY by AVFoundation uniqueID.
+        # OpenCV / FFmpeg *indices* labeled Continuity almost always deliver
+        # FaceTime (laptop) content — verified hist-corr ~0.97 vs FaceTime.
+        # Never fall back to index capture for Continuity devices.
         is_cont = info is not None and _is_continuity_camera(info)
         sel = str(device).strip().lower()
-        if sel in {"continuity", "iphone", "ipad", "ios", "auto"}:
+        explicit_cont = sel in {"continuity", "iphone", "ipad", "ios"}
+        if explicit_cont:
             is_cont = True
 
-        if is_cont and info is not None and info.unique_id:
-            try:
-                from sentry_ai.sources.avfoundation_unique import (
-                    AvFoundationUniqueSource,
-                )
-
+        if is_cont:
+            uid = (info.unique_id if info is not None else None) or ""
+            if not uid.strip():
                 typer.echo(
-                    "usb backend: AVFoundation uniqueID "
-                    f"(true Continuity identity: {info.unique_id[:18]}…)"
-                )
-                typer.echo(
-                    "Note: macOS may still light the laptop camera LED for "
-                    "privacy; the video should be from the iPhone if Continuity "
-                    "is active (check the Continuity UI on the phone)."
-                )
-                return AvFoundationUniqueSource(
-                    unique_id=info.unique_id,
-                    camera_id=camera_id or f"usb{idx}",
-                    device_label=info.name,
-                )
-            except Exception as exc:  # noqa: BLE001
-                typer.echo(
-                    f"usb note: uniqueID Continuity path failed ({exc}); "
-                    "trying ffmpeg/OpenCV",
+                    "serve failed: Continuity Camera has no AVFoundation "
+                    "uniqueID. Re-run: uv run sentry cameras  (needs Swift "
+                    "DiscoverySession; xcode-select --install). "
+                    "Do not use OpenCV/FFmpeg indices — they bind FaceTime.",
                     err=True,
                 )
+                raise typer.Exit(code=1)
+            from sentry_ai.sources.avfoundation_unique import (
+                AvFoundationUniqueSource,
+            )
 
-        # Fallback: FFmpeg by name/index (better than OpenCV for Continuity).
-        if is_cont:
+            typer.echo(
+                "usb backend: AVFoundation uniqueID "
+                f"(true Continuity identity: {uid[:18]}…)"
+            )
+            typer.echo(
+                "Continuity: stream must be non-black from the iPhone. "
+                "macOS may still light the laptop LED for privacy — confirm "
+                "the Continuity Camera UI on the phone and that Live Preview "
+                "moves when you move the phone (not the laptop)."
+            )
+            return AvFoundationUniqueSource(
+                unique_id=uid,
+                camera_id=camera_id or f"usb{idx}",
+                device_label=info.name if info else label,
+                require_non_black=True,
+            )
+
+        # Non-Continuity USB: prefer FFmpeg by name when available (macOS),
+        # else OpenCV index. (Never use this path for Continuity — see above.)
+        import platform as _platform
+
+        if _platform.system() == "Darwin":
             try:
                 from sentry_ai.sources.ffmpeg_avfoundation import (
                     FfmpegAvFoundationSource,
@@ -117,9 +128,10 @@ def _build_serve_source(
 
                 if ffmpeg_available():
                     ff_devs = list_ffmpeg_av_video_devices()
+                    preferred = info.name if info else None
                     matched = match_ffmpeg_device_index(
-                        info.name if info else None,
-                        prefer_continuity=True,
+                        preferred,
+                        prefer_continuity=False,
                         devices=ff_devs,
                     )
                     if matched is None and ff_devs:
@@ -140,7 +152,7 @@ def _build_serve_source(
                         )
             except Exception as exc:  # noqa: BLE001
                 typer.echo(
-                    f"usb note: ffmpeg Continuity path failed ({exc})",
+                    f"usb note: ffmpeg path failed ({exc}); using OpenCV",
                     err=True,
                 )
 
@@ -436,6 +448,15 @@ def serve(
         url=url,
         camera_id=camera_id,
     )
+    # Continuity: fail fast on black uniqueID stream before loading ML weights.
+    if getattr(src, "require_non_black", False):
+        try:
+            src.open()
+            src.close()
+        except Exception as exc:  # noqa: BLE001
+            typer.echo(f"serve failed: Continuity capture: {exc}", err=True)
+            raise typer.Exit(code=1) from exc
+
     bus = FrameBus()
     loop = CaptureLoop(src, bus)
     store = PerceptionStore()

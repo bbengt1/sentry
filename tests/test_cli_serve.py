@@ -53,18 +53,18 @@ def test_build_serve_source_usb() -> None:
 
     from sentry_ai.sources.list_cameras import LocalCameraInfo
 
+    # Non-Continuity UVC / FaceTime — OpenCV index path (Continuity uses uniqueID).
     fake = LocalCameraInfo(
         index=1,
         available=True,
-        name="Test Continuity",
-        notes=("Continuity Camera",),
+        name="USB Camera",
+        notes=("external",),
     )
     with (
         patch(
             "sentry_ai.sources.list_cameras.resolve_usb_device",
             return_value=(1, fake),
         ),
-        # Force OpenCV path in this unit test (live Continuity uses FFmpeg).
         patch(
             "sentry_ai.sources.ffmpeg_avfoundation.ffmpeg_available",
             return_value=False,
@@ -107,6 +107,38 @@ def test_build_serve_source_continuity_uses_unique_id() -> None:
         )
     assert isinstance(src, AvFoundationUniqueSource)
     assert src.unique_id == "AAAA-BBBB-CCCC-0001"
+    assert src.require_non_black is True
+
+
+def test_build_serve_source_continuity_no_fallback_without_uid() -> None:
+    """Continuity must not fall back to FFmpeg/OpenCV (FaceTime misbind)."""
+    from unittest.mock import patch
+
+    import pytest
+    import typer
+
+    from sentry_ai.sources.list_cameras import LocalCameraInfo
+
+    fake = LocalCameraInfo(
+        index=1,
+        available=True,
+        name="Brent iPhone Camera",
+        notes=("Continuity Camera",),
+        unique_id=None,
+    )
+    with patch(
+        "sentry_ai.sources.list_cameras.resolve_usb_device",
+        return_value=(1, fake),
+    ):
+        with pytest.raises(typer.Exit) as ei:
+            _build_serve_source(
+                source="usb",
+                device="continuity",
+                path=None,
+                url=None,
+                camera_id=None,
+            )
+    assert ei.value.exit_code == 1
 
 
 def test_build_serve_source_file_requires_path() -> None:
