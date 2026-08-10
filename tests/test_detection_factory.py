@@ -1,4 +1,4 @@
-"""BACK-01 / EDGE-RT-03 / ORT-01: build_detection_worker honesty + live ORT."""
+"""BACK-01 / EDGE-RT-03 / ORT-01 / TRT-01: build_detection_worker honesty + live ORT/TRT."""
 
 from __future__ import annotations
 
@@ -39,12 +39,14 @@ def test_desktop_gpu_torch_live() -> None:
 
 
 def test_jetson_tensorrt_soft_stub() -> None:
+    """Default jetson without fixture artifact soft-falls (not live TRT)."""
     rt = _rt_for_profile("jetson")
     build = build_detection_worker(rt, model=FakeModel())
     assert build.backend_requested == "tensorrt"
     assert build.backend_live == "torch"
-    assert build.backend_reason == "trt_loader_not_implemented"
+    assert build.backend_reason == "trt_artifact_missing"
     assert isinstance(build.worker, YoloDetectionWorker)
+    assert str(build.worker._weights).endswith(".pt")
 
 
 def test_cpu_fallback_ort_soft_stub_artifact_missing() -> None:
@@ -63,7 +65,7 @@ def test_cpu_fallback_ort_soft_stub_artifact_missing() -> None:
     ["desktop-gpu", "jetson", "cpu-fallback"],
 )
 def test_backend_live_not_ort_or_trt_without_fixtures(profile: str) -> None:
-    """Without live ORT fixtures, backend_live stays torch for default profiles."""
+    """Without live fixtures, backend_live stays torch for default profiles."""
     rt = _rt_for_profile(profile)
     build = build_detection_worker(rt, model=FakeModel())
     assert build.backend_live not in {"onnxruntime", "tensorrt"}
@@ -97,6 +99,33 @@ def test_live_ort_success_with_artifact_and_dep(
     assert not str(build.worker._weights).endswith(".pt")
 
 
+def test_live_trt_success_with_artifact_and_dep(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """preferred=tensorrt + resolved .engine + dep available → live TRT (TRT-01)."""
+    engine_path = tmp_path / "yolo26n.engine"
+    engine_path.write_bytes(b"fake-engine")
+
+    monkeypatch.setattr(
+        factory_mod,
+        "_try_resolve_artifact",
+        lambda rt, *, preferred: (engine_path, None),
+    )
+    monkeypatch.setattr(factory_mod, "_tensorrt_available", lambda: True)
+
+    rt = _rt_for_profile("jetson")
+    build = build_detection_worker(rt, model=FakeModel())
+
+    assert build.backend_requested == "tensorrt"
+    assert build.backend_live == "tensorrt"
+    assert build.backend_reason is None
+    assert isinstance(build.worker, YoloDetectionWorker)
+    assert str(build.worker._weights).endswith(".engine")
+    assert Path(build.worker._weights) == engine_path
+    # Live TRT must not claim TRT while still holding torch .pt weights
+    assert not str(build.worker._weights).endswith(".pt")
+
+
 def test_ort_soft_fallback_dep_missing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -121,6 +150,30 @@ def test_ort_soft_fallback_dep_missing(
     assert str(build.worker._weights).endswith(".pt")
 
 
+def test_trt_soft_fallback_dep_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Artifact present but system tensorrt not importable → trt_dep_missing."""
+    engine_path = tmp_path / "yolo26n.engine"
+    engine_path.write_bytes(b"fake-engine")
+
+    monkeypatch.setattr(
+        factory_mod,
+        "_try_resolve_artifact",
+        lambda rt, *, preferred: (engine_path, None),
+    )
+    monkeypatch.setattr(factory_mod, "_tensorrt_available", lambda: False)
+
+    rt = _rt_for_profile("jetson")
+    build = build_detection_worker(rt, model=FakeModel())
+
+    assert build.backend_requested == "tensorrt"
+    assert build.backend_live == "torch"
+    assert build.backend_reason == "trt_dep_missing"
+    assert isinstance(build.worker, YoloDetectionWorker)
+    assert str(build.worker._weights).endswith(".pt")
+
+
 def test_ort_soft_fallback_path_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     """path_rejected on explicit/env path → torch soft-fallback."""
     monkeypatch.setattr(
@@ -134,6 +187,24 @@ def test_ort_soft_fallback_path_rejected(monkeypatch: pytest.MonkeyPatch) -> Non
     build = build_detection_worker(rt, model=FakeModel())
 
     assert build.backend_requested == "onnxruntime"
+    assert build.backend_live == "torch"
+    assert build.backend_reason == "path_rejected"
+    assert isinstance(build.worker, YoloDetectionWorker)
+
+
+def test_trt_soft_fallback_path_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """path_rejected on explicit/env TRT path → torch soft-fallback."""
+    monkeypatch.setattr(
+        factory_mod,
+        "_try_resolve_artifact",
+        lambda rt, *, preferred: (None, "path_rejected"),
+    )
+    monkeypatch.setattr(factory_mod, "_tensorrt_available", lambda: True)
+
+    rt = _rt_for_profile("jetson")
+    build = build_detection_worker(rt, model=FakeModel())
+
+    assert build.backend_requested == "tensorrt"
     assert build.backend_live == "torch"
     assert build.backend_reason == "path_rejected"
     assert isinstance(build.worker, YoloDetectionWorker)
@@ -157,6 +228,27 @@ def test_never_live_ort_with_pt_weights(
     build = build_detection_worker(rt, model=FakeModel())
     if build.backend_live == "onnxruntime":
         assert str(build.worker._weights).endswith(".onnx")
+        assert not str(build.worker._weights).endswith(".pt")
+
+
+def test_never_live_trt_with_pt_weights(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """backend_live=tensorrt only when worker weights end with .engine."""
+    engine_path = tmp_path / "yolo26n.engine"
+    engine_path.write_bytes(b"fake-engine")
+
+    monkeypatch.setattr(
+        factory_mod,
+        "_try_resolve_artifact",
+        lambda rt, *, preferred: (engine_path, None),
+    )
+    monkeypatch.setattr(factory_mod, "_tensorrt_available", lambda: True)
+
+    rt = _rt_for_profile("jetson")
+    build = build_detection_worker(rt, model=FakeModel())
+    if build.backend_live == "tensorrt":
+        assert str(build.worker._weights).endswith(".engine")
         assert not str(build.worker._weights).endswith(".pt")
 
 
