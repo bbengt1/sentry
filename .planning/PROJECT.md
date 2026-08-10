@@ -10,19 +10,28 @@ Reliable camera-only depth + obstacle awareness and object recognition that make
 
 ## Current State
 
-**Shipped: v1.0 Camera-only perception MVP** (2026-08-09)
+**Shipped: v1.0 Camera-only perception MVP** (2026-08-09) + **v0.2 Edge Runtime** (2026-08-10)
+
+### v1.0 (MVP)
 
 - Installable `sentry-ai` / CLI `sentry` with one-command local start
 - USB / file / synthetic / RTSP capture → keep-latest FrameBus → model workers
 - Fixed-class YOLO26 + monocular DAV2 Small depth + free-space/obstacles
-- Open-vocab YOLOE (on-demand / lower rate; default off)
-- Live Preview (MJPEG overlays + stage toggles + thresholds + telemetry)
-- `/v1/snapshot` + `/v1/stream` PerceptionFrame contract; perception-only boundary
-- Profiles: `desktop-gpu`, `jetson`, `cpu-fallback`; `sentry serve --no-ui`
-- Export recipes (ONNX/TensorRT docs + scripts); safety/privacy docs
-- ~7.4k LOC Python under `src/`; 18 plans across 7 phases
+- Open-vocab YOLOE (default off); Live Preview + `/v1` perception stream
+- Profiles: `desktop-gpu`, `jetson`, `cpu-fallback`; headless `--no-ui`
 
-**Audit at close:** tech_debt (46/46 requirements; residual operator UAT on phases 2–4) — see `milestones/v1.0-MILESTONE-AUDIT.md`.
+### v0.2 (Edge Runtime)
+
+- **Live ONNX Runtime** fixed-class YOLO when preferred + allowlisted `.onnx` + `onnx` extra
+- **Live TensorRT** fixed-class YOLO when preferred + on-device `.engine` + system/JetPack TensorRT
+- Factory `build_detection_worker` with honest `backend_requested` / `backend_live` / `backend_reason`
+- Soft-default sticky fallback + opt-in strict fail-closed (`fallback_to_torch` / `SENTRY_FALLBACK_TO_TORCH`)
+- Depth + open-vocab remain PyTorch; dual-model measure-on-device docs
+- Operator hub `docs/edge-serve.md`; AGPL lineage for derived ORT/TRT artifacts
+- Jetson-free GitHub Actions + packaging hygiene
+- ~9.3k LOC Python under `src/`; 10 plans across phases 8–12
+
+**Audit at close:** passed (20/20 requirements) — see `milestones/v0.2-MILESTONE-AUDIT.md`.
 
 ## Requirements
 
@@ -39,26 +48,35 @@ Reliable camera-only depth + obstacle awareness and object recognition that make
 - ✓ Single-camera pipeline with multi-cam `camera_id` extension hooks — v1.0
 - ✓ Multi-target runtime: desktop GPU + Jetson/CPU profiles + export recipes — v1.0
 - ✓ Extensible architecture stubs (ROS2 bridge, voice no-op, plugins) — v1.0
+- ✓ Live ONNX Runtime path for fixed-class YOLO (profile-selected) — v0.2
+- ✓ Live TensorRT path for fixed-class YOLO on NVIDIA / Jetson-class — v0.2
+- ✓ Profiles wire preferred_backend to real loaders (not advisory-only) — v0.2
+- ✓ Honest sticky soft/strict fallback when ORT/TRT artifact/dep missing — v0.2
+- ✓ Edge docs: export → onnx/engine → serve hub + Jetson packaging honesty — v0.2
+- ✓ CI-safe tests without Jetson hardware; GHA Jetson-free locks — v0.2
 
 ### Active
 
-- [ ] Live ONNX Runtime path for fixed-class YOLO (profile-selected)
-- [ ] Live TensorRT path for fixed-class YOLO on NVIDIA / Jetson-class
-- [ ] Profiles wire preferred_backend to real loaders (not advisory-only)
-- [ ] Honest fallback when ORT/TRT engine/model missing (clear error or torch fallback)
-- [ ] Edge docs: Jetson on-device engine build + serve with tensorrt/onnxruntime profiles
-- [ ] CI-safe tests without Jetson hardware
+*(Define via `/gsd:new-milestone` — examples below are placeholders, not commitments.)*
+
+- [ ] Metric depth calibration UX
+- [ ] Production ROS2 package
+- [ ] Multi-camera fusion runtime
+- [ ] Live ORT/TRT for depth / YOLOE (if ever justified)
+- [ ] Measured dual-model VRAM budgets on-device
 
 ### Out of Scope
 
 - LiDAR / radar / ultrasonic as required sensors — camera-only product thesis
 - Full robot control / motion planning — consumers own control
 - Dense SLAM / full 3D mapping — depth + obstacles only in core product
-- Multi-camera fusion (runtime) — single active source; schema hooks only
+- Multi-camera fusion (runtime) — single active source; schema hooks only *(revisit as Active if prioritized)*
 - Cloud-only or proprietary model dependency — local OSS required
 - Voice / scene chat as primary UI — stubs only in v1.0
 - Commercial fleet SaaS / mandatory cloud camera upload
 - FSD / autonomous vehicle claims — hobby monocular ≠ vehicle-grade
+- Prebuilt multi-SKU TensorRT engines in the wheel/repo — on-device build only
+- Continuous open-vocab + TRT + DAV2 as first-class dual-model claim
 
 ## Context
 
@@ -66,9 +84,9 @@ Reliable camera-only depth + obstacle awareness and object recognition that make
 
 **Users:** Maker / hobbyist roboticists, students, small teams.
 
-**Shipped stack:** Python 3.11, FastAPI, Pydantic 2, OpenCV capture, Ultralytics YOLO26/YOLOE, HF Depth Anything V2 Small, static Live Preview, profile-driven serve.
+**Shipped stack:** Python 3.11, FastAPI, Pydantic 2, OpenCV capture (incl. Continuity uniqueID on macOS), Ultralytics YOLO26/YOLOE, HF Depth Anything V2 Small, static Live Preview, profile-driven serve with live torch/ORT/TRT fixed-class detection.
 
-**Known residual tech debt (non-blocking):** optional human UAT (USB/browser/real weights); free-space product after depth disable; `/v1` bus metrics parity; YOLOE not in plugin registry; Nyquist VALIDATION.md flags.
+**Known residual tech debt (non-blocking):** Nyquist VALIDATION.md frontmatter hygiene; residual live-load honesty after construct claim; hardware ORT/TRT E2E is operator checklist (see v0.2 audit).
 
 ## Constraints
 
@@ -92,32 +110,34 @@ Reliable camera-only depth + obstacle awareness and object recognition that make
 | Live overlays + controls (not chat-first) | Developer tooling first | ✓ Good — v1.0 |
 | Fixed-class + open-vocab detection | Reliability + flexible queries | ✓ Good — v1.0 |
 | Perception stream only (no robot control) | Clean safety boundary | ✓ Good — v1.0 |
-| Multi-target: desktop + edge profiles | Dev ergonomics + deploy path | ✓ Good — v1.0 (live TRT deferred; recipes only) |
+| Multi-target: desktop + edge profiles | Dev ergonomics + deploy path | ✓ Good — v1.0 recipes; **v0.2 live ORT/TRT** |
 | Local OSS models only for core path | Offline, no vendor lock-in | ✓ Good — v1.0 |
 | Extensible plugin architecture | Voice/ROS2/multi-cam without rewrite | ✓ Good — stubs shipped |
 | Depth honesty via `depth_kind` | Never sell relative as meters | ✓ Good — v1.0 |
 | CUDA request falls back to MPS/CPU | Maker machines without CUDA | ✓ Good — post-v1 fix included |
+| Factory sole author of backend_live | Prevent status lies | ✓ Good — v0.2 |
+| Live ORT via Ultralytics YOLO(*.onnx) | Match Detection contract without custom decoder | ✓ Good — v0.2 |
+| Live TRT via system TensorRT (no pip pin) | JetPack reality; multi-SKU engines unsafe | ✓ Good — v0.2 |
+| Soft-default sticky fallback + opt-in strict | Maker ergonomics vs fail-closed deploy | ✓ Good — v0.2 |
+| Depth/OV stay torch this milestone | Dual-model VRAM + scope control | ✓ Good — v0.2 |
 
-## Current Milestone: v0.2 Edge Runtime
+## Current Milestone
 
-**Goal:** Make Jetson/desktop edge deployment run **live** detection on real backends (ONNX Runtime + TensorRT), not export recipes alone — while keeping PyTorch as the default desktop path.
+**v0.2 Edge Runtime — SHIPPED 2026-08-10**
 
-**Target features:**
-- Live **ONNX Runtime** inference path for fixed-class YOLO (profile-selected)
-- Live **TensorRT** inference path for fixed-class YOLO on NVIDIA (desktop/Jetson), on-device engines
-- Backend selection via existing profiles (`preferred_backend` / device policy) with honest fallbacks
-- Jetson-class first-class packaging notes + measured path (no fake FPS guarantees)
-- Depth stays **PyTorch/HF** this milestone (YOLO fixed-class edge only)
-- Open-vocab remains PyTorch/on-demand (not edge live dual-model)
-- CI: mock ORT/TRT paths; no Jetson required in GitHub Actions
-- Keep perception-only, localhost default, CUDA→MPS/CPU fallback honesty
+Next: define with `/gsd:new-milestone` (continue from Phase 13).
 
-**Out of this milestone (deferred):**
+**Shipped this milestone:** live ORT + live TRT fixed-class detection, sticky soft/strict fallback, edge-serve docs, Jetson-free CI.
+
+**Still deferred (candidates for next milestone):**
 - Metric depth calibration UX  
 - Production ROS2 package  
 - Multi-cam fusion  
 - Live ORT/TRT for depth / YOLOE  
-- Pi-class published dual-model FPS as first-class claim  
+- On-device dual-model VRAM budgets as first-class claims  
+
+---
+*Last updated: 2026-08-10 after v0.2 milestone*
 
 ## Evolution
 
@@ -130,4 +150,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-09 — started milestone v0.2 Edge Runtime*
+*Last updated: 2026-08-10 after v0.2 milestone*

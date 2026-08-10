@@ -1,5 +1,25 @@
 # Milestones
 
+## v0.2 Edge Runtime (Shipped: 2026-08-10)
+
+**Phases completed:** 5 phases, 10 plans, 26 tasks  
+**Audit:** passed (20/20 requirements; no critical gaps) — [v0.2-MILESTONE-AUDIT.md](milestones/v0.2-MILESTONE-AUDIT.md)  
+**Known deferred items at close:** Nyquist VALIDATION.md frontmatter hygiene; residual live-load honesty edge case; hardware ORT/TRT E2E remains operator checklist (see audit tech_debt)
+
+**Stats:** ~9.3k LOC Python (`src/`); timeline 2026-08-09 → 2026-08-10
+
+**Key accomplishments:**
+
+- Serve-time `build_detection_worker` factory with allowlisted artifact paths and honest `backend_requested` / `backend_live` / `backend_reason`
+- Live fixed-class YOLO via **ONNX Runtime** when preferred + `.onnx` + `onnx` extra (Detection contract parity under mocks)
+- Live fixed-class YOLO via **TensorRT** when preferred + on-device `.engine` + system/JetPack TensorRT (no pip pin, no multi-SKU engines in wheel)
+- Soft-default sticky fallback + opt-in strict fail-closed (`fallback_to_torch` / `SENTRY_FALLBACK_TO_TORCH`); reason logged once
+- Depth and open-vocab stay PyTorch; dual-model measure-on-device docs; continuous OV+TRT+DAV2 not first-class
+- Operator hub `docs/edge-serve.md` (export → place → serve) + AGPL lineage for derived `.onnx`/`.engine`
+- Jetson-free GitHub Actions locks + packaging hygiene (`*.engine`/`*.onnx` gitignored)
+
+---
+
 ## v1.0 Camera-only perception MVP (Shipped: 2026-08-09)
 
 **Phases completed:** 7 phases, 18 plans, 52 tasks  
