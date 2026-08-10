@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v0.2
 milestone_name: Edge Runtime
 status: verifying
-stopped_at: Completed 12-02-PLAN.md
-last_updated: "2026-08-10T21:26:54.658Z"
+stopped_at: Completed 12-01-PLAN.md
+last_updated: "2026-08-10T21:29:11.888Z"
 last_activity: 2026-08-10
 progress:
   total_phases: 5
@@ -69,6 +69,7 @@ Progress: [██████████] 100%
 | Phase 11 P01 | 3min | 3 tasks | 9 files |
 | Phase 11 P02 | 3min | 2 tasks | 12 files |
 | Phase 12 P02 | 1min | 3 tasks | 3 files |
+| Phase 12 P01 | 3min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -113,6 +114,9 @@ Decisions are logged in PROJECT.md Key Decisions table. v0.2 roadmap-binding:
 - [Phase 12]: Leave ci.yml byte-identical — already Jetson/GPU-free; lock with tests only
 - [Phase 12]: EDGE-CI-01 is verify-only — no factory rewrite; document matrix ownership in test docstring
 - [Phase 12]: gitignore *.engine/*.onnx next to *.pt; zero tracked engines confirmed
+- [Phase 12]: Ship thin docs/edge-serve.md hub rather than expanding only export/*
+- [Phase 12]: AGPL derived-artifact section uses evaluate-obligations / same commercial caution tone — not compliance certification
+- [Phase 12]: CHANGELOG Unreleased only; do not bump package 0.1.0 → 0.2.0
 
 ### Pending Todos
 
@@ -139,7 +143,7 @@ Live ORT/TRT inference deferred to Phases 9–10 (intentional Phase 8 soft-stub)
 
 ## Session Continuity
 
-Last session: 2026-08-10T21:26:29.268Z
-Stopped at: Completed 12-02-PLAN.md
+Last session: 2026-08-10T21:29:11.881Z
+Stopped at: Completed 12-01-PLAN.md
 Resume file: None
 Next: Execute 11-02-PLAN.md (dual-model scope lock + operator status surface EDGE-RT-04)
