@@ -4,21 +4,30 @@ Static locks on `.github/workflows/ci.yml` and artifact gitignore hygiene so
 contributors never need Jetson hardware or TensorRT GPU in default CI.
 
 EDGE-CI-01 (backend selection / missing-artifact honesty / factory wiring)
-lives in the existing mock suites — do not re-implement here:
+lives in existing mock suites — do not re-implement here:
 
-| Case                         | Expect                                          | Suite                         |
-|------------------------------|-------------------------------------------------|-------------------------------|
-| desktop-gpu default          | live=torch, reason=None                         | test_detection_factory.py     |
-| jetson no artifact (soft)    | live=torch, reason=trt_artifact_missing         | test_detection_factory.py     |
-| cpu-fallback no artifact     | live=torch, reason=ort_artifact_missing         | test_detection_factory.py     |
-| ORT live mock                | artifact + dep → live=onnxruntime               | test_detection_factory.py     |
-| TRT live mock                | artifact + dep → live=tensorrt                  | test_detection_factory.py     |
-| strict miss                  | worker=None, live=None, same reason codes       | test_detection_factory.py     |
-| sticky                       | factory once at serve; not in DetectionLoop     | factory + serve call-site     |
-| status honesty pass-through  | backend_live / backend_reason on status         | test_backend_honesty_status.py|
-| artifact allowlist           | path rejection reasons                          | test_artifact_paths.py        |
-| ORT/TRT parity mocks         | Detection contract without real engines         | test_ort_parity / trt_parity  |
-| EDGE-RT-04 torch-only        | torch path without GPU extras                   | test_edge_rt04_torch_only.py  |
+- desktop-gpu default → live=torch, reason=None
+  (tests/test_detection_factory.py)
+- jetson no artifact (soft) → live=torch, trt_artifact_missing
+  (tests/test_detection_factory.py)
+- cpu-fallback no artifact (soft) → live=torch, ort_artifact_missing
+  (tests/test_detection_factory.py)
+- ORT live mock → artifact + dep → live=onnxruntime
+  (tests/test_detection_factory.py)
+- TRT live mock → artifact + dep → live=tensorrt
+  (tests/test_detection_factory.py)
+- strict miss → worker=None, live=None, same reason codes
+  (tests/test_detection_factory.py)
+- sticky → factory once at serve; not in DetectionLoop
+  (factory + serve call-site tests)
+- status honesty pass-through → backend_live / backend_reason
+  (tests/test_backend_honesty_status.py)
+- artifact allowlist → path rejection reasons
+  (tests/test_artifact_paths.py)
+- ORT/TRT parity mocks → Detection contract without real engines
+  (tests/test_ort_parity.py, tests/test_trt_parity.py)
+- EDGE-RT-04 torch-only → torch path without GPU extras
+  (tests/test_edge_rt04_torch_only.py)
 """
 
 from __future__ import annotations
