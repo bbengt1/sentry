@@ -31,7 +31,7 @@ Audit: [milestones/v1.0-MILESTONE-AUDIT.md](milestones/v1.0-MILESTONE-AUDIT.md)
 - [x] **Phase 8: Backend Selection & Honesty** - Factory wires `preferred_backend` to real loaders; status shows requested vs live (completed 2026-08-09)
 - [x] **Phase 9: Live ORT Fixed-Class YOLO** - Profile-selected ONNX Runtime path produces schema-identical detections (completed 2026-08-09)
 - [x] **Phase 10: Live TensorRT Fixed-Class YOLO** - On-device `.engine` path for Jetson/desktop NVIDIA (completed 2026-08-10)
-- [x] **Phase 11: Sticky Fallback & Dual-Model Guardrails** - Documented sticky fail/fallback; depth/OV remain torch (completed 2026-08-10)
+- [x] **Phase 11: Sticky Fallback & Dual-Model Guardrails** - Documented sticky fail/fallback; depth/OV remain torch (completed 2026-08-10) (completed 2026-08-10)
 - [ ] **Phase 12: Docs, CI & Packaging Polish** - Export→serve narrative, AGPL lineage, CI without Jetson
 
 ## Phase Details
