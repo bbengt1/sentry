@@ -13,6 +13,7 @@ from sentry_ai.sources.list_cameras import (
     list_avfoundation_devices_ffmpeg,
     list_local_cameras,
     probe_camera_index,
+    resolve_usb_device,
 )
 from tests.cli_helpers import cli_help_output
 
@@ -255,6 +256,51 @@ def test_format_with_continuity_device() -> None:
     text = format_camera_list(cams, max_index=8, continuity_hint=True)
     assert "iPhone" in text
     assert "Continuity Camera not listed" not in text
+
+
+def test_resolve_usb_device_auto_prefers_continuity() -> None:
+    cams = [
+        LocalCameraInfo(
+            index=0,
+            available=True,
+            name="FaceTime HD Camera",
+            device_type="BuiltInWideAngleCamera",
+        ),
+        LocalCameraInfo(
+            index=1,
+            available=True,
+            name="Brent's iPhone Camera",
+            device_type="External",
+            notes=("Continuity Camera", "external"),
+        ),
+    ]
+    idx, info = resolve_usb_device("auto", cameras=cams)
+    assert idx == 1
+    assert info is not None
+    assert "Continuity" in " ".join(info.notes)
+
+    idx2, _ = resolve_usb_device("continuity", cameras=cams)
+    assert idx2 == 1
+
+    idx3, info3 = resolve_usb_device("0", cameras=cams)
+    assert idx3 == 0
+    assert info3 is not None and info3.name and "FaceTime" in info3.name
+
+
+def test_resolve_usb_device_continuity_closed_errors() -> None:
+    cams = [
+        LocalCameraInfo(
+            index=1,
+            available=False,
+            name="iPhone Camera",
+            notes=("Continuity Camera",),
+        ),
+    ]
+    try:
+        resolve_usb_device("continuity", cameras=cams)
+        raise AssertionError("expected ValueError")
+    except ValueError as exc:
+        assert "OPEN=no" in str(exc) or "not openable" in str(exc).lower()
 
 
 def test_cli_cameras_command_registered() -> None:

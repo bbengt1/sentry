@@ -49,13 +49,27 @@ def test_build_serve_source_synthetic() -> None:
 
 
 def test_build_serve_source_usb() -> None:
-    src = _build_serve_source(
-        source="usb",
-        device=1,
-        path=None,
-        url=None,
-        camera_id=None,
+    from unittest.mock import patch
+
+    from sentry_ai.sources.list_cameras import LocalCameraInfo
+
+    fake = LocalCameraInfo(
+        index=1,
+        available=True,
+        name="Test Continuity",
+        notes=("Continuity Camera",),
     )
+    with patch(
+        "sentry_ai.sources.list_cameras.resolve_usb_device",
+        return_value=(1, fake),
+    ):
+        src = _build_serve_source(
+            source="usb",
+            device="1",
+            path=None,
+            url=None,
+            camera_id=None,
+        )
     assert isinstance(src, UsbSource)
     assert src.target == 1
 

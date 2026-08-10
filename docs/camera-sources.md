@@ -9,7 +9,7 @@ preview never opens cameras.
 | Source | Plugin name | How to select | Target | Typical latency class | CI |
 |--------|-------------|---------------|--------|----------------------|----|
 | Synthetic | `synthetic` | `--source synthetic` | patterned BGR frames | n/a (local) | Yes |
-| USB UVC | `usb` | `--source usb --device N` | device index (see `sentry cameras`) | low (tens of ms) | Manual |
+| USB UVC | `usb` | `--source usb --device auto\|continuity\|N` | index / name (see `sentry cameras`) | low (tens of ms) | Manual |
 | File / video | `file` | `--source file --path clip.mp4` | filesystem path | file decode | Yes (fixtures) |
 | Network / IP | `rtsp` | `--source rtsp --url rtsp://…` | OpenCV URL | high (100–500 ms+) | Mock only |
 
@@ -80,7 +80,9 @@ stream yet — re-check Continuity is active, then re-run `sentry cameras`.
 Use the printed **IDX** with:
 
 ```bash
-uv run sentry serve --source usb --device <IDX>
+# Prefer Continuity by name (not laptop FaceTime index 0):
+uv run sentry serve --source usb --device continuity
+# or: --device auto   |  --device 1  (explicit OPEN=yes IDX)
 ```
 
 ## Manual verification checklist
@@ -100,7 +102,7 @@ uv run sentry serve --source usb --device <IDX>
 
 ```bash
 uv run sentry serve --source synthetic
-uv run sentry serve --source usb --device 0
+uv run sentry serve --source usb --device auto
 uv run sentry serve --source file --path /path/to/clip.mp4
 uv run sentry serve --source rtsp --url "rtsp://camera.local/stream"
 # Opt-in LAN bind (privacy risk — no auth):

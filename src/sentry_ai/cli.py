@@ -40,7 +40,7 @@ def _build_registry() -> PluginRegistry:
 def _build_serve_source(
     *,
     source: str,
-    device: int,
+    device: int | str,
     path: str | None,
     url: str | None,
     camera_id: str | None,
@@ -53,11 +53,23 @@ def _build_serve_source(
             fps=30.0,
         )
     if name == "usb":
+        from sentry_ai.sources.list_cameras import resolve_usb_device
         from sentry_ai.sources.opencv_source import UsbSource
 
+        try:
+            idx, info = resolve_usb_device(device)
+        except ValueError as exc:
+            typer.echo(f"serve failed: {exc}", err=True)
+            raise typer.Exit(code=1) from exc
+        label = (info.name if info and info.name else None) or f"index {idx}"
+        typer.echo(f"usb camera: IDX {idx} — {label}")
+        if info is not None and info.notes:
+            notes = "; ".join(info.notes)
+            if notes:
+                typer.echo(f"usb notes: {notes}")
         return UsbSource(
-            device=device,
-            camera_id=camera_id or f"usb{device}",
+            device=idx,
+            camera_id=camera_id or f"usb{idx}",
         )
     if name == "file":
         if not path:
@@ -276,11 +288,12 @@ def serve(
         8000,
         help="Bind port.",
     ),
-    device: int = typer.Option(
-        0,
+    device: str = typer.Option(
+        "auto",
         help=(
-            "USB device index for --source usb. "
-            "List indices with: sentry cameras"
+            "USB camera for --source usb: OpenCV index (e.g. 1), "
+            "'auto' (prefer Continuity OPEN=yes), 'continuity', "
+            "or a name substring. List with: sentry cameras"
         ),
     ),
     path: str | None = typer.Option(

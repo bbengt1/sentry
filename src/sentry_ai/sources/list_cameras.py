@@ -514,6 +514,102 @@ def list_local_cameras(
     return found
 
 
+def _is_continuity_camera(cam: LocalCameraInfo) -> bool:
+    name = (cam.name or "").lower()
+    dtype = (cam.device_type or "").lower()
+    notes = " ".join(cam.notes).lower()
+    if "desk" in notes or "deskview" in dtype or "desk view" in name:
+        return False
+    if "continuity" in notes or "continuity" in dtype:
+        return True
+    if "iphone" in name or "ipad" in name:
+        return True
+    return False
+
+
+def resolve_usb_device(
+    selector: str | int,
+    *,
+    cameras: list[LocalCameraInfo] | None = None,
+) -> tuple[int, LocalCameraInfo | None]:
+    """Resolve a USB device selector to an OpenCV index.
+
+    Selectors:
+    - int / digit string: use that OpenCV index
+    - ``auto``: first OPEN Continuity/iPhone, else first OPEN camera
+    - ``continuity`` / ``iphone`` / ``ipad``: first OPEN Continuity-like
+    - other string: case-insensitive name substring among OPEN cameras
+      (falls back to any listed name if none open)
+
+    Returns ``(index, LocalCameraInfo|None)``. Raises ``ValueError`` if no match.
+    """
+    if cameras is None:
+        cameras = list_local_cameras(include_unavailable=True)
+
+    open_cams = [c for c in cameras if c.available and c.index is not None]
+    all_named = [c for c in cameras if c.index is not None]
+
+    if isinstance(selector, int):
+        idx = selector
+        match = next((c for c in cameras if c.index == idx), None)
+        return idx, match
+
+    key = str(selector).strip().lower()
+    if key == "" or key == "auto":
+        for c in open_cams:
+            if _is_continuity_camera(c):
+                return int(c.index), c  # type: ignore[arg-type]
+        if open_cams:
+            c = open_cams[0]
+            return int(c.index), c  # type: ignore[arg-type]
+        raise ValueError(
+            "no OpenCV-openable camera found. "
+            "Run: uv run sentry cameras  (need OPEN=yes)"
+        )
+
+    if key.isdigit() or (key.startswith("-") and key[1:].isdigit()):
+        idx = int(key)
+        match = next((c for c in cameras if c.index == idx), None)
+        return idx, match
+
+    continuity_keys = {"continuity", "iphone", "ipad", "ios"}
+    if key in continuity_keys:
+        for c in open_cams:
+            if _is_continuity_camera(c):
+                return int(c.index), c  # type: ignore[arg-type]
+        # Continuity listed but OPEN=no
+        closed = [c for c in all_named if _is_continuity_camera(c)]
+        if closed:
+            names = ", ".join(
+                f"IDX {c.index} {c.name!r} OPEN=no" for c in closed
+            )
+            raise ValueError(
+                f"Continuity Camera found but not openable by OpenCV ({names}). "
+                "Unlock iPhone, free Continuity, re-run: uv run sentry cameras"
+            )
+        raise ValueError(
+            "no Continuity / iPhone camera listed. "
+            "Enable Continuity Camera, then: uv run sentry cameras"
+        )
+
+    # Name substring
+    for pool in (open_cams, all_named):
+        for c in pool:
+            name = (c.name or "").lower()
+            if key in name:
+                if not c.available:
+                    raise ValueError(
+                        f"camera matching {selector!r} is IDX {c.index} "
+                        f"({c.name!r}) but OPEN=no — pick another or fix access"
+                    )
+                return int(c.index), c  # type: ignore[arg-type]
+
+    raise ValueError(
+        f"no camera matching {selector!r}. "
+        "Run: uv run sentry cameras  (use IDX or --device continuity)"
+    )
+
+
 def format_camera_list(
     cameras: list[LocalCameraInfo],
     *,
@@ -580,14 +676,41 @@ def format_camera_list(
 
     lines.append("")
     lines.append("Use with serve:")
-    lines.append("  uv run sentry serve --source usb --device <IDX>")
+    # Prefer Continuity when OPEN=yes so users don't default to FaceTime (0).
+    cont_open = next(
+        (
+            c
+            for c in cameras
+            if c.available
+            and c.index is not None
+            and (
+                any("continuity" in n.lower() for n in c.notes)
+                or "continuity" in (c.device_type or "").lower()
+                or "iphone" in (c.name or "").lower()
+            )
+        ),
+        None,
+    )
+    if cont_open is not None and cont_open.index is not None:
+        lines.append(
+            "  # Continuity (OPEN=yes) — recommended:"
+        )
+        lines.append(
+            "  uv run sentry serve --source usb --device continuity"
+        )
+        lines.append(
+            f"  # or explicit index: --device {cont_open.index}"
+        )
+    else:
+        lines.append("  uv run sentry serve --source usb --device auto")
+        lines.append("  # or: --device <IDX> | --device continuity | name substring")
     lines.append("")
     if continuity_hint and _is_macos() and not has_continuity:
         lines.extend(_continuity_missing_tips())
     elif continuity_hint and _is_macos():
         lines.append(
-            "Continuity Camera: use the IDX next to the Continuity / iPhone "
-            "entry (OPEN=yes required for OpenCV serve)."
+            "Continuity Camera: prefer `--device continuity` (or the IDX with "
+            "OPEN=yes). Default FaceTime is often IDX 0 (laptop) — not Continuity."
         )
         lines.append("")
     lines.append(
