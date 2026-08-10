@@ -111,8 +111,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 12-01: Edge serve docs + AGPL/export lineage refresh
-- [ ] 12-02: CI selection/fallback matrix hardening (no Jetson in GHA)
+- [ ] 12-01-PLAN.md — Edge serve docs + AGPL/export lineage refresh
+- [ ] 12-02-PLAN.md — CI selection/fallback matrix hardening (no Jetson in GHA)
 
 ## Progress
 
