@@ -1,7 +1,10 @@
 # Export scripts
 
 Offline helpers for makers packaging YOLO weights. **Not** imported by the
-`sentry_ai` runtime. Live `sentry serve` stays on PyTorch profiles.
+`sentry_ai` runtime. Live fixed-class serve can use exported `.onnx` / `.engine`
+when preferred backend + artifact + dep conditions are met (see
+[`docs/export/README.md`](../../docs/export/README.md) and
+[`docs/edge-serve.md`](../../docs/edge-serve.md)); otherwise soft-falls to torch.
 
 ## Requirements
 

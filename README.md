@@ -28,6 +28,7 @@ This project is **not** the [getsentry](https://sentry.io) error-tracking produc
 | [docs/camera-sources.md](docs/camera-sources.md) | USB / RTSP / file matrix |
 | [docs/safety-and-privacy.md](docs/safety-and-privacy.md) | Non-autonomy and privacy |
 | [docs/export/](docs/export/) | ONNX / TensorRT export recipes |
+| [docs/edge-serve.md](docs/edge-serve.md) | Export → place artifact → `sentry serve` edge path |
 | [docs/development.md](docs/development.md) | Contributing and tests |
 | [THIRD_PARTY_MODELS.md](THIRD_PARTY_MODELS.md) | Model licenses |
 
@@ -73,8 +74,8 @@ uv run sentry serve --source synthetic --host 0.0.0.0
 | Profile | Typical use | Select |
 |---------|-------------|--------|
 | `desktop-gpu` | **Primary maker path** — full pipeline on GPU | `--profile desktop-gpu` |
-| `jetson` | Jetson-class edge tiers (still PyTorch live) | `--profile jetson` |
-| `cpu-fallback` | Default — CI / no-GPU | `--profile cpu-fallback` (or omit) |
+| `jetson` | Edge / Jetson — live TRT when `.engine` + system TensorRT; else soft torch | `--profile jetson` |
+| `cpu-fallback` | Default — CI / no-GPU; live ORT when `.onnx` + `onnx` extra | `--profile cpu-fallback` (or omit) |
 
 ### Headless (API without Live Preview HTML)
 
@@ -282,20 +283,28 @@ with connect("ws://127.0.0.1:8000/v1/stream") as ws:
 Install remains **core** + optional `detect` / `depth` extras. Free-space needs
 no new package — only a depth product for the loop to consume.
 
-## Export (ONNX / TensorRT)
+## Export & live edge backends (ONNX / TensorRT)
 
-Offline edge packaging recipes — **not** a live TensorRT runtime in Sentry v1.
-Live `sentry serve` stays on **PyTorch** profiles (`desktop-gpu`, `jetson`,
-`cpu-fallback`). Build TensorRT engines **on-device**; never copy `.engine`
-across JetPack SKUs.
+Export recipes produce allowlisted `.onnx` / on-device `.engine` artifacts.
+Live fixed-class serve can use:
+
+| Backend | When live |
+|---------|-----------|
+| **Torch** (default) | Always available with `detect` extra |
+| **ONNX Runtime** | `preferred_backend=onnxruntime` + allowlisted `.onnx` + `uv sync --extra onnx` |
+| **TensorRT** | `preferred_backend=tensorrt` + allowlisted `.engine` + system/JetPack TensorRT (no pip extra) |
+
+Missing artifact/dep → soft-fall to torch + honest `backend_reason` (strict
+opt-in via `SENTRY_FALLBACK_TO_TORCH=false`). Build engines **on-device**;
+never copy `.engine` across JetPack SKUs.
 
 ```bash
 uv sync --extra detect
 uv run python scripts/export/export_yolo.py --weights yolo26n.pt --format onnx
 ```
 
-Full honesty notes (Jetson packaging, YOLOE experimental export, depth
-feasibility, AGPL): [`docs/export/README.md`](docs/export/README.md).
+End-to-end path: [`docs/edge-serve.md`](docs/edge-serve.md).  
+Recipes + honesty notes: [`docs/export/`](docs/export/).
 
 ## Safety, privacy, and non-autonomy
 

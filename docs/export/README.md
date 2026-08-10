@@ -85,8 +85,9 @@ If the `.engine` artifact, system `tensorrt` dep, or path is missing/rejected,
 serve **soft-falls** to torch with `trt_artifact_missing` / `trt_dep_missing` /
 `path_rejected` — it never claims live TRT silently.
 
-Full desktop-GPU walkthrough is covered in a later release doc (Phase 7 plan
-07-03). Edge packaging details live in [jetson-packaging.md](jetson-packaging.md).
+Full desktop-GPU walkthrough: [desktop-gpu.md](../desktop-gpu.md).  
+End-to-end export → serve path: [edge-serve.md](../edge-serve.md).  
+Edge packaging details: [jetson-packaging.md](jetson-packaging.md).
 
 ## Quick export (YOLO26 ONNX)
 

@@ -5,6 +5,19 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Document live fixed-class ORT/TRT serve conditions (preferred + artifact + dep)
+- Root/desktop/export hub honesty: retire “export-only / still PyTorch live” language
+- Add `docs/edge-serve.md` numbered export → place artifact → `sentry serve` path
+- AGPL lineage for YOLO-derived `.onnx` / `.engine` in `THIRD_PARTY_MODELS` (see EDGE-DOC-02)
+
+### Known limitations
+
+- Real engine load remains on-device / manual; default CI is mock-only
+
 ## [0.1.0] — 2026-08-09
 
 First public release of the Sentry AI camera-only perception stack (feature

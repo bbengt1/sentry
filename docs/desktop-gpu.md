@@ -110,18 +110,20 @@ uv run sentry serve --profile desktop-gpu --source usb --device 0
 # CI / no-GPU default
 uv run sentry serve --profile cpu-fallback --source synthetic
 
-# Jetson-class tiers (still PyTorch live path; TRT via export recipes)
+# Jetson-class tiers — live TRT when allowlisted .engine + system TensorRT;
+# otherwise soft torch + reason. See docs/edge-serve.md and docs/export/.
 uv run sentry serve --profile jetson --source usb --device 0
 ```
 
-Edge export (ONNX / on-device TensorRT notes): [`docs/export/README.md`](export/README.md).  
+Edge export → serve path: [`docs/edge-serve.md`](edge-serve.md).  
+Edge export recipes: [`docs/export/README.md`](export/README.md).  
 Camera source matrix: [`docs/camera-sources.md`](camera-sources.md).  
 Safety / non-autonomy: [`docs/safety-and-privacy.md`](safety-and-privacy.md).
 
 ## What this path is not
 
 - Not a measured FPS guarantee  
-- Not a live TensorRT runtime (export recipes are offline packaging)  
+- Not automatic multi-SKU TensorRT — engines are on-device only  
 - Not multi-cam fusion (v1 is single active source; `camera_id` is the extension key)  
 - Not robot control — perception stream only  
 

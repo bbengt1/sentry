@@ -17,6 +17,7 @@ and a versioned perception stream for robots. **No motor commands.**
 | [perception-frame.md](perception-frame.md) | `PerceptionFrame` wire contract |
 | [camera-sources.md](camera-sources.md) | USB / file / RTSP / synthetic matrix |
 | [development.md](development.md) | Contributing, tests, package layout |
+| [edge-serve.md](edge-serve.md) | Export → artifact → `sentry serve` edge path (ORT/TRT) |
 | [export/README.md](export/README.md) | ONNX / TensorRT export recipes (edge packaging) |
 | [../THIRD_PARTY_MODELS.md](../THIRD_PARTY_MODELS.md) | Model licenses (AGPL YOLO, Apache DAV2 Small) |
 
@@ -34,9 +35,11 @@ and navigation stay with the robot integrator.
 |----------|---------|
 | Python package (`pyproject.toml`) | **0.1.0** |
 | GitHub release | **v0.1.0** |
-| Planning milestone (GSD) | v1.0 MVP (feature-complete for this product slice) |
+| Planning milestone (GSD) | v0.2 Edge Runtime (package may still be 0.1.0) |
 
-Package **0.1.0** is the first public software release of that MVP.
+Package **0.1.0** is the first public software release of the v1.0 MVP slice.
+Planning milestone **v0.2** adds live ORT/TRT edge paths without a package
+version bump until a release cut.
 
 ## Quick links
 
