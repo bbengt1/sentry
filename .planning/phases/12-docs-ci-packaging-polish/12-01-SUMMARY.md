@@ -86,7 +86,7 @@ Each task was committed atomically:
 2. **Task 2: Edge hub + split-brain doc honesty (EDGE-DOC-01)** - `ba7ec6e` (feat)
 3. **Task 3: AGPL derived-artifact lineage (EDGE-DOC-02) + suite green** - `f2935ea` (feat)
 
-**Plan metadata:** (pending final docs commit)
+**Plan metadata:** `84001ba` (docs: complete plan)
 
 _Note: TDD Task 1 was test-only RED; GREEN landed in Tasks 2–3._
 
