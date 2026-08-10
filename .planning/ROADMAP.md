@@ -96,8 +96,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 11-01: Sticky resolve + soft/strict fallback policy
-- [ ] 11-02: Dual-model scope lock (depth/OV torch) + operator status surface
+- [ ] 11-01-PLAN.md — Sticky resolve + soft/strict fallback policy (BACK-03)
+- [ ] 11-02-PLAN.md — Dual-model scope lock (depth/OV torch) + operator status surface (EDGE-RT-04)
 
 ### Phase 12: Docs, CI & Packaging Polish
 **Goal**: Makers can follow export → engine/onnx → `sentry serve` on desktop/Jetson without fake FPS claims; contributors merge safely without Jetson hardware
