@@ -342,3 +342,214 @@ def test_fallback_to_torch_env_true(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SENTRY_FALLBACK_TO_TORCH", "true")
     rt = profile_runtime(load_config(profile="cpu-fallback"))
     assert rt.fallback_to_torch is True
+
+
+# --- strict miss policy + once-log + sticky (BACK-03) ---
+
+
+def _rt_strict(profile: str) -> ProfileRuntime:
+    """ProfileRuntime for profile with fallback_to_torch=False (strict)."""
+    base = _rt_for_profile(profile)
+    return ProfileRuntime(
+        profile=base.profile,
+        detector_weights=base.detector_weights,
+        open_vocab_weights=base.open_vocab_weights,
+        depth_model_id=base.depth_model_id,
+        depth_tier=base.depth_tier,
+        preferred_backend=base.preferred_backend,
+        device=base.device,
+        device_id=base.device_id,
+        fallback_to_torch=False,
+    )
+
+
+def test_strict_trt_artifact_missing() -> None:
+    """Strict jetson without fixture: worker None, live None, trt_artifact_missing."""
+    rt = _rt_strict("jetson")
+    build = build_detection_worker(rt, model=FakeModel())
+    assert build.backend_requested == "tensorrt"
+    assert build.worker is None
+    assert build.backend_live is None
+    assert build.backend_reason == "trt_artifact_missing"
+    assert build.backend_live not in {"torch", "onnxruntime", "tensorrt"}
+
+
+def test_strict_ort_artifact_missing() -> None:
+    rt = _rt_strict("cpu-fallback")
+    build = build_detection_worker(rt, model=FakeModel())
+    assert build.backend_requested == "onnxruntime"
+    assert build.worker is None
+    assert build.backend_live is None
+    assert build.backend_reason == "ort_artifact_missing"
+
+
+def test_strict_ort_dep_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    onnx_path = tmp_path / "yolo26n.onnx"
+    onnx_path.write_bytes(b"fake-onnx")
+    monkeypatch.setattr(
+        factory_mod,
+        "_try_resolve_artifact",
+        lambda rt, *, preferred: (onnx_path, None),
+    )
+    monkeypatch.setattr(factory_mod, "_onnxruntime_available", lambda: False)
+
+    rt = _rt_strict("cpu-fallback")
+    build = build_detection_worker(rt, model=FakeModel())
+    assert build.worker is None
+    assert build.backend_live is None
+    assert build.backend_reason == "ort_dep_missing"
+    assert build.backend_requested == "onnxruntime"
+
+
+def test_strict_trt_dep_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    engine_path = tmp_path / "yolo26n.engine"
+    engine_path.write_bytes(b"fake-engine")
+    monkeypatch.setattr(
+        factory_mod,
+        "_try_resolve_artifact",
+        lambda rt, *, preferred: (engine_path, None),
+    )
+    monkeypatch.setattr(factory_mod, "_tensorrt_available", lambda: False)
+
+    rt = _rt_strict("jetson")
+    build = build_detection_worker(rt, model=FakeModel())
+    assert build.worker is None
+    assert build.backend_live is None
+    assert build.backend_reason == "trt_dep_missing"
+
+
+def test_strict_ort_path_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        factory_mod,
+        "_try_resolve_artifact",
+        lambda rt, *, preferred: (None, "path_rejected"),
+    )
+    monkeypatch.setattr(factory_mod, "_onnxruntime_available", lambda: True)
+
+    rt = _rt_strict("cpu-fallback")
+    build = build_detection_worker(rt, model=FakeModel())
+    assert build.worker is None
+    assert build.backend_live is None
+    assert build.backend_reason == "path_rejected"
+
+
+def test_strict_trt_path_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        factory_mod,
+        "_try_resolve_artifact",
+        lambda rt, *, preferred: (None, "path_rejected"),
+    )
+    monkeypatch.setattr(factory_mod, "_tensorrt_available", lambda: True)
+
+    rt = _rt_strict("jetson")
+    build = build_detection_worker(rt, model=FakeModel())
+    assert build.worker is None
+    assert build.backend_live is None
+    assert build.backend_reason == "path_rejected"
+
+
+def test_strict_unsupported_backend() -> None:
+    rt = ProfileRuntime(
+        profile=RuntimeProfile.DESKTOP_GPU,
+        detector_weights="yolo26s.pt",
+        open_vocab_weights="yoloe-26s-seg.pt",
+        depth_model_id="depth-anything/Depth-Anything-V2-Small-hf",
+        depth_tier="small",
+        preferred_backend="openvino",
+        device=None,
+        device_id="cpu",
+        fallback_to_torch=False,
+    )
+    build = build_detection_worker(rt, model=FakeModel())
+    assert build.worker is None
+    assert build.backend_live is None
+    assert build.backend_reason == "unsupported_backend"
+    assert build.backend_requested == "openvino"
+
+
+def test_strict_live_ort_success(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Strict does not affect live claim when artifact+dep resolve."""
+    onnx_path = tmp_path / "yolo26n.onnx"
+    onnx_path.write_bytes(b"fake-onnx")
+    monkeypatch.setattr(
+        factory_mod,
+        "_try_resolve_artifact",
+        lambda rt, *, preferred: (onnx_path, None),
+    )
+    monkeypatch.setattr(factory_mod, "_onnxruntime_available", lambda: True)
+
+    rt = _rt_strict("cpu-fallback")
+    build = build_detection_worker(rt, model=FakeModel())
+    assert build.backend_requested == "onnxruntime"
+    assert build.backend_live == "onnxruntime"
+    assert build.backend_reason is None
+    assert isinstance(build.worker, YoloDetectionWorker)
+    assert str(build.worker._weights).endswith(".onnx")
+
+
+def test_strict_live_trt_success(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    engine_path = tmp_path / "yolo26n.engine"
+    engine_path.write_bytes(b"fake-engine")
+    monkeypatch.setattr(
+        factory_mod,
+        "_try_resolve_artifact",
+        lambda rt, *, preferred: (engine_path, None),
+    )
+    monkeypatch.setattr(factory_mod, "_tensorrt_available", lambda: True)
+
+    rt = _rt_strict("jetson")
+    build = build_detection_worker(rt, model=FakeModel())
+    assert build.backend_requested == "tensorrt"
+    assert build.backend_live == "tensorrt"
+    assert build.backend_reason is None
+    assert isinstance(build.worker, YoloDetectionWorker)
+    assert str(build.worker._weights).endswith(".engine")
+
+
+def test_soft_miss_logs_warning_once(caplog: pytest.LogCaptureFixture) -> None:
+    rt = _rt_for_profile("jetson")
+    with caplog.at_level("WARNING", logger=factory_mod.__name__):
+        build = build_detection_worker(rt, model=FakeModel())
+    assert build.backend_reason == "trt_artifact_missing"
+    soft_logs = [
+        r
+        for r in caplog.records
+        if r.name == factory_mod.__name__
+        and "soft-fallback" in r.getMessage()
+        and build.backend_reason in r.getMessage()
+    ]
+    assert len(soft_logs) == 1
+    assert soft_logs[0].levelname == "WARNING"
+
+
+def test_strict_miss_logs_error_once(caplog: pytest.LogCaptureFixture) -> None:
+    rt = _rt_strict("jetson")
+    with caplog.at_level("ERROR", logger=factory_mod.__name__):
+        build = build_detection_worker(rt, model=FakeModel())
+    assert build.backend_reason == "trt_artifact_missing"
+    strict_logs = [
+        r
+        for r in caplog.records
+        if r.name == factory_mod.__name__
+        and "strict-fail" in r.getMessage()
+        and build.backend_reason in r.getMessage()
+    ]
+    assert len(strict_logs) == 1
+    assert strict_logs[0].levelname == "ERROR"
+
+
+def test_sticky_detection_loop_does_not_import_factory() -> None:
+    """Process-level sticky: DetectionLoop never re-resolves preferred backend."""
+    from sentry_ai.models.detection import loop as loop_mod
+
+    source = inspect.getsource(loop_mod)
+    assert "build_detection_worker" not in source
+    assert "from sentry_ai.models.detection.factory" not in source
