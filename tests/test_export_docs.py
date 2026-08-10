@@ -65,6 +65,61 @@ def test_export_docs_live_ort_conditions_and_onnx_extra() -> None:
     )
 
 
+def test_export_docs_live_trt_conditions() -> None:
+    """Live fixed-class TRT conditions: preferred + .engine + system tensorrt."""
+    yolo = _read("yolo26-onnx-tensorrt.md")
+    readme = _read("README.md")
+    blob = (yolo + "\n" + readme).lower()
+    assert "tensorrt" in blob
+    assert "live" in blob
+    assert ".engine" in (yolo + readme) or "engine" in blob
+    # Couple live language with backend_live or preferred_backend conditions
+    assert (
+        "backend_live" in blob
+        or "preferred_backend" in blob
+        or "preferred backend" in blob
+    )
+    assert "system" in blob or "jetpack" in blob
+    # Soft-fallback honesty for TRT (artifact / dep / path)
+    assert (
+        "trt_artifact_missing" in blob
+        or "trt_dep_missing" in blob
+        or "path_rejected" in blob
+        or ("artifact" in blob and "missing" in blob)
+        or ("tensorrt" in blob and "missing" in blob)
+    )
+    # Soft-fall / fallback language present
+    assert (
+        "soft-fall" in blob
+        or "soft fall" in blob
+        or "soft torch" in blob
+        or "fallback" in blob
+    )
+
+
+def test_export_docs_trt_system_packaging_no_pip_extra() -> None:
+    """TRT-03: JetPack/system TensorRT; no project tensorrt pip extra/pin."""
+    jetson = _read("jetson-packaging.md").lower()
+    yolo = _read("yolo26-onnx-tensorrt.md").lower()
+    readme = _read("README.md").lower()
+    blob = jetson + "\n" + yolo + "\n" + readme
+    assert "jetpack" in blob or "system" in blob
+    assert "tensorrt" in blob
+    # Forbid project pip pin / extra for tensorrt
+    assert (
+        "no" in blob
+        and (
+            "pip extra" in blob
+            or "tensorrt pip" in blob
+            or "--extra tensorrt" in blob
+            or "project `tensorrt`" in blob
+            or "project tensorrt" in blob
+        )
+    )
+    # Positive: system or JetPack guidance
+    assert "jetpack" in jetson or "system" in jetson
+
+
 def test_yolo26_onnx_tensorrt_on_device_and_no_engine_copy() -> None:
     text = _read("yolo26-onnx-tensorrt.md")
     lowered = text.lower()
