@@ -1,15 +1,15 @@
 """Serve-time fixed-class detection worker factory.
 
-Covers BACK-01, EDGE-RT-02, ORT-01, TRT-01.
+Covers BACK-01, EDGE-RT-02, ORT-01, TRT-01, BACK-03.
 
 Branches on ``ProfileRuntime.preferred_backend``. Torch path is fully live via
 ``YoloDetectionWorker``. Phase 9: preferred ``onnxruntime`` is live when an
 allowlisted ``.onnx`` artifact resolves and ``onnxruntime`` is importable;
-otherwise soft-falls to a torch worker with a stable reason code. Phase 10:
+otherwise soft-falls to a torch worker with a stable reason code (default) or
+strict-fails with ``worker=None`` when ``fallback_to_torch`` is false. Phase 10:
 preferred ``tensorrt`` is live when an allowlisted ``.engine`` artifact resolves
-and system/JetPack ``tensorrt`` is importable; otherwise soft-falls to torch
-with a stable reason (``trt_artifact_missing`` / ``trt_dep_missing`` /
-``path_rejected``).
+and system/JetPack ``tensorrt`` is importable; otherwise soft/strict miss with
+``trt_artifact_missing`` / ``trt_dep_missing`` / ``path_rejected``.
 
 Does not import ``onnxruntime`` or ``tensorrt`` at module level — dep probe uses
 ``importlib.util.find_spec`` only. Never triggers Ultralytics auto-pip TRT install.
@@ -18,6 +18,7 @@ Does not import ``onnxruntime`` or ``tensorrt`` at module level — dep probe us
 from __future__ import annotations
 
 import importlib.util
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -34,14 +35,16 @@ __all__ = [
     "normalize_backend",
 ]
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass(frozen=True)
 class WorkerBuild:
     """Detection worker plus honest preferred-vs-live backend identity."""
 
-    worker: Any  # ModelWorker duck-type
+    worker: Any | None  # ModelWorker duck-type, or None on strict miss
     backend_requested: str
-    backend_live: str
+    backend_live: str | None
     backend_reason: str | None = None
 
 
@@ -127,6 +130,52 @@ def _try_resolve_artifact(
         return None, "path_rejected"
 
 
+def _miss(
+    rt: ProfileRuntime,
+    *,
+    requested: str,
+    reason: str,
+    conf: float,
+    model: Any | None,
+    fallback_to_torch: bool,
+) -> WorkerBuild:
+    """Soft torch fallback or strict fail-closed miss (BACK-03)."""
+    if fallback_to_torch:
+        return WorkerBuild(
+            worker=_torch_worker(rt, conf=conf, model=model),
+            backend_requested=requested,
+            backend_live="torch",
+            backend_reason=reason,
+        )
+    # Strict: never silent torch under preferred ORT/TRT
+    return WorkerBuild(
+        worker=None,
+        backend_requested=requested,
+        backend_live=None,
+        backend_reason=reason,
+    )
+
+
+def _log_reason_once(build: WorkerBuild, *, fallback_to_torch: bool) -> None:
+    """Emit structured soft/strict reason log once per construct call."""
+    if build.backend_reason is None:
+        return
+    if fallback_to_torch:
+        logger.warning(
+            "detection backend soft-fallback: requested=%s live=%s reason=%s",
+            build.backend_requested,
+            build.backend_live,
+            build.backend_reason,
+        )
+    else:
+        logger.error(
+            "detection backend strict-fail: requested=%s live=%s reason=%s",
+            build.backend_requested,
+            build.backend_live,
+            build.backend_reason,
+        )
+
+
 def build_detection_worker(
     rt: ProfileRuntime,
     *,
@@ -137,14 +186,16 @@ def build_detection_worker(
 
     Phase 9: torch/cpu fully live; onnxruntime live when allowlisted ``.onnx``
     resolves and onnxruntime is available; otherwise soft-fall to torch with a
-    stable reason. Phase 10: tensorrt live when allowlisted ``.engine`` resolves
-    and system tensorrt is available; otherwise soft-fall with
-    ``trt_artifact_missing`` / ``trt_dep_missing`` / ``path_rejected``.
+    stable reason (default) or strict fail-closed when
+    ``rt.fallback_to_torch`` is false. Phase 10: tensorrt live when allowlisted
+    ``.engine`` resolves and system tensorrt is available; otherwise soft/strict
+    miss with ``trt_artifact_missing`` / ``trt_dep_missing`` / ``path_rejected``.
     ``backend_live=onnxruntime`` only when the worker is constructed with the
     resolved ``.onnx`` weights path; ``backend_live=tensorrt`` only with the
     resolved ``.engine`` weights path.
     """
     requested = normalize_backend(rt.preferred_backend)
+    fallback_to_torch = bool(getattr(rt, "fallback_to_torch", True))
 
     if requested in {"torch", "cpu"}:
         worker = _torch_worker(rt, conf=conf, model=model)
@@ -158,26 +209,38 @@ def build_detection_worker(
     if requested == "onnxruntime":
         path, reject = _try_resolve_artifact(rt, preferred="onnxruntime")
         if reject:
-            return WorkerBuild(
-                worker=_torch_worker(rt, conf=conf, model=model),
-                backend_requested="onnxruntime",
-                backend_live="torch",
-                backend_reason=reject,
+            build = _miss(
+                rt,
+                requested="onnxruntime",
+                reason=reject,
+                conf=conf,
+                model=model,
+                fallback_to_torch=fallback_to_torch,
             )
+            _log_reason_once(build, fallback_to_torch=fallback_to_torch)
+            return build
         if path is None:
-            return WorkerBuild(
-                worker=_torch_worker(rt, conf=conf, model=model),
-                backend_requested="onnxruntime",
-                backend_live="torch",
-                backend_reason="ort_artifact_missing",
+            build = _miss(
+                rt,
+                requested="onnxruntime",
+                reason="ort_artifact_missing",
+                conf=conf,
+                model=model,
+                fallback_to_torch=fallback_to_torch,
             )
+            _log_reason_once(build, fallback_to_torch=fallback_to_torch)
+            return build
         if not _onnxruntime_available():
-            return WorkerBuild(
-                worker=_torch_worker(rt, conf=conf, model=model),
-                backend_requested="onnxruntime",
-                backend_live="torch",
-                backend_reason="ort_dep_missing",
+            build = _miss(
+                rt,
+                requested="onnxruntime",
+                reason="ort_dep_missing",
+                conf=conf,
+                model=model,
+                fallback_to_torch=fallback_to_torch,
             )
+            _log_reason_once(build, fallback_to_torch=fallback_to_torch)
+            return build
         # Live ORT: Ultralytics-native YOLO("*.onnx") via same worker class.
         ort_worker = YoloDetectionWorker(
             weights=str(path),
@@ -195,26 +258,38 @@ def build_detection_worker(
     if requested == "tensorrt":
         path, reject = _try_resolve_artifact(rt, preferred="tensorrt")
         if reject:
-            return WorkerBuild(
-                worker=_torch_worker(rt, conf=conf, model=model),
-                backend_requested="tensorrt",
-                backend_live="torch",
-                backend_reason=reject,
+            build = _miss(
+                rt,
+                requested="tensorrt",
+                reason=reject,
+                conf=conf,
+                model=model,
+                fallback_to_torch=fallback_to_torch,
             )
+            _log_reason_once(build, fallback_to_torch=fallback_to_torch)
+            return build
         if path is None:
-            return WorkerBuild(
-                worker=_torch_worker(rt, conf=conf, model=model),
-                backend_requested="tensorrt",
-                backend_live="torch",
-                backend_reason="trt_artifact_missing",
+            build = _miss(
+                rt,
+                requested="tensorrt",
+                reason="trt_artifact_missing",
+                conf=conf,
+                model=model,
+                fallback_to_torch=fallback_to_torch,
             )
+            _log_reason_once(build, fallback_to_torch=fallback_to_torch)
+            return build
         if not _tensorrt_available():
-            return WorkerBuild(
-                worker=_torch_worker(rt, conf=conf, model=model),
-                backend_requested="tensorrt",
-                backend_live="torch",
-                backend_reason="trt_dep_missing",
+            build = _miss(
+                rt,
+                requested="tensorrt",
+                reason="trt_dep_missing",
+                conf=conf,
+                model=model,
+                fallback_to_torch=fallback_to_torch,
             )
+            _log_reason_once(build, fallback_to_torch=fallback_to_torch)
+            return build
         # Live TRT: Ultralytics-native YOLO("*.engine") via same worker class.
         trt_worker = YoloDetectionWorker(
             weights=str(path),
@@ -229,10 +304,14 @@ def build_detection_worker(
             backend_reason=None,
         )
 
-    # openvino / unknown → torch + unsupported_backend
-    return WorkerBuild(
-        worker=_torch_worker(rt, conf=conf, model=model),
-        backend_requested=requested,
-        backend_live="torch",
-        backend_reason="unsupported_backend",
+    # openvino / unknown → soft torch or strict None + unsupported_backend
+    build = _miss(
+        rt,
+        requested=requested,
+        reason="unsupported_backend",
+        conf=conf,
+        model=model,
+        fallback_to_torch=fallback_to_torch,
     )
+    _log_reason_once(build, fallback_to_torch=fallback_to_torch)
+    return build
