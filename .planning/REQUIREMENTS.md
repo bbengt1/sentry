@@ -34,7 +34,7 @@
 - [x] **EDGE-RT-01**: `DetectionLoop` / FrameBus / PerceptionStore / `/v1` remain the perception spine — no bus redesign
 - [x] **EDGE-RT-02**: `sentry serve` constructs detection worker via a factory from `profile_runtime` (torch worker preserved for `.pt`)
 - [x] **EDGE-RT-03**: Desktop GPU path remains first-class with torch default; jetson/cpu-fallback profiles can select ORT/TRT honestly
-- [ ] **EDGE-RT-04**: Depth and open-vocab continue on existing PyTorch paths this milestone (no live ORT/TRT for them)
+- [x] **EDGE-RT-04**: Depth and open-vocab continue on existing PyTorch paths this milestone (no live ORT/TRT for them)
 
 ### Docs, CI, safety
 
@@ -81,7 +81,7 @@
 | EDGE-RT-01 | Phase 8 | Complete |
 | EDGE-RT-02 | Phase 8 | Complete |
 | EDGE-RT-03 | Phase 8 | Complete |
-| EDGE-RT-04 | Phase 11 | Pending |
+| EDGE-RT-04 | Phase 11 | Complete |
 | EDGE-DOC-01 | Phase 12 | Pending |
 | EDGE-DOC-02 | Phase 12 | Pending |
 | EDGE-CI-01 | Phase 12 | Pending |

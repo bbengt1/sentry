@@ -31,7 +31,7 @@ Audit: [milestones/v1.0-MILESTONE-AUDIT.md](milestones/v1.0-MILESTONE-AUDIT.md)
 - [x] **Phase 8: Backend Selection & Honesty** - Factory wires `preferred_backend` to real loaders; status shows requested vs live (completed 2026-08-09)
 - [x] **Phase 9: Live ORT Fixed-Class YOLO** - Profile-selected ONNX Runtime path produces schema-identical detections (completed 2026-08-09)
 - [x] **Phase 10: Live TensorRT Fixed-Class YOLO** - On-device `.engine` path for Jetson/desktop NVIDIA (completed 2026-08-10)
-- [ ] **Phase 11: Sticky Fallback & Dual-Model Guardrails** - Documented sticky fail/fallback; depth/OV remain torch
+- [x] **Phase 11: Sticky Fallback & Dual-Model Guardrails** - Documented sticky fail/fallback; depth/OV remain torch (completed 2026-08-10)
 - [ ] **Phase 12: Docs, CI & Packaging Polish** - Export→serve narrative, AGPL lineage, CI without Jetson
 
 ## Phase Details
@@ -97,7 +97,7 @@ Plans:
 
 Plans:
 - [x] 11-01-PLAN.md — Sticky resolve + soft/strict fallback policy (BACK-03)
-- [ ] 11-02-PLAN.md — Dual-model scope lock (depth/OV torch) + operator status surface (EDGE-RT-04)
+- [x] 11-02-PLAN.md — Dual-model scope lock (depth/OV torch) + operator status surface (EDGE-RT-04)
 
 ### Phase 12: Docs, CI & Packaging Polish
 **Goal**: Makers can follow export → engine/onnx → `sentry serve` on desktop/Jetson without fake FPS claims; contributors merge safely without Jetson hardware
@@ -128,7 +128,7 @@ Plans:
 | 8. Backend Selection & Honesty | v0.2 | 2/2 | Complete   | 2026-08-09 |
 | 9. Live ORT Fixed-Class YOLO | v0.2 | 2/2 | Complete   | 2026-08-09 |
 | 10. Live TensorRT Fixed-Class YOLO | v0.2 | 2/2 | Complete   | 2026-08-10 |
-| 11. Sticky Fallback & Dual-Model Guardrails | v0.2 | 1/2 | In Progress|  |
+| 11. Sticky Fallback & Dual-Model Guardrails | v0.2 | 2/2 | Complete   | 2026-08-10 |
 | 12. Docs, CI & Packaging Polish | v0.2 | 0/2 | Not started | - |
 
 ## Coverage Map (v0.2)
