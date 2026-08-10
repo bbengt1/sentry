@@ -78,7 +78,7 @@ Each task was committed atomically:
 2. **Task 2: gitignore artifacts + confirm CI content lock** - `9a8e479` (feat)
 3. **Task 3: EDGE-CI-01 selection/fallback matrix gate** - `45392dd` (docs)
 
-**Plan metadata:** (pending final docs commit)
+**Plan metadata:** `1c8eaa0` (docs: complete plan)
 
 _Note: TDD RED (Task 1) failed only on missing gitignore lines; GREEN (Task 2) closed the gap. Task 3 was verify-only plus ruff-clean docstring for living matrix ownership._
 
