@@ -274,6 +274,7 @@ def test_unknown_backend_unsupported_reason() -> None:
         preferred_backend="openvino",
         device=None,
         device_id="cpu",
+        fallback_to_torch=True,
     )
     build = build_detection_worker(rt, model=FakeModel())
     assert build.backend_requested == "openvino"
@@ -291,6 +292,7 @@ def test_cpu_preferred_live_torch() -> None:
         preferred_backend="cpu",
         device="cpu",
         device_id="cpu",
+        fallback_to_torch=True,
     )
     build = build_detection_worker(rt, model=FakeModel())
     assert build.backend_requested == "cpu"
@@ -315,3 +317,28 @@ def test_forwards_weights_and_device() -> None:
     assert isinstance(worker, YoloDetectionWorker)
     assert worker._weights == rt.detector_weights
     assert worker._device_arg == rt.device
+
+
+# --- fallback_to_torch config surface (BACK-03) ---
+
+
+@pytest.mark.parametrize(
+    "profile",
+    ["desktop-gpu", "jetson", "cpu-fallback"],
+)
+def test_fallback_to_torch_default_true(profile: str) -> None:
+    """Soft is global default including jetson (profile YAML values unchanged)."""
+    rt = _rt_for_profile(profile)
+    assert rt.fallback_to_torch is True
+
+
+def test_fallback_to_torch_env_false(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SENTRY_FALLBACK_TO_TORCH", "false")
+    rt = profile_runtime(load_config(profile="jetson"))
+    assert rt.fallback_to_torch is False
+
+
+def test_fallback_to_torch_env_true(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SENTRY_FALLBACK_TO_TORCH", "true")
+    rt = profile_runtime(load_config(profile="cpu-fallback"))
+    assert rt.fallback_to_torch is True

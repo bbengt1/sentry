@@ -90,6 +90,8 @@ def load_config(
     Env overrides:
     - ``SENTRY_PROFILE`` selects the built-in profile when ``profile`` is None
     - ``SENTRY_ALLOW_CLOUD`` overrides ``models.allow_cloud`` (default false)
+    - ``SENTRY_FALLBACK_TO_TORCH`` overrides ``device.fallback_to_torch``
+      (default true; env always wins when set)
     """
     env_profile = os.environ.get("SENTRY_PROFILE")
     selected = profile if profile is not None else env_profile or _DEFAULT_PROFILE
@@ -113,5 +115,17 @@ def load_config(
         models["allow_cloud"] = allow_cloud
     else:
         models.setdefault("allow_cloud", False)
+
+    # Soft default torch fallback; env always wins when SENTRY_FALLBACK_TO_TORCH set.
+    device = data.setdefault("device", {})
+    if not isinstance(device, dict):
+        raise ValueError("device config must be a mapping")
+    if "SENTRY_FALLBACK_TO_TORCH" in os.environ:
+        device["fallback_to_torch"] = _parse_bool(
+            os.environ.get("SENTRY_FALLBACK_TO_TORCH"),
+            default=True,
+        )
+    else:
+        device.setdefault("fallback_to_torch", True)
 
     return SentryConfig.model_validate(data)

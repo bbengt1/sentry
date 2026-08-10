@@ -37,6 +37,7 @@ class ProfileRuntime:
     preferred_backend: str
     device: str | None
     device_id: str
+    fallback_to_torch: bool
 
 
 def device_for_backend(
@@ -106,4 +107,5 @@ def profile_runtime(cfg: SentryConfig) -> ProfileRuntime:
         preferred_backend=preferred_str,
         device=device,
         device_id=device_id,
+        fallback_to_torch=bool(getattr(cfg.device, "fallback_to_torch", True)),
     )

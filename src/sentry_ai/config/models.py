@@ -14,6 +14,8 @@ class DeviceConfig(BaseModel):
 
     preferred_backend: BackendName | str = BackendName.CPU
     device_id: str = "cpu"
+    # Soft (True, default) torch fallback vs strict (False) fail-closed on ORT/TRT miss.
+    fallback_to_torch: bool = True
 
 
 class ModelsConfig(BaseModel):
