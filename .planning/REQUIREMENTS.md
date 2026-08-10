@@ -12,7 +12,7 @@
 
 - [x] **BACK-01**: Runtime profile `preferred_backend` selects the fixed-class detection **loader** (torch / onnxruntime / tensorrt), not device-policy logs alone
 - [x] **BACK-02**: Status / serve banner expose both `backend_requested` and `backend_live` (no silent backend lies)
-- [ ] **BACK-03**: When preferred ORT/TRT artifact or dependency is missing, behavior is **documented and sticky** (fail-closed or explicit torch fallback with reason logged once — never thrash every frame)
+- [x] **BACK-03**: When preferred ORT/TRT artifact or dependency is missing, behavior is **documented and sticky** (fail-closed or explicit torch fallback with reason logged once — never thrash every frame)
 - [x] **BACK-04**: Artifact paths for `.onnx` / `.engine` resolve from config/env/cache with a safe allowlist (no arbitrary path traversal)
 
 ### Live ONNX Runtime (fixed-class YOLO)
@@ -68,7 +68,7 @@
 |-------------|-------|--------|
 | BACK-01 | Phase 8 | Complete |
 | BACK-02 | Phase 8 | Complete |
-| BACK-03 | Phase 11 | Pending |
+| BACK-03 | Phase 11 | Complete |
 | BACK-04 | Phase 8 | Complete |
 | ORT-01 | Phase 9 | Complete |
 | ORT-02 | Phase 9 | Complete |

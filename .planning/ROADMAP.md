@@ -96,7 +96,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 11-01-PLAN.md — Sticky resolve + soft/strict fallback policy (BACK-03)
+- [x] 11-01-PLAN.md — Sticky resolve + soft/strict fallback policy (BACK-03)
 - [ ] 11-02-PLAN.md — Dual-model scope lock (depth/OV torch) + operator status surface (EDGE-RT-04)
 
 ### Phase 12: Docs, CI & Packaging Polish
@@ -128,7 +128,7 @@ Plans:
 | 8. Backend Selection & Honesty | v0.2 | 2/2 | Complete   | 2026-08-09 |
 | 9. Live ORT Fixed-Class YOLO | v0.2 | 2/2 | Complete   | 2026-08-09 |
 | 10. Live TensorRT Fixed-Class YOLO | v0.2 | 2/2 | Complete   | 2026-08-10 |
-| 11. Sticky Fallback & Dual-Model Guardrails | v0.2 | 0/2 | Not started | - |
+| 11. Sticky Fallback & Dual-Model Guardrails | v0.2 | 1/2 | In Progress|  |
 | 12. Docs, CI & Packaging Polish | v0.2 | 0/2 | Not started | - |
 
 ## Coverage Map (v0.2)

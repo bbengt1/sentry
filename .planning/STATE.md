@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.2
 milestone_name: Edge Runtime
-status: ready_to_execute
-stopped_at: Completed 10-02-PLAN.md
-last_updated: "2026-08-10T15:04:38.611Z"
+status: executing
+stopped_at: Completed 11-01-PLAN.md
+last_updated: "2026-08-10T18:08:00.258Z"
 last_activity: 2026-08-10
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
-  percent: 60
+  total_plans: 8
+  completed_plans: 7
+  percent: 88
 ---
 
 # Project State
@@ -21,24 +21,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-09)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots — without proprietary sensors or cloud AI.  
-**Current focus:** Phase 11 planned (2026-08-10) — ready for `/gsd:execute-phase 11`
+**Current focus:** Phase 11 — Sticky Fallback & Dual-Model Guardrails
 
 ## Current Position
 
-Phase: 10 (Live TensorRT Fixed-Class YOLO) — EXECUTING
+Phase: 11 (Sticky Fallback & Dual-Model Guardrails) — EXECUTING
 Plan: 2 of 2
-Status: Phase complete — ready for verification
+Status: Ready to execute
 Last activity: 2026-08-10
 
-Progress: [██████████] 100%
+Progress: [█████████░] 88%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 18 (v1.0) + 2 (v0.2 Phase 8) + 2 (v0.2 Phase 9) + 1 (v0.2 Phase 10)
+- Total plans completed: 18 (v1.0) + 2 (v0.2 Phase 8) + 2 (v0.2 Phase 9) + 2 (v0.2 Phase 10) + 1 (v0.2 Phase 11)
 - Average duration: —
-- Total execution time: ~15 min plans (v0.2 Phases 8–10 partial)
+- Total execution time: ~18 min plans (v0.2 Phases 8–11 partial)
 
 **By Phase (v0.2):**
 
@@ -46,8 +46,8 @@ Progress: [██████████] 100%
 |-------|-------|-------|----------|
 | 8 | 2/2 | 6min | 3min |
 | 9 | 2/2 | 5min | 2.5min |
-| 10 | 1/2 | 4min | 4min |
-| 11 | 0/2 | - | - |
+| 10 | 2/2 | 6min | 3min |
+| 11 | 1/2 | 3min | 3min |
 | 12 | 0/2 | - | - |
 
 **Recent Trend:**
@@ -56,6 +56,7 @@ Progress: [██████████] 100%
 - Phase 9 plan 01 complete 2026-08-09 (live ORT factory + onnx extra + docs)
 - Phase 9 plan 02 complete 2026-08-09 (ORT parity/golden + status honesty)
 - Phase 10 plan 01 complete 2026-08-10 (live TRT factory + parity + status honesty)
+- Phase 11 plan 01 complete 2026-08-10 (sticky soft/strict fallback BACK-03)
 - Trend: —
 
 | Phase 08 P01 | 3min | 3 tasks | 7 files |
@@ -64,6 +65,7 @@ Progress: [██████████] 100%
 | Phase 09 P02 | 2min | 2 tasks | 2 files |
 | Phase 10 P01 | 4min | 3 tasks | 4 files |
 | Phase 10 P02 | 2min | 2 tasks | 7 files |
+| Phase 11 P01 | 3min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -99,6 +101,9 @@ Decisions are logged in PROJECT.md Key Decisions table. v0.2 roadmap-binding:
 - [Phase 10]: Primary live TRT table in yolo26-onnx-tensorrt.md; JetPack/no-pip in jetson-packaging.md
 - [Phase 10]: jetson.yaml comments only — YAML field values unchanged
 - [Phase 10]: No FPS claims; dual-model measure-on-device with Phase 11 deferred
+- [Phase 11]: Soft fallback_to_torch=True global default — Maker UX + jetson soft default lock
+- [Phase 11]: Strict miss: worker=None, backend_live=None, reason set — Never silent torch under preferred ORT/TRT
+- [Phase 11]: Strict serve Exit(1) + SENTRY_FALLBACK_TO_TORCH always-wins — Fail-closed robots; soft maker default via env/config
 
 ### Pending Todos
 
@@ -107,7 +112,7 @@ None yet.
 ### Blockers/Concerns
 
 - Phase 10 may need light JetPack/TRT research at plan time (SKU matrix)
-- Soft vs strict default for jetson profile — decide in Phase 11 planning (Phase 8 soft-stub is shipped)
+- Soft vs strict default for jetson: **resolved in 11-01** — soft remains global default; strict opt-in via config/env
 
 ## Deferred Items
 
@@ -125,6 +130,7 @@ Live ORT/TRT inference deferred to Phases 9–10 (intentional Phase 8 soft-stub)
 
 ## Session Continuity
 
-Last session: 2026-08-10T15:04:38.595Z
-Stopped at: Completed 10-02-PLAN.md
-Next: Execute 10-02-PLAN.md (on-device engine lifecycle + Jetson packaging honesty)
+Last session: 2026-08-10T18:07:55.476Z
+Stopped at: Completed 11-01-PLAN.md
+Resume file: None
+Next: Execute 11-02-PLAN.md (dual-model scope lock + operator status surface EDGE-RT-04)
