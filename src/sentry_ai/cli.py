@@ -448,19 +448,24 @@ def serve(
         url=url,
         camera_id=camera_id,
     )
-    # Continuity: fail fast on black uniqueID stream before loading ML weights.
-    if getattr(src, "require_non_black", False):
-        try:
-            src.open()
-            src.close()
-        except Exception as exc:  # noqa: BLE001
-            typer.echo(f"serve failed: Continuity capture: {exc}", err=True)
-            raise typer.Exit(code=1) from exc
+    # Do NOT open+close Continuity before serve: tearing down the helper kills
+    # the iPhone Continuity session; re-open often blacks out or desyncs.
+    # CaptureLoop owns a single open for the process lifetime.
 
     bus = FrameBus()
     loop = CaptureLoop(src, bus)
     store = PerceptionStore()
     bind = f"{host}:{port}"
+
+    # Start capture *before* loading YOLO/depth weights so Continuity stays
+    # warm during the multi-second model import (and so preview frames exist
+    # as soon as the HTTP server binds).
+    loop.start()
+    if getattr(src, "require_non_black", False):
+        typer.echo(
+            "Continuity: capture starting (keep iPhone Continuity UI active "
+            "while models load)…"
+        )
 
     # Optional fixed-class detection (requires `uv sync --extra detect`).
     # Factory/workers import without ultralytics; probe the dep *before* starting
@@ -635,8 +640,8 @@ def serve(
             err=True,
         )
 
-    # Start order: capture → det → depth → free_space → open_vocab; stop reverse.
-    loop.start()
+    # Capture already started above (before model load). Start remaining workers.
+    # Stop order remains reverse: ov → free_space → depth → det → capture.
     if det_loop is not None:
         det_loop.start()
     if depth_loop is not None:

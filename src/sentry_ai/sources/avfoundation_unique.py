@@ -32,8 +32,11 @@ __all__ = [
     "ensure_capture_av_binary",
 ]
 
-# Length-prefixed JPEG frames on stdout (4-byte big-endian length + payload).
+# Wire format on stdout: magic "SNRY" + u32be length + JPEG payload.
 # Info.plist (embedded via -sectcreate) opts into Continuity Camera device type.
+_FRAME_MAGIC = b"SNRY"
+_MAX_JPEG = 20_000_000
+
 _SWIFT_CAPTURE = r"""
 import AVFoundation
 import CoreImage
@@ -43,34 +46,25 @@ import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
+// Packet: "SNRY" + UInt32 BE length + JPEG bytes.
+// Encode+write under one lock so the pipe never desyncs.
 final class Recorder: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
     let context = CIContext(options: nil)
     let lock = NSLock()
     var lastPTS: TimeInterval = 0
-    let minInterval: TimeInterval = 1.0 / 24.0
-    var writing = false
+    let minInterval: TimeInterval = 1.0 / 20.0
+    let magic = Data([0x53, 0x4E, 0x52, 0x59]) // "SNRY"
 
     func captureOutput(
         _ output: AVCaptureOutput,
         didOutput sampleBuffer: CMSampleBuffer,
         from connection: AVCaptureConnection
     ) {
-        // Serialize rate-limit + write under one lock so length-prefixed JPEGs
-        // never interleave (stdout desync → huge invalid lengths).
         lock.lock()
+        defer { lock.unlock() }
+
         let now = CFAbsoluteTimeGetCurrent()
-        if writing || (now - lastPTS) < minInterval {
-            lock.unlock()
-            return
-        }
-        writing = true
-        lastPTS = now
-        lock.unlock()
-        defer {
-            lock.lock()
-            writing = false
-            lock.unlock()
-        }
+        if (now - lastPTS) < minInterval { return }
 
         guard let pb = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         let ci = CIImage(cvPixelBuffer: pb)
@@ -81,23 +75,26 @@ final class Recorder: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
             data, UTType.jpeg.identifier as CFString, 1, nil
         ) else { return }
         let props: [CFString: Any] = [
-            kCGImageDestinationLossyCompressionQuality: 0.8
+            kCGImageDestinationLossyCompressionQuality: 0.75
         ]
         CGImageDestinationAddImage(dest, cg, props as CFDictionary)
         guard CGImageDestinationFinalize(dest) else { return }
+        guard data.count > 0, data.count < 20_000_000 else { return }
 
         var be = UInt32(data.count).bigEndian
-        let header = Data(bytes: &be, count: 4)
-        // Single write reduces partial-frame risk on the pipe.
         var packet = Data()
-        packet.append(header)
+        packet.reserveCapacity(8 + data.count)
+        packet.append(magic)
+        packet.append(Data(bytes: &be, count: 4))
         packet.append(data as Data)
+        // Hold lock across write so packets stay atomic on the pipe.
         FileHandle.standardOutput.write(packet)
+        lastPTS = now
     }
 }
 
 func fail(_ msg: String) -> Never {
-    fputs(msg + "\n", stderr)
+    FileHandle.standardError.write((msg + "\n").data(using: .utf8)!)
     exit(1)
 }
 
@@ -110,14 +107,12 @@ guard let device = AVCaptureDevice(uniqueID: uid) else {
     fail("AVCaptureDevice not found for uniqueID")
 }
 
-// Hint system preference so Continuity is treated as the active camera.
 if #available(macOS 13.0, *) {
     AVCaptureDevice.userPreferredCamera = device
 }
 
 let session = AVCaptureSession()
 session.beginConfiguration()
-// .high lets Continuity pick a working format; fixed presets can black-screen.
 session.sessionPreset = .high
 
 let input: AVCaptureDeviceInput
@@ -135,6 +130,7 @@ output.videoSettings = [
     kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
 ]
 let recorder = Recorder()
+// Serial queue — one sample at a time into Recorder.
 let queue = DispatchQueue(label: "sentry.av.capture")
 output.setSampleBufferDelegate(recorder, queue: queue)
 guard session.canAddOutput(output) else { fail("cannot add output") }
@@ -146,14 +142,12 @@ var contFlag = false
 if #available(macOS 13.0, *) {
     contFlag = device.isContinuityCamera
 }
-fputs(
+let startMsg =
   "capture_av_device: started name=\(device.localizedName) "
   + "continuity=\(contFlag) suspended=\(device.isSuspended) "
-  + "connected=\(device.isConnected) uid=\(device.uniqueID)\n",
-  stderr
-)
+  + "connected=\(device.isConnected) uid=\(device.uniqueID)\n"
+FileHandle.standardError.write(startMsg.data(using: .utf8)!)
 
-// Keep process alive
 RunLoop.main.run()
 """
 
@@ -189,7 +183,7 @@ def ensure_capture_av_binary(
     binary = _cache_bin_dir() / "capture_av_device"
     # Recompile if missing or source marker version changes.
     marker = _cache_bin_dir() / "capture_av_device.version"
-    version = "4"  # serialize stdout packets; Continuity Info.plist
+    version = "5"  # SNRY magic framing; lock held through write
     if (
         binary.is_file()
         and binary.stat().st_size > 0
@@ -281,7 +275,7 @@ class AvFoundationUniqueSource:
         camera_id: str = "usb0",
         device_label: str | None = None,
         require_non_black: bool = False,
-        warm_up_seconds: float = 12.0,
+        warm_up_seconds: float = 15.0,
     ) -> None:
         if not unique_id or not str(unique_id).strip():
             raise ValueError("unique_id is required")
@@ -293,8 +287,15 @@ class AvFoundationUniqueSource:
         self._proc: subprocess.Popen[bytes] | None = None
         self._next_frame_id = 0
         self._bin: Path | None = None
+        self._opened = False
 
     def open(self) -> None:
+        # Idempotent: Continuity must not be torn down and re-opened (phone
+        # session dies; second open often black / desynced).
+        if self._opened and self._proc is not None and self._proc.poll() is None:
+            return
+
+        self.close()
         self._bin = ensure_capture_av_binary()
         if self._bin is None:
             raise SourceError(
@@ -329,10 +330,10 @@ class AvFoundationUniqueSource:
             try:
                 frame = self.read()
                 mean = float(np.mean(frame.image_bgr))
-                # Low stddev + low mean = solid black / letterbox noise.
                 std = float(np.std(frame.image_bgr))
                 if mean >= min_mean and (not self.require_non_black or std >= 5.0):
                     self._next_frame_id = 0
+                    self._opened = True
                     logger.info(
                         "AVFoundation uniqueID warm-up ok mean=%.1f std=%.1f label=%s",
                         mean,
@@ -350,22 +351,11 @@ class AvFoundationUniqueSource:
                     raise SourceError(
                         f"capture_av_device exited: {err.decode('utf-8', 'replace')}"
                     ) from exc
-                time.sleep(0.05)
+                # Framing glitch: keep reading until warm-up deadline.
+                time.sleep(0.02)
 
         if self.require_non_black:
-            # Drain stderr for continuity= / suspended= diagnostics.
-            extra = ""
-            try:
-                if self._proc is not None and self._proc.stderr is not None:
-                    # Non-blocking-ish: helper writes a single start line.
-                    import select
-
-                    if select.select([self._proc.stderr], [], [], 0.05)[0]:
-                        extra = (
-                            self._proc.stderr.read(800) or b""
-                        ).decode("utf-8", "replace")
-            except Exception:  # noqa: BLE001
-                pass
+            extra = self._drain_stderr()
             self.close()
             detail = f"{_CONTINUITY_BLACK_HELP}\n(last={last_err})"
             if extra.strip():
@@ -378,26 +368,88 @@ class AvFoundationUniqueSource:
             last_err,
         )
         self._next_frame_id = 0
+        self._opened = True
+
+    def _drain_stderr(self) -> str:
+        try:
+            if self._proc is None or self._proc.stderr is None:
+                return ""
+            import select
+
+            chunks: list[bytes] = []
+            while select.select([self._proc.stderr], [], [], 0.05)[0]:
+                part = self._proc.stderr.read(400) or b""
+                if not part:
+                    break
+                chunks.append(part)
+                if sum(len(c) for c in chunks) > 1200:
+                    break
+            return b"".join(chunks).decode("utf-8", "replace")
+        except Exception:  # noqa: BLE001
+            return ""
+
+    def _read_exact(self, n: int) -> bytes:
+        assert self._proc is not None and self._proc.stdout is not None
+        buf = bytearray()
+        while len(buf) < n:
+            chunk = self._proc.stdout.read(n - len(buf))
+            if chunk is None or len(chunk) == 0:
+                code = self._proc.poll()
+                raise SourceDisconnected(
+                    f"short read from capture_av_device "
+                    f"(got {len(buf)}/{n}, exit={code})"
+                )
+            buf.extend(chunk)
+        return bytes(buf)
+
+    def _sync_to_magic(self, *, max_scan: int = 8_000_000) -> None:
+        """Discard bytes until SNRY magic is at the head of the stream."""
+        assert self._proc is not None and self._proc.stdout is not None
+        window = bytearray(getattr(self, "_pending", b"") or b"")
+        self._pending = b""
+        scanned = len(window)
+        while scanned <= max_scan:
+            idx = bytes(window).find(_FRAME_MAGIC)
+            if idx >= 0:
+                self._pending = bytes(window[idx:])
+                return
+            if len(window) > 3:
+                window = window[-3:]
+            chunk = self._proc.stdout.read(4096)
+            if chunk is None or len(chunk) == 0:
+                code = self._proc.poll()
+                raise SourceDisconnected(
+                    f"EOF while syncing capture_av_device (exit={code})"
+                )
+            window.extend(chunk)
+            scanned += len(chunk)
+        raise SourceDisconnected("could not resync to SNRY frame magic")
 
     def read(self) -> ImageFrame:
         if self._proc is None or self._proc.stdout is None:
             raise RuntimeError(f"{type(self).__name__} is not open; call open() first")
-        header = self._proc.stdout.read(4)
-        if header is None or len(header) < 4:
-            code = self._proc.poll()
-            raise SourceDisconnected(
-                f"no frame header from capture_av_device (exit={code})"
-            )
-        (length,) = struct.unpack(">I", header)
-        if length <= 0 or length > 20_000_000:
-            raise SourceDisconnected(f"invalid JPEG length {length}")
-        data = self._proc.stdout.read(length)
-        if data is None or len(data) < length:
-            raise SourceDisconnected("short JPEG payload from capture_av_device")
-        arr = np.frombuffer(data, dtype=np.uint8)
-        bgr = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+
+        last_err = "no frame"
+        bgr: np.ndarray | None = None
+        for _ in range(6):
+            try:
+                bgr = self._read_one_jpeg()
+                break
+            except SourceDisconnected as exc:
+                last_err = str(exc)
+                if self._proc.poll() is not None:
+                    raise
+                # Framing errors: resync and retry within this read().
+                if any(
+                    key in last_err
+                    for key in ("invalid", "decode", "magic", "SOI", "resync")
+                ):
+                    self._sync_to_magic()
+                    continue
+                raise
         if bgr is None:
-            raise SourceDisconnected("JPEG decode failed from capture_av_device")
+            raise SourceDisconnected(last_err)
+
         h, w = bgr.shape[:2]
         now = time.time()
         meta = Frame(
@@ -411,7 +463,50 @@ class AvFoundationUniqueSource:
         self._next_frame_id += 1
         return ImageFrame(meta=meta, image_bgr=bgr)
 
+    def _read_one_jpeg(self) -> np.ndarray:
+        pending = bytearray(getattr(self, "_pending", b"") or b"")
+        self._pending = b""
+
+        def take(n: int) -> bytes:
+            while len(pending) < n:
+                assert self._proc is not None and self._proc.stdout is not None
+                chunk = self._proc.stdout.read(n - len(pending))
+                if chunk is None or len(chunk) == 0:
+                    code = self._proc.poll() if self._proc else None
+                    raise SourceDisconnected(
+                        f"short read from capture_av_device "
+                        f"(got {len(pending)}/{n}, exit={code})"
+                    )
+                pending.extend(chunk)
+            out = bytes(pending[:n])
+            del pending[:n]
+            return out
+
+        magic = take(4)
+        if magic != _FRAME_MAGIC:
+            # Put bytes back for the resync scanner.
+            pending[0:0] = magic
+            self._pending = bytes(pending)
+            raise SourceDisconnected(f"bad frame magic {magic!r}")
+
+        length_bytes = take(4)
+        (length,) = struct.unpack(">I", length_bytes)
+        if length <= 0 or length > _MAX_JPEG:
+            self._pending = bytes(pending)
+            raise SourceDisconnected(f"invalid JPEG length {length}")
+        data = take(length)
+        self._pending = bytes(pending)
+        if len(data) < 2 or data[0] != 0xFF or data[1] != 0xD8:
+            raise SourceDisconnected("payload missing JPEG SOI")
+        arr = np.frombuffer(data, dtype=np.uint8)
+        bgr = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        if bgr is None:
+            raise SourceDisconnected("JPEG decode failed from capture_av_device")
+        return bgr
+
     def close(self) -> None:
+        self._opened = False
+        self._pending = b""
         proc = self._proc
         self._proc = None
         if proc is None:
