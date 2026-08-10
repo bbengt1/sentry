@@ -10,24 +10,12 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CLI_PATH = REPO_ROOT / "src" / "sentry_ai" / "cli.py"
-DEPTH_WORKER_PATH = (
-    REPO_ROOT / "src" / "sentry_ai" / "models" / "depth" / "worker.py"
-)
+DEPTH_WORKER_PATH = REPO_ROOT / "src" / "sentry_ai" / "models" / "depth" / "worker.py"
 YOLOE_WORKER_PATH = (
-    REPO_ROOT
-    / "src"
-    / "sentry_ai"
-    / "models"
-    / "detection"
-    / "yoloe_worker.py"
+    REPO_ROOT / "src" / "sentry_ai" / "models" / "detection" / "yoloe_worker.py"
 )
 OPEN_VOCAB_LOOP_PATH = (
-    REPO_ROOT
-    / "src"
-    / "sentry_ai"
-    / "models"
-    / "detection"
-    / "open_vocab_loop.py"
+    REPO_ROOT / "src" / "sentry_ai" / "models" / "detection" / "open_vocab_loop.py"
 )
 
 
@@ -106,9 +94,7 @@ def test_yoloe_worker_pt_weights_not_factory() -> None:
 def test_open_vocab_loop_default_mode_off() -> None:
     """OpenVocabLoop default mode remains off (not continuous dual-model)."""
     src = _read(OPEN_VOCAB_LOOP_PATH)
-    assert 'mode: Mode = "off"' in src or 'mode: Mode = "off"' in src.replace(
-        " ", ""
-    )
+    assert 'mode: Mode = "off"' in src or 'mode: Mode = "off"' in src.replace(" ", "")
     # Soft: inspect signature default if importable without extras.
     from sentry_ai.models.detection.open_vocab_loop import OpenVocabLoop
 

@@ -155,16 +155,37 @@ allowlisted `.onnx` resolves and the `onnx` extra (onnxruntime) is installed.
 Missing artifact or dependency does **not** silently claim ORT — serve soft-falls
 to torch with a stable reason code.
 
-Dual-model (TRT YOLO + torch depth) may share a GPU — **measure on device**;
-no dual-model FPS claim here. Phase 11 owns first-class dual-model guardrails.
+## Dual-model guardrails (shipped)
+
+**Supported (measure on device):** fixed-class TRT or torch YOLO + torch DAV2
+Small may share one GPU. Measure VRAM / latency / thermal headroom on the
+target board — **no dual-model FPS claim** and no published dual-model FPS
+tables without on-device methodology.
+
+**Not a first-class configuration:** continuous open-vocab + TRT YOLO + DAV2
+together this milestone. Prefer open-vocab **off** or **on-demand**; keep depth
+and fixed-class detect as the dual-model pair.
+
+**Sticky soft / strict policy (factory once at serve):**
+
+| Mode | How | Miss behavior |
+|------|-----|---------------|
+| Soft (default) | `fallback_to_torch=true` (default) | torch worker + honest reason; serve continues |
+| Strict (opt-in) | `fallback_to_torch=false` or `SENTRY_FALLBACK_TO_TORCH=false` | fail-closed; serve exits — no silent torch under preferred ORT/TRT |
+
+Factory resolves preferred backend **once** at `sentry serve` construct
+(sticky) — DetectionLoop never re-resolves mid-process.
+
+**Operator knobs when GPU is tight:** disable depth, open-vocab off/on-demand,
+nano detector tier, `--no-ui`, watch `nvidia-smi`. Depth and open-vocab remain
+**PyTorch-only** (no live ORT/TRT claim for those stages).
 
 ## Deferred (not in this release)
 
-- Custom TensorRT `InferenceBackend` class (Phase 10 live path uses factory
+- Custom TensorRT `InferenceBackend` class (live path uses factory
   Ultralytics-native `YOLO("*.engine")` instead)
-- Sticky thrash-free fallback policy (Phase 11)
-- First-class dual-model VRAM / scheduling guardrails (Phase 11)
 - Prebuilt engines on GitHub Releases
 - CI jobs that require Jetson, system TensorRT, or GPU ORT
 - Custom ORT `InferenceSession` + hand-written YOLO26 decoder (live path uses
   Ultralytics-native `YOLO("*.onnx")` instead)
+- Runtime VRAM governor / dual-model sequential GPU scheduler rewrite

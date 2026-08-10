@@ -39,9 +39,7 @@ MJPEG_POLL_S = 0.01  # interruptible sleep slice for fast Ctrl+C
 DEPTH_BLEND_ALPHA = 0.45
 
 # Packaged static Live Preview page (ui/static next to api/ package tree).
-_INDEX_HTML = (
-    Path(__file__).resolve().parents[1] / "ui" / "static" / "index.html"
-)
+_INDEX_HTML = Path(__file__).resolve().parents[1] / "ui" / "static" / "index.html"
 
 router = APIRouter()
 

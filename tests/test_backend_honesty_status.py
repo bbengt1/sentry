@@ -362,5 +362,3 @@ def test_live_preview_html_has_backend_metric() -> None:
     assert "fallback_to_torch" in text
     # Strict null-live still shows reason
     assert "!live" in text or "showReason" in text
-
-

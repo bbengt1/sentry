@@ -106,15 +106,12 @@ def test_export_docs_trt_system_packaging_no_pip_extra() -> None:
     assert "jetpack" in blob or "system" in blob
     assert "tensorrt" in blob
     # Forbid project pip pin / extra for tensorrt
-    assert (
-        "no" in blob
-        and (
-            "pip extra" in blob
-            or "tensorrt pip" in blob
-            or "--extra tensorrt" in blob
-            or "project `tensorrt`" in blob
-            or "project tensorrt" in blob
-        )
+    assert "no" in blob and (
+        "pip extra" in blob
+        or "tensorrt pip" in blob
+        or "--extra tensorrt" in blob
+        or "project `tensorrt`" in blob
+        or "project tensorrt" in blob
     )
     # Positive: system or JetPack guidance
     assert "jetpack" in jetson or "system" in jetson
@@ -129,9 +126,7 @@ def test_yolo26_onnx_tensorrt_on_device_and_no_engine_copy() -> None:
     assert "ultralytics" in lowered or "model.export" in lowered
     # Non-portability / forbid cross-SKU copy
     assert (
-        "do not copy" in lowered
-        or "never copy" in lowered
-        or "not portable" in lowered
+        "do not copy" in lowered or "never copy" in lowered or "not portable" in lowered
     )
     assert ".engine" in text or "engine" in lowered
     assert "jetpack" in lowered or "sku" in lowered
@@ -158,9 +153,7 @@ def test_depth_export_feasibility_and_relative_honesty() -> None:
     # Relative vs metric honesty — no silent meters
     assert "relative" in lowered
     assert (
-        "depth_kind" in lowered
-        or "metric_estimated" in lowered
-        or "meters" in lowered
+        "depth_kind" in lowered or "metric_estimated" in lowered or "meters" in lowered
     )
     assert "community" in lowered or "onnx" in lowered or "tensorrt" in lowered
 

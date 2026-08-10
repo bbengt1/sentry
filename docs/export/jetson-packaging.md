@@ -57,11 +57,23 @@ uv run sentry serve --profile jetson --source usb --device 0
 See [yolo26-onnx-tensorrt.md](yolo26-onnx-tensorrt.md) for live TRT conditions
 and [yoloe-export.md](yoloe-export.md) (YOLOE export remains **experimental**).
 
-### Dual-model honesty
+### Dual-model honesty (shipped)
 
-TRT YOLO + torch depth may share one GPU. **Measure on device** under your
-thermal / power envelope — docs do not invent dual-model FPS. First-class
-dual-model scheduling guardrails are Phase 11.
+**Supported (measure on device):** fixed-class TRT or torch YOLO + torch DAV2
+Small may share one GPU under your thermal / power envelope. **Measure on
+device** — docs do not invent dual-model FPS and publish **no dual-model FPS
+claim**.
+
+**Not a first-class configuration:** continuous open-vocab + TRT YOLO + DAV2
+together. Prefer open-vocab **off** or **on-demand**.
+
+**Sticky soft / strict:** factory resolves preferred backend once at serve.
+Soft default (`fallback_to_torch=true`) soft-falls to torch + reason; strict
+opt-in via `fallback_to_torch=false` or `SENTRY_FALLBACK_TO_TORCH=false`
+fail-closes serve. Depth and open-vocab stay **PyTorch-only**.
+
+**Knobs when GPU is tight:** nano tier, disable depth, OV off/on-demand,
+`--no-ui`, `nvidia-smi`.
 
 ## Optional matrix (verify on device)
 
@@ -71,8 +83,9 @@ dual-model scheduling guardrails are Phase 11.
 | TensorRT | JetPack-bundled or NVIDIA system install; rebuild engines after JetPack upgrades |
 | YOLO26 | Start with **n**; measure latency under thermal load |
 | Depth | DAV2 Small; shared-GPU scheduling with detect is device-specific |
-| Open-vocab | Prefer off / on-demand; dual continuous load unmeasured |
+| Open-vocab | Prefer off / on-demand; continuous open-vocab not first-class with TRT+DAV2 |
 | FPS | **Measure on device** — no published dual-model realtime claim here |
+| Fallback | Soft default sticky; strict via `fallback_to_torch=false` |
 
 Do not invent JetPack apt package version pins without hardware verification.
 
@@ -101,6 +114,6 @@ or desktop numbers transfer.
 ## Deferred
 
 - Prebuilt multi-SKU TensorRT engines
-- Sticky thrash-free fallback policy (Phase 11)
 - Guaranteed sustained FPS tables without on-device measurement
+- Runtime VRAM governor / dual-model sequential GPU scheduler
 - Full ROS2 / multi-cam product (extension stubs are a separate plan)

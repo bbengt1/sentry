@@ -42,6 +42,11 @@ Scripts: [`scripts/export/README.md`](../../scripts/export/README.md).
 4. **Measure FPS on device** — docs do not invent dual-model realtime numbers.
 5. **AGPL caution** for Ultralytics YOLO / YOLOE — see
    [`THIRD_PARTY_MODELS.md`](../../THIRD_PARTY_MODELS.md).
+6. **Dual-model (measure on device):** fixed-class TRT or torch YOLO + torch
+   DAV2 Small may share a GPU — measure VRAM/latency on the board. Continuous
+   open-vocab + TRT + DAV2 is **not a first-class** configuration. Sticky
+   soft default (`fallback_to_torch=true`); strict opt-in via
+   `fallback_to_torch=false` / `SENTRY_FALLBACK_TO_TORCH=false`.
 
 ## Primary desktop path (PyTorch default)
 
