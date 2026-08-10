@@ -440,34 +440,47 @@ def list_local_cameras(
             continue
         by_index[idx] = dev
 
-    # Probe range: at least max_index, expand to cover all AV-listed video devices.
-    probe_max = max_index
+    # OpenCV on macOS typically only has a small set of streamable indices
+    # (often 0–1). Probing 0..8 when AVFoundation lists 3 named devices
+    # floods stderr with "out device of bound" noise. Probe only:
+    #   - AVFoundation-listed video indices, and
+    #   - 0..max_index for unlisted UVC (when no AV list).
+    # Skip Desk View / screen captures without opening OpenCV.
     if by_index:
-        probe_max = max(probe_max, max(by_index.keys()))
+        probe_indices = sorted(by_index.keys())
+    else:
+        probe_indices = list(range(max_index + 1))
 
     found: list[LocalCameraInfo] = []
 
-    for index in range(probe_max + 1):
+    for index in probe_indices:
+        if index > max_index and index not in by_index:
+            continue
         dev = by_index.get(index)
         name = dev["name"] if dev else None
         dtype = dev["device_type"] if dev else None
         uid = dev.get("unique_id") if dev else None
         notes = _notes_for_av_device(dev) if dev else ()
 
-        # Screen captures are not useful as ``--source usb`` cameras.
-        if dev and "screen capture" in " ".join(notes).lower():
-            if include_unavailable:
-                found.append(
-                    LocalCameraInfo(
-                        index=index,
-                        available=False,
-                        name=name,
-                        device_type=dtype,
-                        unique_id=uid,
-                        error="screen capture device",
-                        notes=notes,
-                    )
+        # Screen captures / Desk View are not useful as ``--source usb``.
+        notes_joined = " ".join(notes).lower()
+        dtype_l = (dtype or "").lower()
+        if dev and (
+            "screen capture" in notes_joined
+            or "deskview" in dtype_l
+            or "desk view" in notes_joined
+        ):
+            found.append(
+                LocalCameraInfo(
+                    index=index,
+                    available=False,
+                    name=name,
+                    device_type=dtype,
+                    unique_id=uid,
+                    error="not a USB OpenCV camera (Desk View / screen)",
+                    notes=notes + ("not usable with --source usb",),
                 )
+            )
             continue
 
         info = probe_camera_index(
@@ -509,14 +522,16 @@ def format_camera_list(
     continuity_hint: bool = True,
 ) -> str:
     """Human-readable table for CLI output."""
+    if av_device_count and av_device_count > 0:
+        range_line = (
+            f"AVFoundation listed {av_device_count} video device(s); "
+            f"OpenCV probed named indices only (use OPEN=yes with serve)"
+        )
+    else:
+        range_line = f"OpenCV probe range: 0..{max_index}"
     lines: list[str] = [
         "Local cameras",
-        f"OpenCV probe range: 0..{max_index}"
-        + (
-            " (expanded from AVFoundation list)"
-            if av_device_count and av_device_count > 0
-            else ""
-        ),
+        range_line,
         "",
     ]
 
