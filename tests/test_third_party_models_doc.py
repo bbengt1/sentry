@@ -80,3 +80,21 @@ def test_doc_yoloe_phase6_active_agpl_and_default_weight() -> None:
     for ln in yoloe_lines:
         if "Apache" in ln and "AGPL" not in ln:
             raise AssertionError(f"YOLOE line must not claim Apache: {ln}")
+
+
+def test_doc_agpl_lineage_for_derived_onnx_engine() -> None:
+    """EDGE-DOC-02: AGPL commercial caution covers YOLO-derived .onnx/.engine."""
+    text = DOC_PATH.read_text(encoding="utf-8")
+    lowered = text.lower()
+    assert "agpl" in lowered
+    assert ".onnx" in lowered or "onnx" in lowered
+    assert ".engine" in lowered or "engine" in lowered
+    assert (
+        "derived" in lowered
+        or "export" in lowered
+        or "lineage" in lowered
+        or "same agpl" in lowered
+        or "commercial caution" in lowered
+    )
+    # Policy honesty: not a legal certification
+    assert "caution" in lowered or "obligations" in lowered or "evaluate" in lowered

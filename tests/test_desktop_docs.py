@@ -43,3 +43,13 @@ def test_readme_links_desktop_gpu_doc() -> None:
     readme = README_PATH.read_text(encoding="utf-8")
     assert "docs/desktop-gpu.md" in readme
     assert "desktop-gpu" in readme.lower()
+
+
+def test_desktop_doc_no_stale_non_live_trt_claim() -> None:
+    """EDGE-DOC-01: desktop-gpu must not claim non-live TRT / still-PyTorch live."""
+    text = DOC_PATH.read_text(encoding="utf-8")
+    lowered = text.lower()
+    assert "not a live tensorrt runtime" not in lowered
+    assert "still pytorch live" not in lowered
+    # Positive: jetson / export / live conditions discoverable
+    assert "tensorrt" in lowered or "export" in lowered or "engine" in lowered

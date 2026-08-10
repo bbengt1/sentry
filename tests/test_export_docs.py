@@ -280,3 +280,34 @@ def test_export_docs_no_guaranteed_dual_model_fps() -> None:
         or "no dual-model fps claim" in blob
         or ("measure" in blob and "fps" in blob)
     )
+
+
+def test_root_readme_edge_live_path_honesty() -> None:
+    """EDGE-DOC-01: root README must not claim export-only / still-PyTorch live."""
+    text = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    lowered = text.lower()
+    # Forbid v1.0 export-only / non-live TRT lies
+    assert "not a live tensorrt runtime" not in lowered
+    assert "still pytorch live" not in lowered
+    # Discoverability of live edge path
+    assert "docs/export" in text
+    assert "sentry serve" in lowered
+    assert "--profile" in text
+    assert "onnx" in lowered and ("tensorrt" in lowered or ".engine" in text)
+
+
+def test_scripts_export_readme_not_pytorch_only() -> None:
+    """EDGE-DOC-01: scripts/export README must not say serve stays on PyTorch only."""
+    text = (REPO_ROOT / "scripts" / "export" / "README.md").read_text(encoding="utf-8")
+    lowered = text.lower()
+    assert "stays on pytorch profiles" not in lowered
+    assert "live" in lowered or "onnx" in lowered or "engine" in lowered
+
+
+def test_export_index_no_phase7_deferral() -> None:
+    """EDGE-DOC-01: export index must not defer desktop walkthrough to Phase 7."""
+    text = _read("README.md")
+    assert "Phase 7 plan" not in text
+    assert "07-03" not in text
+    # Point at existing hubs
+    assert "desktop-gpu" in text.lower() or "edge-serve" in text.lower()
