@@ -98,10 +98,17 @@ def test_usb_open_failure_raises_source_error() -> None:
 def test_failed_read_raises_source_disconnected() -> None:
     cap = MagicMock()
     cap.isOpened.return_value = True
-    cap.read.return_value = (False, None)
+    # Warm-up succeeds once; later read fails (post-open disconnect).
+    cap.read.side_effect = [
+        (True, _fake_bgr()),
+        (False, None),
+    ]
 
     vc_path = "sentry_ai.sources.opencv_source.cv2.VideoCapture"
-    with patch(vc_path, return_value=cap):
+    with (
+        patch(vc_path, return_value=cap),
+        patch("sentry_ai.sources.opencv_source.sys.platform", "linux"),
+    ):
         source = OpenCVSource(
             target=0,
             camera_id="usb0",
