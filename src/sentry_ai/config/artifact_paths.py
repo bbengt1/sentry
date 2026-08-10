@@ -92,7 +92,9 @@ def _validate_explicit_or_env(
     try:
         resolved = Path(raw).expanduser().resolve()
     except (OSError, RuntimeError) as exc:
-        raise ValueError(f"path_rejected: cannot resolve artifact path {raw!r}") from exc
+        raise ValueError(
+            f"path_rejected: cannot resolve artifact path {raw!r}"
+        ) from exc
 
     if not _is_under_any_root(resolved, roots):
         raise ValueError(

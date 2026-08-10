@@ -119,11 +119,8 @@ def test_reject_path_traversal_explicit(tmp_path) -> None:
 def test_reject_absolute_outside_roots(tmp_path) -> None:
     weights_dir = tmp_path / "weights"
     weights_dir.mkdir()
-    outside = tmp_path.parent / "outside_yolo26n.onnx"
-    # Use a path that resolve() keeps outside allowlisted roots.
-    outside_path = tmp_path / ".." / "not_allowlisted_yolo26n.onnx"
-    # Create a real file outside weights_dir and cwd after resolve
-    real_outside = (tmp_path / "outside_root")
+    # Create a real file outside weights_dir and cwd after resolve.
+    real_outside = tmp_path / "outside_root"
     real_outside.mkdir()
     evil = real_outside / "yolo26n.onnx"
     evil.write_bytes(b"evil")
