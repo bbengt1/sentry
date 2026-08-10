@@ -61,6 +61,9 @@ On **macOS**, Sentry combines:
 
 ### Continuity Camera (iPhone)
 
+`sentry serve --source usb` opens device indices with **AVFoundation** on macOS
+(same backend as `sentry cameras`) and warms up a few frames after open.
+
 Continuity only appears when macOS currently exposes the device:
 
 - iPhone nearby, same Apple ID, Bluetooth + Wi‑Fi on  
