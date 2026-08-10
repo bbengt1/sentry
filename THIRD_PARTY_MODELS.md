@@ -19,6 +19,25 @@ non-default and out of the v1 core path.
 | YOLO26 (via Ultralytics) | Fixed-class detect | **AGPL-3.0** (Ultralytics) | **No** — Phase 3 active (optional `detect` extra) | **AGPL commercial caution** — non-default for commercial forks. Weights download once into Sentry cache (`SENTRY_MODEL_CACHE` or `~/.cache/sentry-ai/weights`); offline re-run after first pull (MODEL-02). Install: `uv sync --extra detect`. |
 | YOLOE (via Ultralytics) | Open-vocab detect | **AGPL-3.0** (Ultralytics) | **No** — Phase 6 active (optional `detect` extra) | **AGPL commercial caution** — non-default. Default weights `yoloe-26s-seg.pt` (desktop); `yoloe-26n-seg.pt` for edge. Text-prompt open-vocab path; default mode **off**. Weights download once into Sentry cache (`SENTRY_MODEL_CACHE` or `~/.cache/sentry-ai/weights`); offline re-run after first pull (MODEL-02). Install: `uv sync --extra detect`. |
 
+## Derived ORT / TRT artifacts (AGPL lineage)
+
+Artifacts **exported from** AGPL Ultralytics YOLO / YOLOE weights (including
+`.onnx` graphs and TensorRT `.engine` files produced via `model.export` /
+`scripts/export/export_yolo.py`) remain subject to the **same AGPL commercial
+caution** as the source weights. Operators must **evaluate AGPL obligations**
+before redistributing those artifacts — this is **project policy documentation,
+not legal advice**. Sentry does **not** certify license compliance. See the
+Ultralytics license in References.
+
+| Derived artifact | Source weights | License caution |
+|------------------|----------------|-----------------|
+| `yolo26{n,s,m}.onnx` | YOLO26 AGPL `.pt` | Same AGPL commercial caution |
+| `yolo26{n,s,m}.engine` | YOLO26 AGPL `.pt` (on-device export) | Same AGPL commercial caution |
+| YOLOE `.onnx` (experimental) | YOLOE AGPL `.pt` | Same AGPL commercial caution |
+
+Export recipes and edge serve path: [`docs/export/README.md`](docs/export/README.md),
+[`docs/edge-serve.md`](docs/edge-serve.md).
+
 ## Model cache (MODEL-02)
 
 Sentry points Ultralytics `weights_dir` and Hugging Face cache at a project-owned root:
