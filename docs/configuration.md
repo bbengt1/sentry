@@ -9,7 +9,7 @@ Built-in YAML profiles ship in the package:
 | Profile | Detector tier | Preferred backend | Typical device id | Role |
 |---------|---------------|-------------------|-------------------|------|
 | `desktop-gpu` | `s` | `torch` | `cuda:0` | Primary maker path |
-| `jetson` | `n` | `tensorrt` | `0` → cuda policy | Edge tiers / export target |
+| `jetson` | `n` | `tensorrt` | `0` → cuda / live TRT policy | Edge tiers; live TRT when `.engine` + system TRT |
 | `cpu-fallback` | `n` | `onnxruntime` | `cpu` | Default serve / CI |
 
 Select with:
@@ -33,8 +33,11 @@ automatic switch to `desktop-gpu` when CUDA is detected.
 | `device.preferred_backend` + `device_id` | Device policy for workers |
 | `models.allow_cloud` | Must stay `false` on default path |
 
-`preferred_backend: tensorrt` does **not** enable live TensorRT inference
-(soft torch fallback until a future TRT phase).
+`preferred_backend: tensorrt` **can** enable live fixed-class TensorRT when a
+valid allowlisted `.engine` is present and system / JetPack `tensorrt` is
+importable; missing artifact, missing system TRT, or rejected path soft-falls
+to torch with `trt_artifact_missing` / `trt_dep_missing` / `path_rejected`.
+Build engines **on-device** only (no multi-SKU prebuilt engines in the wheel).
 `preferred_backend: onnxruntime` **can** enable live fixed-class ORT when a
 valid allowlisted `.onnx` is present and the `onnx` extra is installed
 (`uv sync --extra detect --extra onnx`); missing artifact or dependency
@@ -54,6 +57,9 @@ and [export/yolo26-onnx-tensorrt.md](export/yolo26-onnx-tensorrt.md).
 |----------|---------|
 | `SENTRY_PROFILE` | Default profile when CLI omits `--profile` |
 | `SENTRY_MODEL_CACHE` | Root for weight/HF caches (default `~/.cache/sentry-ai`) |
+| `SENTRY_DETECTOR_ENGINE` | Explicit allowlisted path to fixed-class `.engine` (live TRT) |
+| `SENTRY_DETECTOR_ONNX` | Explicit allowlisted path to fixed-class `.onnx` (live ORT) |
+| `SENTRY_ARTIFACT_ROOT` | Optional root for allowlisted detector artifact resolution |
 
 ### Model cache layout
 

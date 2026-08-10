@@ -67,9 +67,12 @@ Live inference is **PyTorch / Ultralytics / HF** by default. Fixed-class YOLO
 may run **live via ONNX Runtime** when `preferred_backend=onnxruntime`, an
 allowlisted `.onnx` artifact resolves, and the optional `onnx` extra is
 installed; otherwise serve soft-falls to torch with an honest reason code.
-`preferred_backend: tensorrt` remains **policy + export target** (live TRT is
-not claimed yet). CUDA requests fall back to MPS or CPU when unavailable.
-Export packaging: [export/](export/).
+Fixed-class YOLO may run **live via TensorRT** when `preferred_backend=tensorrt`,
+an allowlisted `.engine` resolves, and system / JetPack `tensorrt` is importable;
+otherwise serve soft-falls to torch with `trt_artifact_missing` /
+`trt_dep_missing` / `path_rejected`. Engines are built **on-device** only —
+see [export/](export/) for lifecycle and packaging. CUDA requests fall back to
+MPS or CPU when unavailable.
 
 ## Boundaries (non-negotiable)
 

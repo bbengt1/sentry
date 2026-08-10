@@ -1,7 +1,8 @@
 # Edge export (ONNX / TensorRT)
 
 Offline **export recipes** for makers who want ONNX or TensorRT engines on
-edge hardware, plus honesty notes for the **live fixed-class ORT** serve path.
+edge hardware, plus honesty notes for **live fixed-class ORT and TRT** serve
+paths.
 
 ## What this is
 
@@ -9,23 +10,25 @@ edge hardware, plus honesty notes for the **live fixed-class ORT** serve path.
 |---------|------|
 | `docs/export/*` | Honesty-first recipes and packaging notes |
 | `scripts/export/export_yolo.py` | Thin Ultralytics CLI wrapper (maker machine) |
-| Live `sentry serve` | **Torch** by default; **fixed-class ORT live** when preferred + `.onnx` + `onnx` extra; **TRT not live yet** |
+| Live `sentry serve` | **Torch** by default; **fixed-class ORT live** when preferred + `.onnx` + `onnx` extra; **fixed-class TRT live** when preferred + allowlisted `.engine` + system TensorRT |
 
 **Default live path is PyTorch.** Fixed-class YOLO can run live via ONNX
 Runtime when `preferred_backend=onnxruntime`, a valid allowlisted `.onnx`
 artifact is present, and the optional `onnx` extra is installed
-(`uv sync --extra detect --extra onnx`). TensorRT remains offline/on-device
-export until a future live-TRT phase. CI does **not** require Jetson,
-GPU ORT, TensorRT, or real weight downloads.
+(`uv sync --extra detect --extra onnx`). Fixed-class YOLO can also run live
+via TensorRT when `preferred_backend=tensorrt`, a valid allowlisted `.engine`
+is present, and **system / JetPack TensorRT** is importable — build engines
+**on-device** only; there is **no** project `tensorrt` pip extra. CI does
+**not** require Jetson, GPU ORT, TensorRT, or real weight downloads.
 
 ## Index
 
 | Doc | Contents |
 |-----|----------|
-| [yolo26-onnx-tensorrt.md](yolo26-onnx-tensorrt.md) | YOLO26 → ONNX and TensorRT `engine` via Ultralytics + live ORT conditions |
+| [yolo26-onnx-tensorrt.md](yolo26-onnx-tensorrt.md) | YOLO26 → ONNX and TensorRT `engine` via Ultralytics + live ORT/TRT conditions |
 | [yoloe-export.md](yoloe-export.md) | YOLOE export (experimental) + PyTorch open-vocab fallback |
 | [depth-anything-v2.md](depth-anything-v2.md) | Depth export feasibility notes; live path stays HF Small |
-| [jetson-packaging.md](jetson-packaging.md) | JetPack / on-device engine build + profile honesty |
+| [jetson-packaging.md](jetson-packaging.md) | JetPack / on-device engine build + live TRT packaging honesty |
 
 Scripts: [`scripts/export/README.md`](../../scripts/export/README.md).
 
@@ -61,6 +64,21 @@ uv run sentry serve --profile cpu-fallback --source synthetic
 
 If the artifact or `onnxruntime` dependency is missing, serve **soft-falls** to
 torch and reports an honest reason — it never claims live ORT silently.
+
+### Live fixed-class TRT (optional, on-device)
+
+```bash
+uv sync --extra detect   # NO --extra tensorrt
+# On Jetson / target NVIDIA box with system TensorRT:
+#   python -c "import tensorrt"
+#   uv run python scripts/export/export_yolo.py --weights yolo26n.pt --format engine --device 0
+#   export SENTRY_DETECTOR_ENGINE=/allowlisted/path/yolo26n.engine
+uv run sentry serve --profile jetson --source usb --device 0
+```
+
+If the `.engine` artifact, system `tensorrt` dep, or path is missing/rejected,
+serve **soft-falls** to torch with `trt_artifact_missing` / `trt_dep_missing` /
+`path_rejected` — it never claims live TRT silently.
 
 Full desktop-GPU walkthrough is covered in a later release doc (Phase 7 plan
 07-03). Edge packaging details live in [jetson-packaging.md](jetson-packaging.md).
