@@ -64,7 +64,11 @@ Audit: [milestones/v0.2-MILESTONE-AUDIT.md](milestones/v0.2-MILESTONE-AUDIT.md)
   2. `CalibrationState` distinguishes draft vs applied; draft/staging alone does not report as calibrated
   3. Promotion policy is explicit: only applied + valid calibration yields the pair `depth_kind=metric_calibrated` and `unit="m"` together
   4. Calibration params include fingerprint fields (camera_id, resolution/size, depth mode/model) designed for later persist safety
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 13-01-PLAN.md — Honesty validators, wire models, store gate, promote_kind_unit pure helper
+- [ ] 13-02-PLAN.md — CalibrationState draft/applied + fingerprint params + promotion wrapper
 
 ### Phase 14: Scale Math + DepthLoop Plug-in
 **Goal**: Makers (and tests) can fit a global monocular scale from ground-truth samples and have that scale transform depth maps on the single DepthLoop truth path
@@ -133,7 +137,7 @@ Audit: [milestones/v0.2-MILESTONE-AUDIT.md](milestones/v0.2-MILESTONE-AUDIT.md)
 | 10. Live TensorRT Fixed-Class YOLO | v0.2 | 2/2 | Complete | 2026-08-10 |
 | 11. Sticky Fallback & Dual-Model Guardrails | v0.2 | 2/2 | Complete | 2026-08-10 |
 | 12. Docs, CI & Packaging Polish | v0.2 | 2/2 | Complete | 2026-08-10 |
-| 13. Honesty Contracts & CalibrationState | v0.3 | 0/? | Not started | - |
+| 13. Honesty Contracts & CalibrationState | v0.3 | 0/2 | Planned | - |
 | 14. Scale Math + DepthLoop Plug-in | v0.3 | 0/? | Not started | - |
 | 15. Wizard REST + Live Preview UI | v0.3 | 0/? | Not started | - |
 | 16. Free-Space Metric Path | v0.3 | 0/? | Not started | - |
