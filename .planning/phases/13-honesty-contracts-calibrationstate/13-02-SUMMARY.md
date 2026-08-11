@@ -79,7 +79,7 @@ Each task was committed atomically (TDD: test → feat):
 3. **Task 2 RED: CalibrationState draft/apply tests** - `362517b` (test)
 4. **Task 2 GREEN: CalibrationState + package export** - `20ce564` (feat)
 
-**Plan metadata:** (pending final docs commit)
+**Plan metadata:** `968c8fc` (docs: complete plan)
 
 ## Files Created/Modified
 
