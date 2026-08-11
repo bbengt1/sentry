@@ -42,6 +42,16 @@ def test_kind_for_mode_unknown_raises() -> None:
         kind_for_mode("")
 
 
+@pytest.mark.parametrize(
+    "mode",
+    ["relative", "metric_indoor", "metric_outdoor"],
+)
+def test_kind_for_mode_never_calibrated(mode: str) -> None:
+    """Mode mapping never yields metric_calibrated (promotion is separate)."""
+    kind, _unit = kind_for_mode(mode)
+    assert kind != DepthKind.METRIC_CALIBRATED
+
+
 def test_mode_to_model_only_small_hf_ids() -> None:
     assert set(MODE_TO_MODEL.keys()) == {
         "relative",
