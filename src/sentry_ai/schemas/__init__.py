@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+from sentry_ai.schemas.calibration import (
+    CalibrationFingerprint,
+    CalibrationParams,
+    CalibrationSnapshot,
+)
 from sentry_ai.schemas.enums import BackendName, DepthKind, RuntimeProfile
 from sentry_ai.schemas.frame import Frame
 from sentry_ai.schemas.perception import (
@@ -15,6 +20,9 @@ from sentry_ai.schemas.perception import (
 
 __all__ = [
     "BackendName",
+    "CalibrationFingerprint",
+    "CalibrationParams",
+    "CalibrationSnapshot",
     "Completeness",
     "DepthKind",
     "DepthPayload",

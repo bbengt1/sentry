@@ -1,4 +1,4 @@
-"""CAL-04 / CAL-05: CalibrationParams fingerprint + structural validity + CalibrationState."""
+"""CAL-04 / CAL-05: calibration fingerprint, validity, and CalibrationState."""
 
 from __future__ import annotations
 
