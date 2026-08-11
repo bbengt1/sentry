@@ -67,7 +67,7 @@ Audit: [milestones/v0.2-MILESTONE-AUDIT.md](milestones/v0.2-MILESTONE-AUDIT.md)
 **Plans**: 2 plans
 
 Plans:
-- [ ] 13-01-PLAN.md — Honesty validators, wire models, store gate, promote_kind_unit pure helper
+- [x] 13-01-PLAN.md — Honesty validators, wire models, store gate, promote_kind_unit pure helper
 - [ ] 13-02-PLAN.md — CalibrationState draft/applied + fingerprint params + promotion wrapper
 
 ### Phase 14: Scale Math + DepthLoop Plug-in
@@ -137,7 +137,7 @@ Plans:
 | 10. Live TensorRT Fixed-Class YOLO | v0.2 | 2/2 | Complete | 2026-08-10 |
 | 11. Sticky Fallback & Dual-Model Guardrails | v0.2 | 2/2 | Complete | 2026-08-10 |
 | 12. Docs, CI & Packaging Polish | v0.2 | 2/2 | Complete | 2026-08-10 |
-| 13. Honesty Contracts & CalibrationState | v0.3 | 0/2 | Planned | - |
+| 13. Honesty Contracts & CalibrationState | v0.3 | 1/2 | In Progress|  |
 | 14. Scale Math + DepthLoop Plug-in | v0.3 | 0/? | Not started | - |
 | 15. Wizard REST + Live Preview UI | v0.3 | 0/? | Not started | - |
 | 16. Free-Space Metric Path | v0.3 | 0/? | Not started | - |

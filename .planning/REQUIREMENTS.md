@@ -13,8 +13,8 @@ Requirements for this milestone. Each maps to roadmap phases (13+).
 - [ ] **CAL-01**: Maker can fit a global monocular depth scale from ground-truth samples (known distance preferred; known height supported when geometry is defined)
 - [ ] **CAL-02**: System rejects invalid fits (too few samples, residual too high, inconsistent signs) and never applies a bad scale
 - [ ] **CAL-03**: Active calibration transforms depth maps after the depth model runs and before PerceptionStore publish (single truth for all consumers)
-- [ ] **CAL-04**: When calibration is applied and valid, depth products use `depth_kind=metric_calibrated` and `unit="m"` together
-- [ ] **CAL-05**: Relative and uncalibrated depth never claim meters (`unit=null` / honest kind) on store, snapshot, Live Preview, and `/v1`
+- [x] **CAL-04**: When calibration is applied and valid, depth products use `depth_kind=metric_calibrated` and `unit="m"` together
+- [x] **CAL-05**: Relative and uncalibrated depth never claim meters (`unit=null` / honest kind) on store, snapshot, Live Preview, and `/v1`
 
 ### Wizard UX
 
@@ -79,8 +79,8 @@ Which phases cover which requirements. Filled during roadmap creation.
 | CAL-01 | Phase 14 | Pending |
 | CAL-02 | Phase 14 | Pending |
 | CAL-03 | Phase 14 | Pending |
-| CAL-04 | Phase 13 | Pending |
-| CAL-05 | Phase 13 | Pending |
+| CAL-04 | Phase 13 | Complete |
+| CAL-05 | Phase 13 | Complete |
 | WIZ-01 | Phase 15 | Pending |
 | WIZ-02 | Phase 15 | Pending |
 | WIZ-03 | Phase 15 | Pending |

@@ -2,14 +2,15 @@
 gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Metric Depth Calibration UX
-status: ready_to_execute
-last_updated: "2026-08-11T12:00:00.000Z"
+status: executing
+stopped_at: Completed 13-01-PLAN.md
+last_updated: "2026-08-11T14:02:31.724Z"
 last_activity: 2026-08-11
 progress:
   total_phases: 6
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 2
+  completed_plans: 1
   percent: 0
 ---
 
@@ -20,20 +21,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots — without proprietary sensors or cloud AI.  
-**Current focus:** Phase 13 planned (2026-08-11) — ready for `/gsd:execute-phase 13`
+**Current focus:** Phase 13 — Honesty Contracts & CalibrationState
 
 ## Current Position
 
-Phase: 13 of 18 (Honesty Contracts & CalibrationState) — v0.3 phases 13–18  
-Plan: —  
-Status: Ready to plan  
-Last activity: 2026-08-11 — v0.3 roadmap created (phases 13–18)
+Phase: 13 (Honesty Contracts & CalibrationState) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-08-11
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
 **Velocity:**
+
 - Total plans completed (v0.3): 0
 - v1.0 + v0.2 history: 28 plans shipped prior milestones
 
@@ -44,6 +46,7 @@ Progress: [░░░░░░░░░░] 0%
 | - | - | - | - |
 
 *Updated after each plan completion*
+| Phase 13 P01 | 3min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -52,6 +55,7 @@ Progress: [░░░░░░░░░░] 0%
 See PROJECT.md Key Decisions (v0.2 factory / ORT / TRT / soft-strict / torch-only depth-OV).
 
 v0.3 roadmap locks (from research):
+
 - Zero new pip dependencies (numpy fit only)
 - Post-process scale in DepthLoop (not worker, not free-space, not UI)
 - Primary GT = known distance; height feeds same fitter with documented assumptions
@@ -59,6 +63,9 @@ v0.3 roadmap locks (from research):
 - Free-space meters only after real metric path (not label-only)
 - Persist per camera_id with fingerprint refuse
 - Static wizard + REST — no React, no FSD claims
+- [Phase 13]: relative_depth_forbids_unit delegates to assert_depth_kind_unit for single matrix
+- [Phase 13]: FreeSpacePayload allows metric_calibrated + ordinal until Phase 16
+- [Phase 13]: kind_for_mode production mapping left unchanged; never-calibrated is test-only
 
 ### Pending Todos
 
@@ -85,7 +92,7 @@ See also: `milestones/v1.0-MILESTONE-AUDIT.md`, `milestones/v0.2-MILESTONE-AUDIT
 
 ## Session Continuity
 
-Last session: 2026-08-11 — created v0.3 roadmap (phases 13–18)  
-Stopped at: ROADMAP.md + STATE.md + REQUIREMENTS traceability written  
-Resume file: None  
+Last session: 2026-08-11T14:02:31.442Z
+Stopped at: Completed 13-01-PLAN.md
+Resume file: None
 Next: `/gsd:plan-phase 13`
