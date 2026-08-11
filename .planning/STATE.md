@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Metric Depth Calibration UX
-status: executing
-stopped_at: Completed 13-01-PLAN.md
-last_updated: "2026-08-11T14:02:31.724Z"
+status: verifying
+stopped_at: Completed 13-02-PLAN.md
+last_updated: "2026-08-11T14:07:12.357Z"
 last_activity: 2026-08-11
 progress:
   total_phases: 6
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
-  percent: 0
+  completed_plans: 2
+  percent: 17
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 Phase: 13 (Honesty Contracts & CalibrationState) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-08-11
 
-Progress: [█████░░░░░] 50%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -47,6 +47,7 @@ Progress: [█████░░░░░] 50%
 
 *Updated after each plan completion*
 | Phase 13 P01 | 3min | 2 tasks | 7 files |
+| Phase 13 P02 | 2min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -66,6 +67,10 @@ v0.3 roadmap locks (from research):
 - [Phase 13]: relative_depth_forbids_unit delegates to assert_depth_kind_unit for single matrix
 - [Phase 13]: FreeSpacePayload allows metric_calibrated + ordinal until Phase 16
 - [Phase 13]: kind_for_mode production mapping left unchanged; never-calibrated is test-only
+- [Phase 13]: Clear draft on successful apply (wizard Apply semantics)
+- [Phase 13]: get_applied_params() exposed for Phase 14 consumers
+- [Phase 13]: CalibrationSnapshot includes scale/method/fingerprint when applied
+- [Phase 13]: manual_scale skips sample_count floor; other methods require >= 1
 
 ### Pending Todos
 
@@ -92,7 +97,7 @@ See also: `milestones/v1.0-MILESTONE-AUDIT.md`, `milestones/v0.2-MILESTONE-AUDIT
 
 ## Session Continuity
 
-Last session: 2026-08-11T14:02:31.442Z
-Stopped at: Completed 13-01-PLAN.md
+Last session: 2026-08-11T14:07:12.350Z
+Stopped at: Completed 13-02-PLAN.md
 Resume file: None
 Next: `/gsd:plan-phase 13`

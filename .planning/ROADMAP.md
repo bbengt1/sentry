@@ -46,7 +46,7 @@ Audit: [milestones/v0.2-MILESTONE-AUDIT.md](milestones/v0.2-MILESTONE-AUDIT.md)
 
 **Constraints:** Zero new pip deps; spine freeze (DetectionLoop / FrameBus / ORT-TRT factory); no FSD claims; synthetic CI tests (no physical room).
 
-- [ ] **Phase 13: Honesty Contracts & CalibrationState** - Promotion rules, validators, draft vs applied state model
+- [x] **Phase 13: Honesty Contracts & CalibrationState** - Promotion rules, validators, draft vs applied state model (completed 2026-08-11)
 - [ ] **Phase 14: Scale Math + DepthLoop Plug-in** - Fit/reject scale; apply post-worker pre-store
 - [ ] **Phase 15: Wizard REST + Live Preview UI** - Sample/fit/apply/cancel API + static wizard panel
 - [ ] **Phase 16: Free-Space Metric Path** - Meters only when calibrated; smoother reset
@@ -68,7 +68,7 @@ Audit: [milestones/v0.2-MILESTONE-AUDIT.md](milestones/v0.2-MILESTONE-AUDIT.md)
 
 Plans:
 - [x] 13-01-PLAN.md — Honesty validators, wire models, store gate, promote_kind_unit pure helper
-- [ ] 13-02-PLAN.md — CalibrationState draft/applied + fingerprint params + promotion wrapper
+- [x] 13-02-PLAN.md — CalibrationState draft/applied + fingerprint params + promotion wrapper
 
 ### Phase 14: Scale Math + DepthLoop Plug-in
 **Goal**: Makers (and tests) can fit a global monocular scale from ground-truth samples and have that scale transform depth maps on the single DepthLoop truth path
@@ -137,7 +137,7 @@ Plans:
 | 10. Live TensorRT Fixed-Class YOLO | v0.2 | 2/2 | Complete | 2026-08-10 |
 | 11. Sticky Fallback & Dual-Model Guardrails | v0.2 | 2/2 | Complete | 2026-08-10 |
 | 12. Docs, CI & Packaging Polish | v0.2 | 2/2 | Complete | 2026-08-10 |
-| 13. Honesty Contracts & CalibrationState | v0.3 | 1/2 | In Progress|  |
+| 13. Honesty Contracts & CalibrationState | v0.3 | 2/2 | Complete   | 2026-08-11 |
 | 14. Scale Math + DepthLoop Plug-in | v0.3 | 0/? | Not started | - |
 | 15. Wizard REST + Live Preview UI | v0.3 | 0/? | Not started | - |
 | 16. Free-Space Metric Path | v0.3 | 0/? | Not started | - |
