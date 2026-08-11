@@ -7,12 +7,14 @@ import math
 import pytest
 from pydantic import ValidationError
 
+from sentry_ai.control import CalibrationState
 from sentry_ai.schemas.calibration import (
     CalibrationFingerprint,
     CalibrationParams,
     CalibrationSnapshot,
     is_valid_calibration_params,
 )
+from sentry_ai.schemas.enums import DepthKind
 
 
 def _fp(**overrides: object) -> CalibrationFingerprint:
@@ -211,9 +213,6 @@ def test_no_motor_safety_command_fields_on_models() -> None:
 
 
 # --- CalibrationState draft vs applied --------------------------------------
-
-from sentry_ai.control import CalibrationState
-from sentry_ai.schemas.enums import DepthKind
 
 
 def test_state_defaults_not_applied() -> None:

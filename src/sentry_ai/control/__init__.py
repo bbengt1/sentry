@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from sentry_ai.control.calibration_state import CalibrationState
 from sentry_ai.control.pipeline_state import PipelineState
 
-__all__ = ["PipelineState"]
+__all__ = ["CalibrationState", "PipelineState"]
