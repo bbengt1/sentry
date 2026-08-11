@@ -2,7 +2,7 @@
 gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Metric Depth Calibration UX
-status: verifying
+status: phase_complete
 stopped_at: Completed 13-02-PLAN.md
 last_updated: "2026-08-11T14:07:12.357Z"
 last_activity: 2026-08-11
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots — without proprietary sensors or cloud AI.  
-**Current focus:** Phase 13 — Honesty Contracts & CalibrationState
+**Current focus:** Phase 13 verification passed (2026-08-11) — next: Phase 14 Scale Math + DepthLoop Plug-in
 
 ## Current Position
 
