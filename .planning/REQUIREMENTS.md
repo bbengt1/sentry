@@ -76,31 +76,40 @@ Which phases cover which requirements. Filled during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CAL-01 | TBD | Pending |
-| CAL-02 | TBD | Pending |
-| CAL-03 | TBD | Pending |
-| CAL-04 | TBD | Pending |
-| CAL-05 | TBD | Pending |
-| WIZ-01 | TBD | Pending |
-| WIZ-02 | TBD | Pending |
-| WIZ-03 | TBD | Pending |
-| WIZ-04 | TBD | Pending |
-| FS-01 | TBD | Pending |
-| FS-02 | TBD | Pending |
-| FS-03 | TBD | Pending |
-| PER-01 | TBD | Pending |
-| PER-02 | TBD | Pending |
-| PER-03 | TBD | Pending |
-| PER-04 | TBD | Pending |
-| OPS-01 | TBD | Pending |
-| OPS-02 | TBD | Pending |
-| OPS-03 | TBD | Pending |
+| CAL-01 | Phase 14 | Pending |
+| CAL-02 | Phase 14 | Pending |
+| CAL-03 | Phase 14 | Pending |
+| CAL-04 | Phase 13 | Pending |
+| CAL-05 | Phase 13 | Pending |
+| WIZ-01 | Phase 15 | Pending |
+| WIZ-02 | Phase 15 | Pending |
+| WIZ-03 | Phase 15 | Pending |
+| WIZ-04 | Phase 15 | Pending |
+| FS-01 | Phase 16 | Pending |
+| FS-02 | Phase 16 | Pending |
+| FS-03 | Phase 16 | Pending |
+| PER-01 | Phase 17 | Pending |
+| PER-02 | Phase 17 | Pending |
+| PER-03 | Phase 17 | Pending |
+| PER-04 | Phase 17 | Pending |
+| OPS-01 | Phase 15 | Pending |
+| OPS-02 | Phase 18 | Pending |
+| OPS-03 | Phase 18 | Pending |
 
 **Coverage:**
 - v0.3 requirements: 19 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 19
+- Mapped to phases: 19/19 ✓
+- Unmapped: 0
+
+| Phase | Requirements | Count |
+|-------|--------------|-------|
+| 13 Honesty Contracts & CalibrationState | CAL-04, CAL-05 | 2 |
+| 14 Scale Math + DepthLoop Plug-in | CAL-01, CAL-02, CAL-03 | 3 |
+| 15 Wizard REST + Live Preview UI | WIZ-01, WIZ-02, WIZ-03, WIZ-04, OPS-01 | 5 |
+| 16 Free-Space Metric Path | FS-01, FS-02, FS-03 | 3 |
+| 17 Persist & Re-apply on Serve | PER-01, PER-02, PER-03, PER-04 | 4 |
+| 18 Docs + Synthetic CI Polish | OPS-02, OPS-03 | 2 |
 
 ---
 *Requirements defined: 2026-08-11*  
-*Last updated: 2026-08-11 after v0.3 milestone start*
+*Last updated: 2026-08-11 after v0.3 roadmap (phases 13–18)*
