@@ -2,7 +2,10 @@
 
 Timestamps use epoch seconds (float), same convention as :mod:`sentry_ai.schemas.frame`.
 
-Depth honesty (FOUND-03): relative depth must never claim meters.
+Depth honesty (FOUND-03 / CAL-04 / CAL-05):
+- relative depth must never claim meters (unit must be None)
+- metric_estimated and metric_calibrated require unit='m'
+- free-space units='m' only when depth_kind is metric_calibrated
 There is intentionally no ``depth_m`` field on :class:`DepthPayload`.
 
 Perception-only: no motor, velocity, or command fields (T-1-05).
@@ -15,7 +18,10 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from sentry_ai.schemas.enums import DepthKind
-from sentry_ai.schemas.validators import relative_depth_forbids_unit
+from sentry_ai.schemas.validators import (
+    assert_depth_kind_unit,
+    assert_free_space_units,
+)
 
 
 class Completeness(BaseModel):
@@ -40,8 +46,8 @@ class DepthPayload(BaseModel):
     # Intentionally NO field named depth_m
 
     @model_validator(mode="after")
-    def relative_must_not_claim_meters(self) -> DepthPayload:
-        relative_depth_forbids_unit(self.kind, self.unit)
+    def kind_unit_honesty(self) -> DepthPayload:
+        assert_depth_kind_unit(self.kind, self.unit)
         return self
 
 
@@ -77,13 +83,19 @@ class FreeSpacePayload(BaseModel):
 
     method: Literal["near_field_bands"] = "near_field_bands"
     depth_kind: DepthKind
-    units: Literal["ordinal", "m"] = "ordinal"  # "m" only if depth metric
+    # "m" only when depth_kind is metric_calibrated (CAL-05)
+    units: Literal["ordinal", "m"] = "ordinal"
     obstacle_count: int = 0
     obstacles: list[ObstacleCue] = Field(default_factory=list)
     bands: dict[str, float] | None = None
     width: int | None = None
     height: int | None = None
     roi_bottom_frac: float | None = None
+
+    @model_validator(mode="after")
+    def free_space_units_honesty(self) -> FreeSpacePayload:
+        assert_free_space_units(self.depth_kind, self.units)
+        return self
 
 
 class PerceptionFrame(BaseModel):

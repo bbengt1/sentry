@@ -14,7 +14,6 @@ from sentry_ai.schemas.validators import (
     relative_depth_forbids_unit,
 )
 
-
 # --- assert_depth_kind_unit -------------------------------------------------
 
 
@@ -145,12 +144,14 @@ def test_free_space_payload_relative_ordinal_ok() -> None:
 def test_promote_kind_unit_not_applied_returns_base(
     base_kind: DepthKind, base_unit: str | None
 ) -> None:
-    assert promote_kind_unit(
-        base_kind, base_unit, applied=False, valid=True
-    ) == (base_kind, base_unit)
-    assert promote_kind_unit(
-        base_kind, base_unit, applied=False, valid=False
-    ) == (base_kind, base_unit)
+    assert promote_kind_unit(base_kind, base_unit, applied=False, valid=True) == (
+        base_kind,
+        base_unit,
+    )
+    assert promote_kind_unit(base_kind, base_unit, applied=False, valid=False) == (
+        base_kind,
+        base_unit,
+    )
 
 
 @pytest.mark.parametrize(
@@ -164,9 +165,10 @@ def test_promote_kind_unit_not_applied_returns_base(
 def test_promote_kind_unit_applied_invalid_returns_base(
     base_kind: DepthKind, base_unit: str | None
 ) -> None:
-    assert promote_kind_unit(
-        base_kind, base_unit, applied=True, valid=False
-    ) == (base_kind, base_unit)
+    assert promote_kind_unit(base_kind, base_unit, applied=True, valid=False) == (
+        base_kind,
+        base_unit,
+    )
 
 
 @pytest.mark.parametrize(
@@ -180,9 +182,10 @@ def test_promote_kind_unit_applied_invalid_returns_base(
 def test_promote_kind_unit_applied_valid_promotes(
     base_kind: DepthKind, base_unit: str | None
 ) -> None:
-    assert promote_kind_unit(
-        base_kind, base_unit, applied=True, valid=True
-    ) == (DepthKind.METRIC_CALIBRATED, "m")
+    assert promote_kind_unit(base_kind, base_unit, applied=True, valid=True) == (
+        DepthKind.METRIC_CALIBRATED,
+        "m",
+    )
 
 
 # --- relative_depth_forbids_unit compatibility ------------------------------
