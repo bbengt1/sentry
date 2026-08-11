@@ -58,10 +58,7 @@ def test_mode_to_model_only_small_hf_ids() -> None:
         "metric_indoor",
         "metric_outdoor",
     }
-    assert (
-        MODE_TO_MODEL["relative"]
-        == "depth-anything/Depth-Anything-V2-Small-hf"
-    )
+    assert MODE_TO_MODEL["relative"] == "depth-anything/Depth-Anything-V2-Small-hf"
     assert "Small" in MODE_TO_MODEL["metric_indoor"]
     assert "Indoor" in MODE_TO_MODEL["metric_indoor"]
     assert "Small" in MODE_TO_MODEL["metric_outdoor"]

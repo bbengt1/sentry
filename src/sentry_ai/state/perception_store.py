@@ -20,6 +20,7 @@ from typing import Any, Literal
 from sentry_ai.models.depth.preprocess import depth_stats
 from sentry_ai.schemas.enums import DepthKind
 from sentry_ai.schemas.perception import Detection
+from sentry_ai.schemas.validators import assert_depth_kind_unit
 
 __all__ = [
     "DepthProduct",
@@ -233,6 +234,10 @@ class PerceptionStore:
         error: str | None = None,
     ) -> None:
         """Store latest depth product (keep-latest). Computes stats when map present."""
+        # Honesty gate before stats / product / lock write (CAL-05).
+        # Not inside the stats best-effort try/except — dishonest pairs must raise.
+        assert_depth_kind_unit(kind, unit)
+
         min_value: float | None = None
         max_value: float | None = None
         mean_value: float | None = None
