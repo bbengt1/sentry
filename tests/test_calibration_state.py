@@ -208,3 +208,157 @@ def test_no_motor_safety_command_fields_on_models() -> None:
         names = set(model.model_fields)
         for banned in ("motor", "safety", "command", "velocity", "throttle"):
             assert not any(banned in n for n in names), f"{model.__name__} has {banned}"
+
+
+# --- CalibrationState draft vs applied --------------------------------------
+
+from sentry_ai.control import CalibrationState
+from sentry_ai.schemas.enums import DepthKind
+
+
+def test_state_defaults_not_applied() -> None:
+    state = CalibrationState()
+    assert state.is_applied() is False
+    assert state.is_valid_applied() is False
+    snap = state.snapshot()
+    assert snap.applied is False
+    assert snap.valid is False
+    assert snap.has_draft_params is False
+    assert snap.draft_sample_count == 0
+    kind, unit = state.promote_kind_unit(DepthKind.RELATIVE, None)
+    assert kind == DepthKind.RELATIVE
+    assert unit is None
+    kind, unit = state.promote_kind_unit(DepthKind.METRIC_ESTIMATED, "m")
+    assert kind == DepthKind.METRIC_ESTIMATED
+    assert unit == "m"
+
+
+def test_draft_params_do_not_apply_or_promote() -> None:
+    state = CalibrationState()
+    snap = state.set_draft_params(_params())
+    assert snap.has_draft_params is True
+    assert snap.applied is False
+    assert state.is_applied() is False
+    assert state.is_valid_applied() is False
+    kind, unit = state.promote_kind_unit(DepthKind.RELATIVE, None)
+    assert kind == DepthKind.RELATIVE
+    assert unit is None
+
+
+def test_apply_no_draft_raises() -> None:
+    state = CalibrationState()
+    with pytest.raises(ValueError):
+        state.apply()
+    assert state.is_applied() is False
+
+
+def test_apply_invalid_draft_raises_and_stays_unapplied() -> None:
+    state = CalibrationState()
+    state.set_draft_params(_params(scale=-1.0, sample_count=2))
+    with pytest.raises(ValueError):
+        state.apply()
+    assert state.is_applied() is False
+    assert state.is_valid_applied() is False
+    kind, unit = state.promote_kind_unit(DepthKind.METRIC_ESTIMATED, "m")
+    assert kind == DepthKind.METRIC_ESTIMATED
+    assert unit == "m"
+
+
+def test_apply_valid_draft_promotes_to_calibrated() -> None:
+    state = CalibrationState()
+    state.set_draft_params(_params(scale=2.0, sample_count=4))
+    snap = state.apply()
+    assert snap.applied is True
+    assert snap.valid is True
+    assert state.is_applied() is True
+    assert state.is_valid_applied() is True
+    kind, unit = state.promote_kind_unit(DepthKind.RELATIVE, None)
+    assert kind == DepthKind.METRIC_CALIBRATED
+    assert unit == "m"
+    kind, unit = state.promote_kind_unit(DepthKind.METRIC_ESTIMATED, "m")
+    assert kind == DepthKind.METRIC_CALIBRATED
+    assert unit == "m"
+
+
+def test_clear_draft_after_apply_leaves_applied() -> None:
+    state = CalibrationState()
+    state.set_draft_params(_params())
+    state.apply()
+    snap = state.clear_draft()
+    assert state.is_applied() is True
+    assert state.is_valid_applied() is True
+    assert snap.has_draft_params is False
+    kind, unit = state.promote_kind_unit(DepthKind.RELATIVE, None)
+    assert kind == DepthKind.METRIC_CALIBRATED
+    assert unit == "m"
+
+
+def test_clear_applied_restores_base_promotion() -> None:
+    state = CalibrationState()
+    state.set_draft_params(_params())
+    state.apply()
+    snap = state.clear_applied()
+    assert snap.applied is False
+    assert state.is_applied() is False
+    assert state.is_valid_applied() is False
+    kind, unit = state.promote_kind_unit(DepthKind.METRIC_ESTIMATED, "m")
+    assert kind == DepthKind.METRIC_ESTIMATED
+    assert unit == "m"
+
+
+def test_failed_apply_does_not_wipe_prior_applied() -> None:
+    state = CalibrationState()
+    state.set_draft_params(_params(scale=1.25, sample_count=2))
+    state.apply()
+    assert state.is_applied() is True
+    # Stage an invalid draft and attempt apply
+    state.set_draft_params(_params(scale=0.0, sample_count=5))
+    with pytest.raises(ValueError):
+        state.apply()
+    assert state.is_applied() is True
+    assert state.is_valid_applied() is True
+    kind, unit = state.promote_kind_unit(DepthKind.RELATIVE, None)
+    assert kind == DepthKind.METRIC_CALIBRATED
+    assert unit == "m"
+    # Applied params still have original scale
+    applied = state.get_applied_params()
+    assert applied is not None
+    assert applied.scale == 1.25
+
+
+def test_snapshot_includes_applied_fields() -> None:
+    state = CalibrationState()
+    fp = CalibrationFingerprint(
+        camera_id="cam-front",
+        width=640,
+        height=480,
+        depth_mode="metric_indoor",
+        model_id="da2",
+    )
+    state.set_draft_params(
+        _params(scale=3.0, method="known_distance", sample_count=2, fingerprint=fp)
+    )
+    snap = state.apply()
+    assert snap.applied is True
+    assert snap.valid is True
+    assert snap.scale == 3.0
+    assert snap.method == "known_distance"
+    assert snap.fingerprint is not None
+    assert snap.fingerprint.camera_id == "cam-front"
+    assert snap.fingerprint.width == 640
+
+
+def test_snapshot_isolated_from_mutations() -> None:
+    state = CalibrationState()
+    before = state.snapshot()
+    state.set_draft_params(_params())
+    assert before.has_draft_params is False
+    after = state.snapshot()
+    assert after.has_draft_params is True
+
+
+def test_control_package_exports_calibration_state() -> None:
+    from sentry_ai import control
+
+    assert hasattr(control, "CalibrationState")
+    assert "CalibrationState" in control.__all__
