@@ -57,13 +57,12 @@ Reliable camera-only depth + obstacle awareness and object recognition that make
 
 ### Active
 
-*(Define via `/gsd:new-milestone` — examples below are placeholders, not commitments.)*
-
-- [ ] Metric depth calibration UX
-- [ ] Production ROS2 package
-- [ ] Multi-camera fusion runtime
-- [ ] Live ORT/TRT for depth / YOLOE (if ever justified)
-- [ ] Measured dual-model VRAM budgets on-device
+- [ ] Metric depth calibration UX via Live Preview wizard (known heights / markers)
+- [ ] Persist and re-apply per-camera (or per-profile) calibration at serve
+- [ ] Honest `depth_kind` / unit labeling: relative by default; metric only when calibrated
+- [ ] Free-space / obstacle near-field distances use metric scale when calibrated
+- [ ] Clear uncalibrated honesty in UI, snapshot, and `/v1` (never label relative as meters)
+- [ ] Docs for calibration flow; automated tests without physical hardware
 
 ### Out of Scope
 
@@ -121,33 +120,41 @@ Reliable camera-only depth + obstacle awareness and object recognition that make
 | Soft-default sticky fallback + opt-in strict | Maker ergonomics vs fail-closed deploy | ✓ Good — v0.2 |
 | Depth/OV stay torch this milestone | Dual-model VRAM + scope control | ✓ Good — v0.2 |
 
-## Current Milestone
+## Current Milestone: v0.3 Metric Depth Calibration UX
 
-**v0.2 Edge Runtime — SHIPPED 2026-08-10**
+**Goal:** Makers can turn monocular relative depth into honest metric distances using a Live Preview calibration wizard based on known heights/markers — without claiming vehicle-grade accuracy.
 
-Next: define with `/gsd:new-milestone` (continue from Phase 13).
+**Target features:**
+- Live Preview wizard for ground-truth scale (known object heights / floor markers)
+- Apply / cancel with visual feedback on depth overlay and free-space
+- Persist calibration (file or profile) and re-apply on `sentry serve`
+- Wire calibrated scale into depth products with honest `depth_kind` / units
+- Free-space near-field bands use meters when calibrated; stay honest when not
+- Operator docs + CI-safe unit/integration tests (synthetic frames; no real room required)
 
-**Shipped this milestone:** live ORT + live TRT fixed-class detection, sticky soft/strict fallback, edge-serve docs, Jetson-free CI.
-
-**Still deferred (candidates for next milestone):**
-- Metric depth calibration UX  
-- Production ROS2 package  
-- Multi-cam fusion  
-- Live ORT/TRT for depth / YOLOE  
-- On-device dual-model VRAM budgets as first-class claims  
+**Out of this milestone (deferred):**
+- Full camera intrinsic calibration suite (chessboard photogrammetry as primary path)
+- Stereo / multi-view depth
+- Live ORT/TRT for depth models
+- ROS2 metric TF frames package
+- Published dual-model FPS claims
 
 ---
-*Last updated: 2026-08-10 after v0.2 milestone*
+*Last updated: 2026-08-11 after starting v0.3 milestone*
 
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd-transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
 
 **After each milestone** (via `/gsd:complete-milestone`):
 1. Full review of all sections
 2. Core Value check — still the right priority?
 3. Audit Out of Scope — reasons still valid?
 4. Update Context with current state
-
----
-*Last updated: 2026-08-10 after v0.2 milestone*

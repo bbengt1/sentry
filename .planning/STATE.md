@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: null
-milestone_name: null
-status: milestone_complete
-last_updated: "2026-08-10"
-last_activity: 2026-08-10
+milestone: v0.3
+milestone_name: Metric Depth Calibration UX
+status: planning
+last_updated: "2026-08-11T09:56:24.438Z"
+last_activity: 2026-08-11
 progress:
-  total_phases: 12
-  completed_phases: 12
-  total_plans: 28
-  completed_plans: 28
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-08-10)
 
 ## Current Position
 
-Milestone: **v0.2 complete** (Phases 8–12 archived)  
-Next: `/gsd:new-milestone` (phases continue from 13)
-
-Progress: [██████████] 100% (v1.0 + v0.2)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-08-11 — Milestone v0.3 started
 
 ## Accumulated Context
 
