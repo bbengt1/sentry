@@ -1,294 +1,280 @@
-# Feature Landscape: v0.2 Edge Runtime
+# Feature Landscape: v0.3 Metric Depth Calibration UX
 
-**Domain:** Live edge inference for fixed-class YOLO (ONNX Runtime + TensorRT) on an existing camera-only perception stack  
-**Milestone:** Sentry AI v0.2 Edge Runtime  
-**Researched:** 2026-08-09  
-**Confidence:** HIGH for product scope (PROJECT.md + codebase); MEDIUM for ORT/TRT packaging friction on Jetson SKUs  
+**Domain:** Monocular depth scale calibration UX for maker robotics (camera-only)  
+**Milestone:** Sentry AI v0.3 Metric Depth Calibration UX  
+**Researched:** 2026-08-11  
+**Confidence:** HIGH for Sentry contracts + maker UX table stakes; MEDIUM for academic auto-scale methods (out of core path)
 
 ## Scope Lock (do not expand)
 
 | In scope | Out of scope this milestone |
 |----------|----------------------------|
-| Live **ONNX Runtime** path for **fixed-class YOLO only** | Live ORT/TRT for depth (DAV2 stays PyTorch/HF) |
-| Live **TensorRT** path for **fixed-class YOLO only** (NVIDIA desktop + Jetson-class) | Live ORT/TRT for open-vocab YOLOE (stays PyTorch on-demand) |
-| Profiles wire `preferred_backend` to **real loaders** (not export-only hints) | Pi-class published dual-model FPS as first-class claim |
-| Honest fallbacks when engine/model/deps missing | Metric depth calibration UX |
-| Desktop GPU + Jetson-class **first-class**; Pi **best-effort** | Production ROS2 package; multi-cam fusion |
-| CI-safe tests (mock ORT/TRT; no Jetson in GHA) | Prebuilt multi-SKU `.engine` artifacts in repo/wheel |
+| Live Preview **calibration wizard** (known heights / floor markers) | Full camera **intrinsic** suite (chessboard photogrammetry as primary) |
+| Fit scale (and optional shift) from user ground truth | Stereo / multi-view depth |
+| Persist + re-apply per-camera (or per-profile) at `sentry serve` | Live ORT/TRT for depth models |
+| Honest `depth_kind` / units: relative default; meters only when calibrated | ROS2 metric TF package |
+| Free-space near-field distances use metric when calibrated | Language/CLIP auto-scale as product path |
+| Docs + CI-safe tests (synthetic frames; no real room) | Vehicle-grade / FSD accuracy claims |
 
-**Shipped baseline (v1.0):** FrameBus → DetectionLoop → YoloDetectionWorker (Ultralytics PyTorch) → PerceptionStore; profiles apply detector/depth tiers + *device policy only*; export recipes exist under `docs/export/` + `scripts/export/`.
+**Shipped baseline (v1.0 + v0.2):** Relative DAV2 Small depth + optional `metric_indoor` / `metric_outdoor` heads labeled **`metric_estimated`**; free-space near-field bands with **ordinal** units; Live Preview depth badge honesty; wire forbids relative + `unit: "m"`; `DepthKind.METRIC_CALIBRATED` enum exists but has no calibration path yet; free-space still forces ordinal even for estimated metric (`assemble.py`).
+
+---
+
+## How Metric Calibration Works (ecosystem reality)
+
+Monocular relative depth is **scale-ambiguous** (classically affine in inverse-depth: scale + shift). Products that feel honest do **not** invent meters from relative maps. They either:
+
+1. **Ship domain metric heads** (DAV2 Hypersim indoor / VKITTI outdoor) → approximate meters, domain-sensitive → Sentry already maps these to `metric_estimated`.  
+2. **Anchor with user ground truth** (known object size, tape distance, floor marker) → fit a global scale (and optionally shift) on the current depth map → label **`metric_calibrated`**.  
+3. **Sensor fusion** (LiDAR/stereo/ARKit) — **out of product thesis** for Sentry.
+
+### Canonical maker procedure (what good UX encodes)
+
+```
+1. Depth already running (relative or metric_estimated)
+2. User starts wizard in Live Preview
+3. Choose method: known height | known distance | floor marker
+4. Place object / tape in view; freeze or use live frame
+5. Mark region(s) in image (box / two points / line on floor)
+6. Enter known physical value in meters (or cm with clear unit)
+7. System samples depth at mark(s), solves scale (and optional shift)
+8. Preview: depth badge flips to metric_calibrated (m); optional sample readout
+9. Apply (persist) or Cancel (revert)
+10. On next serve: load cal for this camera_id / profile automatically
+```
+
+**Math makers expect under the hood (not in the UI):**  
+For a known distance \(d_{\mathrm{true}}\) at a pixel with relative depth \(z_{\mathrm{rel}}\):
+
+- Simple scale (metric head already roughly metric): \(d = s \cdot z\) with \(s = d_{\mathrm{true}} / z_{\mathrm{rel}}\).  
+- Affine in inverse depth (relative / disparity-like maps): \(d = 1 / (\alpha z_{\mathrm{inv}} + \beta)\).  
+- Multi-point: least-squares over 2–N anchors; show residual / confidence.
+
+**Opinionated Sentry choice:** Prefer **user-anchored scale (optional shift)** on the **current depth product**, promote kind to `metric_calibrated`, persist params — **not** a new network fine-tune and **not** language priors. Wizard complexity stays Med; reliability and honesty stay high.
+
+**Confidence:** HIGH for scale-ambiguity + user-anchor pattern (MiDaS/DAV2 literature + Sentry contracts); MEDIUM for exact affine-vs-scale default (phase research should pick one formula and test on synthetic maps).
+
+---
+
+## Expected Maker Behaviors
+
+What hobbyist / student / small-team roboticists actually do when given monocular depth:
+
+| Behavior | Implication for product |
+|----------|-------------------------|
+| “How far is that obstacle in meters?” is the first metric ask | Free-space + depth must surface meters only after calibration |
+| Will put a **door frame, chair, person, or tape measure** in frame once | Wizard must accept known **height** and known **distance** paths |
+| Expects calibration to **stick across restarts** for the same camera mount | Persist per `camera_id` (and/or profile); re-apply at serve |
+| Recalibrates after **remount / different room / lens change** | Clear “Clear calibration” + re-run wizard; never silent stale cal |
+| Trusts UI badges more than docs | Live Preview, snapshot, `/v1` must **never** disagree on kind/units |
+| Accepts “approximate hobby accuracy” if labeled | Copy: calibrated ≈ not vehicle-grade; show residual if multi-point |
+| Prefers **wizard over CLI math** for first success | Primary path is Live Preview; headless file/API is secondary |
+| Uses synthetic/file sources in CI and laptop bring-up | All cal logic must run on synthetic depth without a real room |
+| Headless robot deploy still needs metric | Load persisted cal without UI; status reports calibrated vs not |
+| Will mis-enter units (cm vs m) | Explicit unit control; sanity bounds (e.g. reject 200 m “chair height”) |
+| May calibrate on `metric_estimated` or `relative` | Both supported; resulting kind is always `metric_calibrated` when user anchors |
 
 ---
 
 ## Table Stakes
 
-Features makers and edge deployers expect once Sentry claims “live ORT/TRT,” not “export recipes only.” Missing any of these makes the milestone feel incomplete or dishonest.
+Features makers expect once Sentry claims “metric calibration UX.” Missing any of these makes the milestone feel incomplete or dishonest.
 
 | Feature | Why Expected | Complexity | Notes / Sentry dependency |
 |---------|--------------|------------|---------------------------|
-| **Profile-selected live backend** | `preferred_backend` already exists on profiles; users expect `jetson` → TensorRT, `cpu-fallback` → ORT to *run*, not just log honesty notes | Med | Wire via `profile_runtime` → serve construction (`cli.py`); stop treating ORT/TRT as export-only |
-| **Live YOLO fixed-class on ORT** | Portable edge/CPU path after ONNX export; baseline for non-TRT targets | Med–High | New loader behind fixed-class worker surface; `DetectionLoop` stays unchanged (worker protocol) |
-| **Live YOLO fixed-class on TensorRT** | Jetson packaging docs already teach on-device engines; without live load, jetson profile is cosplay | High | On-device `.engine` only; no cross-SKU copy; system TRT (no pip `tensorrt` extra) |
-| **Same Detection schema / overlays** | Robots and Live Preview must not care which backend produced boxes | Low–Med | Keep `results_to_detections` / equivalent → `list[Detection]`; overlays + `/v1` unchanged |
-| **Honest missing-artifact behavior** | Silent PyTorch fallback when user asked for TRT is worse than a clear error | Med | Explicit policy: hard-fail preferred path *or* documented torch fallback with loud log + status field — never silent |
-| **Honest missing-dependency behavior** | ORT/TRT wheels/system libs often absent on maker machines | Med | Clear ImportError / startup message with install/export next step |
-| **Torch remains default desktop path** | Dev ergonomics; weights iteration; no engine rebuild every experiment | Low | `desktop-gpu` stays `preferred_backend: torch`; ORT/TRT opt-in via profile/config |
-| **Depth stays PyTorch this milestone** | Scope lock; dual-export for DAV2 is separate hard problem | — | Depth worker + loop untouched for backend selection |
-| **Open-vocab stays PyTorch on-demand** | Dual continuous models on edge is unmeasured; YOLOE export experimental | — | `YoloeOpenVocabWorker` / OpenVocabLoop unchanged |
-| **FrameBus keep-latest semantics preserved** | Edge backends that block longer must not grow queues | Low | Workers still only `get_latest()` via `DetectionLoop`; no backpressure on capture |
-| **CI without Jetson / system TRT** | GHA cannot assume NVIDIA edge hardware | Med | Mock InferenceBackend / injected models; unit tests for selection + fallback matrix |
-| **Jetson docs: build engine → serve** | Table stakes for “first-class Jetson” after recipes-only v1 | Med | Update `docs/export/jetson-packaging.md` + `yolo26-onnx-tensorrt.md` from export-only to live path |
-| **Backend identity visible in telemetry** | Operators need to know what actually ran (torch vs ort vs trt) | Low | Extend detection product / stage metrics (`model_name` already set; add backend tag) |
-| **CUDA→MPS/CPU honesty retained** | Maker machines without CUDA still work on torch path | Low | Existing `resolve_device`; do not invent fake `tensorrt` torch devices |
+| **Live Preview calibration wizard** | Primary maker surface already exists; CLI-only cal fails the product thesis | Med | Extend `ui/static/index.html` + new `/api/calibration/*` routes; reuse MJPEG + status poll pattern |
+| **Known object height path** | Universal maker ground truth (door ~2.0 m, person, box) | Med | User draws vertical extent or bbox; enter height_m; sample depth along object |
+| **Known distance / floor marker path** | Tape measure to wall / floor mark is the other common anchor | Med | Click point or short segment; enter distance_m; sample depth at mark |
+| **Apply / Cancel with visual feedback** | Calibration is a mutation; reversible preview is table stakes | Low–Med | Staging params until Apply; Cancel restores prior product labeling |
+| **Promote to `metric_calibrated` + `unit: "m"`** | Enum already exists; honesty contract requires distinct kind | Med | Wire `DepthPayload.kind`; depth worker or post-process scale layer; validators already forbid relative+m |
+| **Never label relative as meters** | Shipped v1 honesty; calibration must not regress | Low | Keep badge copy + Pydantic validators; tests for kind/unit matrix |
+| **Free-space uses metric when calibrated** | Obstacle “nearness” without meters is half a product | Med–High | Today free-space is always ordinal (`free_space.py`, `assemble._units_for_depth_kind`); need meter bands or `distance_m` **only** when kind is calibrated |
+| **Persist calibration** | Restart without re-wizard is expected | Med | JSON/YAML under config dir keyed by `camera_id` (+ optional profile); schema versioned |
+| **Re-apply on `sentry serve`** | Headless robots cannot open Live Preview every boot | Med | Load at depth/free-space construction; status shows loaded cal fingerprint |
+| **Clear / invalidate calibration** | Remount / wrong room must be recoverable | Low | Explicit clear API + UI; drop kind back to relative or metric_estimated |
+| **UI ↔ snapshot ↔ `/v1` single truth** | Dual truth is a trust killer | Low–Med | Same store product after apply; no client-side-only meter labels |
+| **Status / badge honesty** | Operators need “relative / estimated / calibrated” at a glance | Low | Extend existing depth badge in `index.html` + `/api/status` |
+| **Sanity checks on user input** | Bad entries create silent wrong meters (worse than ordinal) | Low–Med | Bounds, polarity checks, optional multi-point residual threshold |
+| **CI-safe tests without physical room** | Milestone requires automated tests | Med | Synthetic depth maps with planted scale; inject cal params; no camera |
+| **Operator docs for the flow** | Makers fail open-ended math; need screenshots + failure modes | Low–Med | New `docs/` calibration guide; link from edge/serve hub |
 
 ### Table-stakes quality bar (non-negotiable)
 
-- **Contract stability:** ORT/TRT produce the same `Detection` fields (bbox xyxy image coords, conf, class_id/name) as Ultralytics path.
-- **No dual truth:** Live Preview boxes == `/v1` detections for the same `frame_id` product snapshot rules as today.
-- **Profile honesty:** If profile says `tensorrt` and no engine/deps, operator sees why — not a quiet torch run.
-- **On-device TRT engines:** Build on the target GPU/JetPack; never ship multi-SKU engines in git/wheel.
-- **Perception-only boundary:** Backend swap does not add control/planning surface.
+- **Contract stability:** `relative` never has `unit: "m"`; meters only with `metric_estimated` or `metric_calibrated`.  
+- **No dual truth:** Live Preview labels == `/v1/snapshot` depth/free-space kinds and units for the same product snapshot.  
+- **Calibrated ≠ vehicle-grade:** UI and docs say approximate / hobby monocular.  
+- **Perception-only:** No `safe_to_drive` / distance-based interlocks from calibration.  
+- **Synthetic-first tests:** Unit + API tests do not require a real scene.
 
 ---
 
 ## Differentiators
 
-Features that turn “another YOLO export tutorial” into a product-shaped edge runtime on Sentry’s existing stack.
+Features that turn “another scale-factor CLI flag” into a product-shaped maker calibration experience on Sentry’s existing stack.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **One serve path, multiple backends** | Makers switch profile, not rewrite capture/API/UI | Med | Selection lives in construction + worker load; `DetectionLoop` / FrameBus / API stay backend-agnostic |
-| **Profiles as real deployment units** | `desktop-gpu` / `jetson` / `cpu-fallback` become executable runtime choices, not YAML folklore | Med | `ProfileRuntime.preferred_backend` drives loader factory; tiers still choose weights |
-| **Honest fallback matrix** | Trust: document when torch fallback is allowed vs hard-fail | Med | Differentiates from silent “export target” lies in v1.0 |
-| **Export → live continuity** | Same `scripts/export/export_yolo.py` artifacts load at serve time | Med | Close the loop from EDGE-03 recipes to actual inference |
-| **Desktop + Jetson first-class packaging story** | Dev on laptop GPU; deploy Jetson with measured path (no fake FPS) | Med–High | Pi stays “spatial awareness lite / best-effort” language |
-| **Mockable backend protocol for CI** | Contributors validate selection logic without NVIDIA hardware | Low–Med | Extend `InferenceBackend` / NullBackend patterns already in `backend/` |
-| **Stage isolation** | Only fixed-class YOLO gains edge backends; depth/OV remain stable | Low (discipline) | Reduces blast radius; clear “what got faster” story |
-| **Operator-visible backend in stream metadata** | Robots can log/audit which runtime produced detections | Low | Useful for field debugging thermal/FPS regressions |
+| **Guided wizard, not raw scale slider** | Makers succeed without understanding inverse-depth affine math | Med | Multi-step panel on Live Preview; method picker + mark + enter value + preview |
+| **Two first-class anchor methods (height + distance)** | Covers indoor robot benches and hallway tape tests | Med | Prefer both in MVP; third method (ArUco) can wait |
+| **Per-`camera_id` persistence with re-apply** | Multi-cam hooks already in schema; single active cam still benefits | Med | File path or profile field; fingerprint in status |
+| **Immediate free-space meterization when calibrated** | Depth cal that does not move free-space feels unfinished | Med–High | Extend `FreeSpacePayload.units` to `"m"`; optional obstacle `distance_m` only under calibrated kind |
+| **Staging preview before Apply** | See sample distance / band change before committing | Med | Soft-apply on overlay; hard-apply writes store + disk |
+| **Residual / confidence readout (multi-point)** | Builds trust; flags bad marks | Med | If N≥2 anchors, show fit residual; warn if high |
+| **Works on relative *and* metric_estimated bases** | Makers may start from either mode | Low–Med | Cal params relative to current depth product; document which base was used |
+| **Headless re-apply without UI** | Robot deploy path parity with Live Preview | Med | Serve loads cal file; `/api/status` reports calibration state |
+| **Honest triad of kinds in all surfaces** | Differentiates from tools that print “depth (m)” on MiDaS | Low | Badge + docs + wire already partially there; complete free-space path |
+| **Synthetic demo path in docs** | First success without arranging furniture | Low | Scripted synthetic source + planted geometry for tutorial |
 
-### Differentiator priority for v0.2 story
+### Differentiator priority for v0.3 story
 
-1. Live ORT + live TRT for fixed-class YOLO (the milestone claim)  
-2. Profiles select real loaders with honest fallbacks  
-3. Jetson on-device engine → `sentry serve --profile jetson` measured path  
-4. CI-safe mocks; no hardware required for merge  
-5. Telemetry/backend identity so operators trust the path  
+1. Live Preview wizard with known height **and** known distance  
+2. Apply → `metric_calibrated` + meters on depth products  
+3. Free-space near-field uses meters when calibrated (ordinal otherwise)  
+4. Persist + re-apply per camera/profile at serve  
+5. Staging preview + clear cal + residual if multi-point  
+6. Docs + synthetic CI  
 
 ---
 
 ## Anti-Features
 
-Features to **explicitly not build** in v0.2 (or ever as core without a new milestone).
+Features to **explicitly not build** in v0.3 (or ever as core without a new milestone).
 
 | Anti-Feature | Why Avoid | What to Do Instead |
 |--------------|-----------|-------------------|
-| **Live ORT/TRT for depth** | DAV2 export + preprocess parity is a separate project; milestone scope is YOLO fixed-class | Keep HF/PyTorch depth worker |
-| **Live ORT/TRT for YOLOE / open-vocab** | Heavier dual-model edge path; export still experimental | PyTorch on-demand only |
-| **Prebuilt multi-SKU TensorRT engines in repo/releases** | Engines bind to GPU arch + JetPack/TRT version; broken copies look like product bugs | Document on-device build; optional user-local cache paths |
-| **pip `tensorrt` project extra as required path** | Jetson uses system/JetPack TRT; pip matrix is a support nightmare | System TRT + docs; optional desktop notes only |
-| **Silent preferred_backend ignore** | v1.0 honesty notes already train users to distrust profiles | Either load the backend or fail/fallback loudly |
-| **Pi dual-model realtime FPS claims** | Unmeasured; thermal/CPU variance; product liability for “realtime” | Best-effort language; measure-on-device only |
-| **OpenVINO first-class live path** | Enum exists; not milestone target | Leave advisory / future |
-| **NCNN/MNN/CoreML live paths** | Extra surface without maker demand for this milestone | Defer |
-| **Changing FrameBus / DetectionLoop architecture** | Keep-latest + worker protocol already correct for slower backends | Swap worker implementation only |
-| **Queue-based detection backlog** | Latency explosion on edge | Keep DetectionLoop skip-if-same-frame_id |
-| **Robot control / safety interlock from “faster detect”** | Perception-only boundary | Unchanged API contract |
-| **Guaranteed sustained FPS tables without measurement** | Marketing lie | “Measure on device” docs only |
-| **Mandatory Ultralytics runtime for ORT/TRT path** | If ORT session can run exported YOLO graph, don’t require full torch stack on edge — *if* preprocess/postprocess is owned | Prefer thin ORT/TRT loaders; torch remains default desktop |
-| **Auto-export at serve start** | Slow, non-deterministic, needs GPU/TRT on first boot | Explicit export script + path config |
-| **Cross-device engine copy as supported deploy** | Known failure mode | Document as unsupported |
+| **Claim vehicle-grade / FSD metric accuracy** | Monocular + hobby anchors cannot support it; product liability | Explicit approximate language; residual display |
+| **Chessboard intrinsic calibration as primary path** | Deferred in PROJECT.md; high UX cost; not needed for global scale | Optional later; scale anchors first |
+| **Stereo / multi-view / SLAM scale recovery** | Different product; multi-cam fusion still extension-only | Single-camera user anchors |
+| **Language / CLIP auto-scale as default** | Research-grade, caption-noisy, hard to test honestly (RSA-style) | Human-entered known size only |
+| **Silent promotion of `metric_estimated` → `metric_calibrated`** | Estimated heads are domain-biased, not user-calibrated | Only user apply sets calibrated |
+| **Labeling relative depth with `m` or `distance_m`** | Violates FOUND-03 / validators / trust | Keep forbid; free-space stays ordinal until calibrated |
+| **Safety interlocks (`safe_to_drive`, stop if obstacle < 1 m)** | Perception-only boundary | Consumers own control |
+| **Online continuous auto-recalibration without consent** | Scale drift confuses robots; hard to debug | Explicit wizard re-run; optional later “recheck” button |
+| **Requiring LiDAR / RealSense for calibration** | Breaks camera-only thesis | Tape / known object only |
+| **Fine-tuning DAV2 weights in the wizard** | Hours of GPU, non-maker UX, CI nightmare | Global scale/shift on frozen model |
+| **Bulk `depth_map` meters on WebSocket** | Bandwidth; not needed for robot near-field | Metadata + free-space cues; binary later if needed |
+| **ArUco / AprilTag as *required* marker** | Extra print step blocks first success | Optional later; height/distance first |
+| **Per-frame independent scale (no persistence)** | Feels broken after restart | Persist params |
+| **Global single cal shared blindly across all cameras** | Wrong scale on second USB cam | Key by `camera_id` |
+| **Hiding uncalibrated state** | “Looks metric” is the failure mode of the whole domain | Loud relative / estimated badges |
+| **Changing free-space method name for marketing** | `near_field_bands` is honest | Keep method; change units only when calibrated |
 
 ---
 
-## Complexity Matrix
-
-| Feature | Complexity | Risk | Rationale |
-|---------|------------|------|-----------|
-| Backend selection from `profile_runtime` | Low–Med | Config edge cases | Pure wiring if loaders exist |
-| ORT session load + YOLO preprocess/postprocess | Med–High | Box decode parity vs Ultralytics; NMS-free YOLO26 head differences | Highest correctness risk for “same Detection” |
-| TensorRT engine load + infer | High | JetPack/TRT version skew; binding shapes; FP16 | Hardware matrix pain |
-| Honest fallback policy | Med | Product decision: fail-closed vs torch fallback | Must be explicit in CLI + docs |
-| Artifact path resolution (`.onnx` / `.engine`) | Med | Cache dirs, allowlists, cwd surprises | Mirror weight allowlist discipline from export script |
-| DetectionLoop integration | Low | — | Loop already worker-agnostic |
-| FrameBus interaction | Low | Slow infer → higher overwrite drops | Expected; metrics already exist |
-| Overlay / `/v1` parity | Low | Mapper bugs only | Reuse mapping layer |
-| Jetson packaging docs | Med | Stale JetPack notes | “As of / verify on device” language |
-| CI mocks | Med | Over-mocking hides real load bugs | Contract tests + optional manual edge checklist |
-| Desktop ORT-GPU wheel | Med–High | `onnxruntime-gpu` vs CUDA version hell | Prefer CPU ORT for portability; GPU ORT optional later |
-| Pi best-effort ORT | Med | May be too slow with depth concurrent | Stage toggles already exist |
-
----
-
-## Dependencies on Existing Sentry Components
-
-Features must compose with shipped architecture — not fork a second pipeline.
+## Feature Dependencies (on shipped depth / free-space / UI)
 
 ```
-CaptureLoop
-    → FrameBus (keep-latest ImageFrame)
-        → DetectionLoop
-            → Fixed-class worker (ModelWorker protocol)
-                 ├─ YoloDetectionWorker          [v1.0 PyTorch Ultralytics]
-                 ├─ OrtYoloDetectionWorker       [v0.2 NEW]
-                 └─ TrtYoloDetectionWorker       [v0.2 NEW]
-            → PerceptionStore.set_detections(...)
-        → DepthLoop / worker                     [unchanged PyTorch]
-        → OpenVocabLoop / worker                 [unchanged PyTorch on-demand]
-        → FreeSpaceLoop                          [unchanged]
-    → API assemble PerceptionFrame + Live Preview overlays
+FrameBus + DepthLoop + DepthAnythingWorker (v1)
+    → depth product (map in-process, kind, unit)
+        → Live Preview colormap + depth_kind badge (v1)
+        → Free-space near_field_bands (v1, ordinal only)
+        → PerceptionFrame /v1 (v1)
+
+NEW v0.3 layer (conceptually):
+  CalibrationService / scale applicator
+    depends on: live depth product (relative OR metric_estimated)
+    produces: scale (+ optional shift) params + kind=metric_calibrated
+    feeds: depth post-process OR worker config
+    feeds: free-space meter path when calibrated
+    feeds: persist file → serve re-apply
+    feeds: Live Preview wizard + status
+
+Does NOT depend on: ORT/TRT backends, open-vocab, ROS2, multi-cam fusion
+Must NOT break: relative honesty, perception-only boundary, keep-latest loops
 ```
 
-| Component | Role in v0.2 | Change expected? |
-|-----------|--------------|------------------|
-| **FrameBus** | Sole frame source for detection; drop metrics under slower edge infer | No API change; expect higher `frames_dropped` when backend is slower |
-| **DetectionLoop** | Thread: bus → `worker.process` → store; enable gate; error → empty dets + error string | Prefer **no** structural change; inject different worker |
-| **YoloDetectionWorker** | Current fixed-class PyTorch path; conf get/set; weights + device | Keep as torch backend; optionally share conf/protocol helpers |
-| **profile_runtime** | Resolves tiers, `preferred_backend`, device policy | **Yes** — map backend to loader choice + artifact paths, not only torch device string |
-| **InferenceBackend protocol** | `load` / `infer` / `close` + NullBackend | **Yes** — real ORT/TRT implementations or worker-internal sessions that honor the same idea |
-| **results_to_detections / mapping** | Schema boundary | Reuse or dual-path into same `Detection` list |
-| **plugins registry (`yolo-fixed`)** | Builtin worker registration | Register backend variants or factory by backend name |
-| **Export scripts/docs** | Produce `.onnx` / `.engine` | Become **inputs** to live loaders, not dead-end recipes |
-| **Profiles YAML** | `desktop-gpu` torch, `jetson` tensorrt, `cpu-fallback` onnxruntime | Semantics change from “export hint” → “live preference” |
-| **CLI honesty logs** | Currently warn that TRT/ORT are not live | Replace with load result / fallback messaging |
-| **Depth / OV / free-space** | Out of backend scope | No feature work |
+| Existing component | Dependency type | v0.3 impact |
+|--------------------|-----------------|-------------|
+| `DepthKind` enum | **Reuse** | `METRIC_CALIBRATED` becomes live path |
+| `DepthPayload` + validators | **Reuse / extend** | unit `"m"` only with estimated/calibrated |
+| `kind_for_mode` / depth_mode API | **Keep** | estimated modes remain; cal is orthogonal |
+| Depth colormap MJPEG | **Reuse** | Colormap may stay relative-normalized; **labels** change |
+| Free-space `near_field_bands` | **Extend** | Meter bands / optional `distance_m` when calibrated |
+| `assemble_perception_frame` | **Extend** | `_units_for_depth_kind` currently always ordinal — must change for calibrated |
+| Live Preview `index.html` | **Extend** | Wizard panel + badge states |
+| `/api/depth/config` | **Adjacent** | Do not overload; prefer `/api/calibration/*` |
+| Profiles / `camera_id` | **Keying** | Persist map keyed by camera (+ optional profile) |
+| Headless `--no-ui` | **Support** | Load cal without wizard; no HTML dependency |
+| Synthetic / file sources | **Test harness** | CI plants known geometry |
 
-### Feature → component dependency graph
+### Suggested wire deltas (feature-level, not full schema design)
 
-```
-Profile YAML preferred_backend
-    → profile_runtime()
-        → backend factory / worker construction (serve)
-            → OrtYolo* | TrtYolo* | YoloDetectionWorker
-                → DetectionLoop (unchanged)
-                    → FrameBus.get_latest()
-                    → PerceptionStore.set_detections()
-                        → /v1 + Live Preview
+| Surface | Uncalibrated (today) | After successful Apply |
+|---------|----------------------|------------------------|
+| `depth.kind` | `relative` or `metric_estimated` | `metric_calibrated` |
+| `depth.unit` | `null` or `"m"` (estimated) | `"m"` |
+| `free_space.units` | `"ordinal"` | `"m"` (only if calibrated) |
+| `free_space.depth_kind` | matches depth | `metric_calibrated` |
+| Obstacle fields | `nearness_*` only | Keep nearness; **optional** additive `distance_m` if schema allows later — or meterized band cuts only in v0.3 |
+| Status | depth_kind badge | + `calibration: applied \| none` + age/fingerprint |
 
-export_yolo.py (.onnx / .engine on device)
-    → artifact path config / discovery
-        → Ort / Trt worker load()
-```
-
-**Critical path for milestone completeness:**
-
-1. Backend factory from `profile_runtime.preferred_backend`  
-2. ORT live infer → `list[Detection]`  
-3. TRT live infer → `list[Detection]` (NVIDIA path)  
-4. Honest missing model/deps policy  
-5. Wire into serve + DetectionLoop (no camera ownership in workers)  
-6. Docs: Jetson on-device engine + serve  
-7. CI mocks for selection/fallback  
+**Opinion:** Prefer **minimal schema growth** in v0.3: flip kinds/units and meterize free-space band cuts when calibrated; defer additive `distance_m` on every obstacle if it expands validators too much — but **some** robot-facing meter signal is table stakes.
 
 ---
 
-## Feature Dependencies (ordering)
+## Complexity Notes
 
-```
-Export recipes (shipped v1.0)
-    → Artifact path convention (.onnx / .engine)
-        → ORT loader for fixed-class YOLO
-        → TRT loader for fixed-class YOLO
-            → profile_runtime backend selection
-                → serve construction chooses worker
-                    → DetectionLoop runs worker
-                        → same PerceptionStore / API / overlays
-            → honest fallback / error policy
-            → telemetry: backend identity
-            → Jetson packaging docs (live)
-            → CI mocks
+| Work item | Complexity | Why |
+|-----------|------------|-----|
+| Scale fit (1-point known distance) | Low | Closed-form; pure numpy |
+| Height path (vertical extent + pinhole height) | Med | Needs careful sampling (median of object strip); optional weak intrinsics assumption |
+| Affine inverse-depth fit (multi-point) | Med | Standard least-squares; edge cases on bad masks |
+| Wizard UI in static Live Preview | Med | Multi-step state machine in existing HTML/JS; no React rewrite |
+| Persist + load + fingerprint | Low–Med | File I/O + schema version; serve wiring |
+| Free-space metric bands | Med–High | Band cuts today are ordinal nearness thresholds; metric needs distance thresholds or scaled nearness — easy to get wrong |
+| Honesty matrix tests | Med | Combinatorial: relative / estimated / calibrated × UI / snapshot / free-space |
+| Headless re-apply | Low | Load path without UI |
+| Docs + synthetic tutorial | Low–Med | Content work; high leverage |
 
-Depth PyTorch path ── independent (no dep on ORT/TRT)
-Open-vocab PyTorch ── independent (no dep on ORT/TRT)
-```
-
-**Do not block on:** OpenVINO, YOLOE export hardening, metric depth, ROS2, multi-cam.
+**Highest risk feature:** free-space meterization without lying — ordinal nearness polarity + ROI heuristics were designed without meters. Phase research should lock: *convert depth map to meters first, then re-derive nearness from metric depth*, rather than “multiply ordinal by a constant.”
 
 ---
 
-## MVP Recommendation (v0.2)
+## MVP Recommendation
 
-### Prioritize (must ship)
+**Prioritize (must ship for milestone claim):**
 
-1. **Profile → real fixed-class backend selection** (`torch` | `onnxruntime` | `tensorrt`) via `profile_runtime` + serve wiring  
-2. **Live ORT inference** for YOLO fixed-class producing schema-identical detections  
-3. **Live TensorRT inference** for YOLO fixed-class on NVIDIA/Jetson with on-device engines  
-4. **Honest fallbacks** — documented matrix for missing engine, missing ORT/TRT, wrong device  
-5. **DetectionLoop-compatible workers** (no FrameBus redesign)  
-6. **CI mocks** for loader selection + fallback without hardware  
-7. **Docs:** Jetson engine build → `sentry serve --profile jetson`; desktop torch default unchanged  
-8. **Backend identity** in detection telemetry / logs  
+1. **Known distance** wizard path (tape / floor mark) — simplest correct scale  
+2. **Known height** wizard path (door / person / box) — maker-expected second path  
+3. **Apply / Cancel** + Live Preview badge → `metric_calibrated (m)`  
+4. **Persist + re-apply** per `camera_id` at serve  
+5. **Free-space honesty:** meters when calibrated; ordinal when not; never relative-as-meters  
+6. **Clear calibration** + status fingerprint  
+7. **CI synthetic tests** + operator docs  
 
-### Explicit platform bar
+**Defer (nice / next milestone):**
 
-| Target | Status | Language |
-|--------|--------|----------|
-| Desktop GPU | First-class | Default `torch`; optional ORT/TRT for lab |
-| Jetson-class | First-class | Live TRT preferred; measure on device; no FPS guarantees |
-| Raspberry Pi / generic CPU | Best-effort | ORT + nano tier; “spatial awareness lite”; no dual-model FPS claim |
-
-### Defer (explicit)
-
-| Feature | Why defer |
-|---------|-----------|
-| Live ORT/TRT depth | Separate export + correctness project |
-| Live ORT/TRT open-vocab | Continuous dual-model + experimental export |
-| Pi published FPS tables | Unmeasured; anti-claim |
-| OpenVINO live | Enum only; not milestone |
-| Auto-build engines at serve | Slow/non-deterministic first boot |
-| Prebuilt engines in Releases | SKU binding |
-| Changing free-space / depth contracts | Orthogonal |
+| Feature | Reason |
+|---------|--------|
+| Multi-point residual UI polish | Ship 1-point first; residual is differentiator #2 |
+| ArUco automatic detection | Extra dependency; print friction |
+| Chessboard intrinsics | Explicit out of scope |
+| Language auto-scale | Research, not maker-trustworthy |
+| Obstacle `distance_m` on every cue | Prefer band/unit flip first if schema churn is high |
+| Continuous online re-cal | Consent + drift issues |
+| Metric free-space cut sliders in meters in UI | Can keep ordinal cut sliders until calibrated path is solid |
 
 ---
 
-## Honest Fallback Matrix (product policy)
+## Phase Ordering Hints (for roadmap)
 
-Recommend this matrix for roadmap/plan authors (opinionated):
+1. **Contracts & applicator** — scale/shift model, kind promotion, validators, synthetic unit tests  
+2. **Persist / load / serve re-apply** — file schema, status fingerprint, headless path  
+3. **Live Preview wizard** — mark + enter + staging preview + apply/cancel  
+4. **Free-space metric path** — only after depth product is honestly calibrated  
+5. **Docs + integration tests** — synthetic E2E; operator guide  
 
-| Requested backend | Missing piece | Recommended behavior |
-|-------------------|---------------|----------------------|
-| `torch` | ultralytics/torch | Hard-fail serve with install extra message |
-| `onnxruntime` | `onnxruntime` package | Hard-fail *or* opt-in `--fallback-torch` with **loud** warning (default: hard-fail when backend explicitly requested) |
-| `onnxruntime` | `.onnx` artifact | Hard-fail with export command pointer |
-| `tensorrt` | system TRT / bindings | Hard-fail with Jetson packaging pointer (do not pretend TRT ran) |
-| `tensorrt` | `.engine` artifact | Hard-fail with on-device export command |
-| `tensorrt` | CUDA unavailable | Hard-fail (TRT requires NVIDIA); do not invent CPU TRT |
-| Any | Infer runtime error mid-frame | Existing DetectionLoop behavior: empty dets + `error` string; keep thread alive |
+**Ordering rationale:** Free-space meters **depend** on calibrated depth product; wizard **depends** on applicator; persist can parallelize with wizard once contract is fixed. Do not build UI labels before store/API kind flips — dual truth is the domain’s worst pitfall.
 
-**Anti-pattern:** profile `preferred_backend: tensorrt` while always running Ultralytics PyTorch with only a log line (v1.0 status). That is the gap this milestone closes.
+**Research flags:**
 
----
-
-## Competitive / Ecosystem Context (edge inference only)
-
-| Capability | Ultralytics alone | Isaac ROS DNN | DepthAI | **Sentry v0.2 target** |
-|------------|:-----------------:|:-------------:|:-------:|:----------------------:|
-| Export ONNX/TRT recipes | ✓ | ✓ | proprietary | ✓ (shipped v1.0) |
-| Live multi-backend in one product | DIY | ✓ | device pipeline | **✓ fixed-class YOLO** |
-| Profile-driven desktop→Jetson | DIY | platform graphs | HW-locked | **✓** |
-| Same robot API after backend swap | DIY | ROS msgs | SDK | **✓ `/v1` unchanged** |
-| Honest missing-engine UX | weak | varies | N/A | **✓ required** |
-| Live depth on TRT | DIY | common | HW | **✗ deferred** |
-
-Sentry’s edge differentiator is **not** inventing TensorRT — it is binding live ORT/TRT into the existing FrameBus/DetectionLoop/API product with profile honesty.
-
----
-
-## Implications for Roadmap
-
-Suggested feature slices (for phase planning; not a full roadmap):
-
-1. **Backend contracts + selection** — extend `profile_runtime` / factory; DetectionLoop-compatible worker interface; telemetry backend tag  
-2. **Live ORT fixed-class** — load `.onnx`, infer, map to `Detection`; cpu-fallback profile  
-3. **Live TRT fixed-class** — load on-device `.engine`; jetson (+ optional desktop) profile  
-4. **Honesty + docs + CI** — fallback matrix, Jetson serve path, mocks, replace v1.0 “not live” CLI notes  
-
-**Ordering rationale:** selection + shared Detection contract first; ORT before TRT (portable, CI-friendlier); TRT needs hardware docs but can share preprocess/postprocess with ORT if designed carefully; depth/OV never on the critical path.
-
-**Research flags for later phase work:**
-
-- YOLO26 ORT postprocess parity (NMS-free head) — likely needs deeper research  
-- Jetson ORT wheel source (Jetson Zoo vs PyPI) — SKU-specific  
-- Whether Ultralytics can load `.engine`/`.onnx` directly vs custom sessions — stack decision, not feature expansion  
+| Topic | Flag |
+|-------|------|
+| Affine-in-inverse vs pure scale for relative DAV2 | **Needs phase research** (map polarity + formula) |
+| Free-space band semantics in meters | **Needs phase research** (threshold design) |
+| Height path geometry (intrinsics assumptions) | **Needs phase research** (or document weak-pinhole) |
+| Persist path (file vs profile field) | Standard; low research |
+| Wizard step UX | Standard maker patterns; low research |
 
 ---
 
@@ -296,26 +282,15 @@ Suggested feature slices (for phase planning; not a full roadmap):
 
 | Source | Use | Confidence |
 |--------|-----|------------|
-| `.planning/PROJECT.md` Current Milestone v0.2 | Scope lock, in/out features | HIGH |
-| `src/sentry_ai/models/detection/yolo_worker.py` | Current fixed-class live path | HIGH |
-| `src/sentry_ai/models/detection/loop.py` | Worker-agnostic loop contract | HIGH |
-| `src/sentry_ai/bus/frame_bus.py` | Keep-latest semantics | HIGH |
-| `src/sentry_ai/config/profile_runtime.py` | preferred_backend still device-policy only | HIGH |
-| `src/sentry_ai/backend/protocols.py` | InferenceBackend stub surface | HIGH |
-| `docs/export/yolo26-onnx-tensorrt.md` | Export-only honesty; deferred live backends | HIGH |
-| `docs/export/jetson-packaging.md` | Jetson first-class packaging constraints | HIGH |
-| Profile YAMLs (`desktop-gpu`, `jetson`, `cpu-fallback`) | Backend preferences per target | HIGH |
+| Sentry `PROJECT.md` v0.3 goals | Scope lock | HIGH |
+| `docs/perception-frame.md`, `schemas/enums.py`, `schemas/perception.py` | Kind/unit/free-space contracts | HIGH |
+| `models/depth/mapping.py`, `api/routes_depth.py` | Existing relative vs metric_estimated modes | HIGH |
+| `spatial/free_space.py`, `api/assemble.py` | Ordinal free-space; calibrated path not wired | HIGH |
+| Depth Anything V2 metric_depth README + Context7 | Metric heads = domain estimated meters, not user-cal | HIGH |
+| HF monocular depth guide (relative vs absolute; scale/shift) | Domain fundamentals | HIGH |
+| arXiv:2601.01457 (language-as-prior scale recovery) | Academic auto-cal; **anti-feature for core** | MEDIUM (research only) |
+| Phase 4 UI-SPEC / research (depth honesty badges) | UI patterns to extend | HIGH |
 
 ---
 
-## Open Questions (phase research, not scope expansion)
-
-1. **Fail-closed vs torch fallback default** when ORT/TRT requested but unavailable — product UX choice.  
-2. **Artifact discovery:** sidecar next to weights, config path, or cache dir convention?  
-3. **ORT GPU on desktop:** first-class or CPU-ORT only for portability?  
-4. **Ultralytics-as-loader vs raw ORT/TRT sessions** for YOLO26 head decode — stack decision with correctness impact.  
-5. **Minimum Jetson SKU** for “first-class” language (Orin Nano vs older) — docs honesty only.
-
----
-
-*Research dimension: Features only for v0.2 Edge Runtime. Stack, architecture, and pitfalls belong in sibling research files.*
+*Research for v0.3 Metric Depth Calibration UX — features only. Supersedes v0.2 Edge Runtime FEATURES.md as the active research feature landscape for roadmap input.*
