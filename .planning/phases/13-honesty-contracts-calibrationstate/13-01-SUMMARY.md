@@ -82,7 +82,7 @@ Each task was committed atomically (TDD: test → feat):
 3. **Task 2 RED: store honesty + never-calibrated guards** - `5fff0a6` (test)
 4. **Task 2 GREEN: PerceptionStore.set_depth gate** - `a7d41df` (feat)
 
-**Plan metadata:** `1415d14` (docs: complete plan)
+**Plan metadata:** `3205006` (docs: complete plan)
 
 ## Files Created/Modified
 
