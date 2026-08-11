@@ -42,6 +42,16 @@ def test_depth_payload_metric_calibrated_unit_m_ok() -> None:
     assert d.unit == "m"
 
 
+def test_depth_payload_metric_calibrated_unit_none_rejected() -> None:
+    with pytest.raises(ValidationError):
+        DepthPayload(kind=DepthKind.METRIC_CALIBRATED, unit=None)
+
+
+def test_depth_payload_metric_estimated_unit_none_rejected() -> None:
+    with pytest.raises(ValidationError):
+        DepthPayload(kind=DepthKind.METRIC_ESTIMATED, unit=None)
+
+
 def test_depth_payload_has_no_depth_m_field() -> None:
     assert "depth_m" not in DepthPayload.model_fields
 
