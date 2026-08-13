@@ -426,7 +426,7 @@ def serve(
 
     if cfg.models.allow_cloud:
         typer.echo(
-            "smoke failed: allow_cloud is true; default path must stay local OSS",
+            "serve failed: allow_cloud is true; default path must stay local OSS",
             err=True,
         )
         raise typer.Exit(code=1)
