@@ -12,4 +12,5 @@ def test_serve_injects_calibration_state_into_depth_loop() -> None:
     assert "CalibrationState" in source
     assert "calibration_state = CalibrationState()" in source
     assert "calibration=calibration_state" in source
-    assert "DepthLoop(bus, depth_worker, store, calibration=calibration_state)" in source
+    ctor = "DepthLoop(bus, depth_worker, store, calibration=calibration_state)"
+    assert ctor in source
