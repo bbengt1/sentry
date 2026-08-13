@@ -48,8 +48,8 @@ Audit: [milestones/v0.2-MILESTONE-AUDIT.md](milestones/v0.2-MILESTONE-AUDIT.md)
 
 - [x] **Phase 13: Honesty Contracts & CalibrationState** - Promotion rules, validators, draft vs applied state model (completed 2026-08-11)
 - [x] **Phase 14: Scale Math + DepthLoop Plug-in** - Fit/reject scale; apply post-worker pre-store (completed 2026-08-13)
-- [ ] **Phase 15: Wizard REST + Live Preview UI** - Sample/fit/apply/cancel API + static wizard panel *(research + plans written 2026-08-13 — not implemented)*
-- [ ] **Phase 16: Free-Space Metric Path** - Meters only when calibrated; smoother reset
+- [x] **Phase 15: Wizard REST + Live Preview UI** - Sample/fit/apply/cancel API + static wizard panel (completed 2026-08-13)
+- [ ] **Phase 16: Free-Space Metric Path** - Meters only when calibrated; smoother reset *(research + plans written 2026-08-13 — not implemented)*
 - [ ] **Phase 17: Persist & Re-apply on Serve** - Per-camera_id YAML; fingerprint refuse; clear
 - [ ] **Phase 18: Docs + Synthetic CI Polish** - Operator guide; honesty docs; hardware-free tests
 
@@ -98,14 +98,15 @@ Plans:
   4. Draft/staging never claims `metric_calibrated` on the live perception stream until Apply
   5. Status / banner / Live Preview show whether calibration is active and base honesty (relative vs calibrated)
 **Plans**: 2 plans
-**Research**: Written 2026-08-13 (see `phases/15-wizard-rest-live-preview-ui/15-RESEARCH.md`) — implementation not started
+**Research**: Written 2026-08-13 (see `phases/15-wizard-rest-live-preview-ui/15-RESEARCH.md`)
+**Status**: Complete on main (15-01 + 15-02 merged 2026-08-13)
 **UI hint**: yes
 
 Note on WIZ-02: **Cancel = `clear_draft` only** (discard staging; cancel-before-apply never promotes). Explicit **Clear** calls `clear_applied`. Cancel does not wipe an already-applied calibration.
 
 Plans:
-- [ ] 15-01-PLAN.md — REST + AppState inject + samples/fit/apply/cancel/clear + /api/status (WIZ-01/02/04, OPS-01 backend)
-- [ ] 15-02-PLAN.md — static wizard in index.html (WIZ-03, OPS-01 UI); depends_on 15-01
+- [x] 15-01-PLAN.md — REST + AppState inject + samples/fit/apply/cancel/clear + /api/status (WIZ-01/02/04, OPS-01 backend)
+- [x] 15-02-PLAN.md — static wizard in index.html (WIZ-03, OPS-01 UI); depends_on 15-01
 
 ### Phase 16: Free-Space Metric Path
 **Goal**: Free-space products use honest meters only when underlying depth is `metric_calibrated` — never ordinal percentile bands relabeled as meters
@@ -115,8 +116,20 @@ Plans:
   1. Free-space products emit `units="m"` only when depth kind is `metric_calibrated`
   2. Relative and `metric_estimated` free-space stay ordinal; unit labels never flip while still computing pure ordinal percentile nearness as if meters
   3. Free-space smoother/state resets on calibration apply and clear so stale ordinal/metric occupancy does not ghost
-**Plans**: TBD
-**Research flag**: Needs research (absolute meter band cuts vs keep ordinal nearness + separate distance fields)
+**Plans**: 2 plans
+**Research**: Written 2026-08-13 (see `phases/16-free-space-meters/16-RESEARCH.md`) — implementation not started
+**Status**: Plans ready (not implemented)
+
+Locked research (must honor at execute):
+- Calibrated → `units="m"` **iff** absolute meter cuts (default 1.5 m / 3.0 m) on scaled depth with pinned `higher_is_farther`. Never label-only 0.72/0.45 flip. Never min–max meters.
+- Relative + `metric_estimated` stay `units="ordinal"` (percentile + `auto` polarity).
+- `nearness_*` remain 0..1; optional additive `distance_m` on cues only when calibrated (mean depth in blob).
+- Loop consumes DepthLoop scaled map + kind — never re-scales. `reset_smoother` on kind apply↔clear (`CalibrationState` has no listeners).
+- `assemble._units_for_depth_kind`: `METRIC_CALIBRATED` → `"m"`; else `"ordinal"`. After the metric path exists, calibrated must emit `"m"` (Phase 13 grace ends).
+
+Plans:
+- [ ] 16-01-PLAN.md — Pure `compute_free_space` metric path + honesty tests (FS-01, FS-02)
+- [ ] 16-02-PLAN.md — FreeSpaceLoop consume kind/units, smoother reset, assemble units flip, store/wire, optional `distance_m` (FS-03 + wire); depends_on 16-01
 
 ### Phase 17: Persist & Re-apply on Serve
 **Goal**: Valid calibration survives restarts for the matching camera/fingerprint; mismatches refuse auto-apply and stay honestly relative
@@ -151,8 +164,8 @@ Plans:
 | 12. Docs, CI & Packaging Polish | v0.2 | 2/2 | Complete | 2026-08-10 |
 | 13. Honesty Contracts & CalibrationState | v0.3 | 2/2 | Complete   | 2026-08-11 |
 | 14. Scale Math + DepthLoop Plug-in | v0.3 | 2/2 | Complete | 2026-08-13 |
-| 15. Wizard REST + Live Preview UI | v0.3 | 0/2 | Plans ready | - |
-| 16. Free-Space Metric Path | v0.3 | 0/? | Not started | - |
+| 15. Wizard REST + Live Preview UI | v0.3 | 2/2 | Complete | 2026-08-13 |
+| 16. Free-Space Metric Path | v0.3 | 0/2 | Plans ready | - |
 | 17. Persist & Re-apply on Serve | v0.3 | 0/? | Not started | - |
 | 18. Docs + Synthetic CI Polish | v0.3 | 0/? | Not started | - |
 
