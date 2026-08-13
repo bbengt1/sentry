@@ -242,7 +242,7 @@ def cameras(
 
     On macOS, uses AVFoundation DiscoverySession so Continuity Camera /
     iPhone entries appear with names when the system exposes them.
-    Use IDX with: sentry serve --source usb --device <IDX>
+    Use IDX with: sentry serve --source usb --device IDX
     """
     import platform
 
@@ -551,6 +551,7 @@ def serve(
     try:
         import importlib.util
 
+        from sentry_ai.control.calibration_state import CalibrationState
         from sentry_ai.models.cache import configure_model_cache
         from sentry_ai.models.depth.loop import DepthLoop
         from sentry_ai.models.depth.worker import DepthAnythingWorker
@@ -572,7 +573,8 @@ def serve(
             model_id=rt.depth_model_id,
             device=rt.device,
         )
-        depth_loop = DepthLoop(bus, depth_worker, store)
+        calibration_state = CalibrationState()
+        depth_loop = DepthLoop(bus, depth_worker, store, calibration=calibration_state)
     except ImportError as exc:
         typer.echo(
             "depth disabled: depth extra not installed "

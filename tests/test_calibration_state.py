@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
 import pytest
 from pydantic import ValidationError
 
@@ -361,3 +362,93 @@ def test_control_package_exports_calibration_state() -> None:
 
     assert hasattr(control, "CalibrationState")
     assert "CalibrationState" in control.__all__
+
+
+# --- apply_map (CAL-03) -----------------------------------------------------
+
+
+def test_apply_map_none_returns_none() -> None:
+    state = CalibrationState()
+    assert state.apply_map(None) is None
+    state.set_draft_params(_params(scale=2.5, sample_count=2))
+    state.apply()
+    assert state.apply_map(None) is None
+
+
+def test_apply_map_inactive_pass_through() -> None:
+    state = CalibrationState()
+    src = np.ones((8, 12), dtype=np.float32) * 4.0
+    out = state.apply_map(src)
+    assert out is src
+    np.testing.assert_array_equal(out, src)
+
+
+def test_apply_map_draft_only_pass_through() -> None:
+    """Draft never transforms — only applied+valid scales."""
+    state = CalibrationState()
+    state.set_draft_params(_params(scale=9.0, sample_count=2))
+    src = np.ones((4, 4), dtype=np.float32) * 4.0
+    out = state.apply_map(src)
+    assert out is src
+    kind, unit = state.promote_kind_unit(DepthKind.RELATIVE, None)
+    assert kind == DepthKind.RELATIVE
+    assert unit is None
+
+
+def test_apply_map_scale_only() -> None:
+    state = CalibrationState()
+    state.set_draft_params(_params(scale=2.5, offset=0.0, sample_count=2))
+    state.apply()
+    src = np.ones((6, 8), dtype=np.float32) * 4.0
+    original = src.copy()
+    out = state.apply_map(src)
+    assert out is not src
+    assert out.dtype == np.float32
+    assert out.shape == (6, 8)
+    np.testing.assert_allclose(out, 10.0, rtol=1e-6)
+    np.testing.assert_array_equal(src, original)
+    # Mutating the output must not touch the worker buffer.
+    out[0, 0] = 99.0
+    assert src[0, 0] == 4.0
+
+
+def test_apply_map_scale_and_offset() -> None:
+    state = CalibrationState()
+    state.set_draft_params(_params(scale=2.0, offset=1.0, sample_count=2))
+    state.apply()
+    src = np.ones((5, 7), dtype=np.float32) * 3.0
+    original = src.copy()
+    out = state.apply_map(src)
+    assert out is not src
+    assert out.dtype == np.float32
+    np.testing.assert_allclose(out, 7.0, rtol=1e-6)
+    np.testing.assert_array_equal(src, original)
+
+
+def test_apply_map_clear_applied_restores_pass_through() -> None:
+    state = CalibrationState()
+    state.set_draft_params(_params(scale=2.0, sample_count=2))
+    state.apply()
+    src = np.ones((3, 3), dtype=np.float32) * 5.0
+    scaled = state.apply_map(src)
+    np.testing.assert_allclose(scaled, 10.0, rtol=1e-6)
+    state.clear_applied()
+    out = state.apply_map(src)
+    assert out is src
+    np.testing.assert_array_equal(out, src)
+    kind, unit = state.promote_kind_unit(DepthKind.RELATIVE, None)
+    assert kind == DepthKind.RELATIVE
+    assert unit is None
+
+
+def test_apply_map_invalid_applied_does_not_transform() -> None:
+    """Structurally invalid applied params (bypass apply) must not scale."""
+    state = CalibrationState()
+    state._applied_params = _params(scale=-1.0, sample_count=2)
+    src = np.ones((4, 4), dtype=np.float32) * 4.0
+    out = state.apply_map(src)
+    assert out is src
+    np.testing.assert_array_equal(out, src)
+    kind, unit = state.promote_kind_unit(DepthKind.RELATIVE, None)
+    assert kind == DepthKind.RELATIVE
+    assert unit is None

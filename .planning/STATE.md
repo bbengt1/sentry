@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Metric Depth Calibration UX
 status: executing
-stopped_at: Phase 14-01 implemented on feat/14-01-calibration-fit (PR open)
-last_updated: "2026-08-13T01:43:00.000Z"
+stopped_at: Phase 14-02 implemented on feat/14-02-apply-map-depthloop (PR open)
+last_updated: "2026-08-13T09:33:00.000Z"
 last_activity: 2026-08-13
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 4
-  completed_plans: 3
-  percent: 25
+  completed_plans: 4
+  percent: 33
 ---
 
 # Project State
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots - without proprietary sensors or cloud AI.  
-**Current focus:** Phase 14-01 (pure fit/reject) implemented on branch `feat/14-01-calibration-fit`; next 14-02 (apply_map + DepthLoop plug-in)
+**Current focus:** Phase 14-02 (apply_map + DepthLoop plug-in) implemented on branch `feat/14-02-apply-map-depthloop`; next Phase 15 (wizard REST + Live Preview UI)
 
 ## Current Position
 
-Phase: 14 (Scale Math + DepthLoop Plug-in) - IN PROGRESS  
-Plan: 1 of 2 (14-01 done on branch)  
-Status: 14-01 pure NumPy fit/reject shipped; awaiting merge then 14-02  
+Phase: 14 (Scale Math + DepthLoop Plug-in) - 14-02 implemented  
+Plan: 2 of 2 (14-01 merged; 14-02 on branch)  
+Status: 14-02 apply_map + DepthLoop plug-in shipped; next Phase 15 wizard  
 Last activity: 2026-08-13
 
-Progress: [#####-----] 50% of Phase 14
+Progress: [##########] 100% of Phase 14 (awaiting 14-02 merge)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed (v0.3): 3 (Phase 13 + 14-01 on branch)
+- Total plans completed (v0.3): 4 (Phase 13 + 14-01 + 14-02 on branch)
 - v1.0 + v0.2 history: 28 plans shipped prior milestones
 
 **By Phase:**
@@ -49,6 +49,7 @@ Progress: [#####-----] 50% of Phase 14
 | Phase 13 P01 | 3min | 2 tasks | 7 files |
 | Phase 13 P02 | 2min | 2 tasks | 5 files |
 | Phase 14 P01 | 8min | 1 task | 5 files |
+| Phase 14 P02 | 25min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -82,11 +83,12 @@ v0.3 roadmap locks (from research):
 - [Phase 14]: Module spatial/calibration.py; state apply_map in control/calibration_state.py
 - [Phase 14]: Zero new deps; freeze DetectionLoop/FrameBus/ORT-TRT; synthetic tests; no wizard/YAML/free-space meters; CoW float32; lock in apply_map
 - [Phase 14-01]: CalibrationFitResult lives in spatial/calibration.py (not schemas); lazy spatial exports
+- [Phase 14-02]: apply_map CoW float32 under lock; DepthLoop sole apply site; CLI injects CalibrationState; error paths do not invent calibrated meters
 
 ### Pending Todos
 
-- Merge 14-01 PR
-- Execute 14-02 (apply_map + DepthLoop + CLI inject)
+- Merge 14-02 PR
+- Execute Phase 15 (wizard REST + Live Preview UI)
 
 ### Blockers/Concerns
 
@@ -108,7 +110,7 @@ See also: `milestones/v1.0-MILESTONE-AUDIT.md`, `milestones/v0.2-MILESTONE-AUDIT
 
 ## Session Continuity
 
-Last session: 2026-08-13T01:43:00.000Z
-Stopped at: Phase 14-01 implemented on feat/14-01-calibration-fit
+Last session: 2026-08-13T09:33:00.000Z
+Stopped at: Phase 14-02 implemented on feat/14-02-apply-map-depthloop
 Resume file: None
-Next: Merge 14-01, then execute 14-02
+Next: Merge 14-02, then Phase 15 wizard

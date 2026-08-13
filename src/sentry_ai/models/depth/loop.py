@@ -2,6 +2,10 @@
 
 Structural twin of DetectionLoop — never opens cameras or owns capture I/O.
 Keep-latest: skip when frame_id matches last processed; short Event.wait sleep.
+
+Calibration (CAL-03): optional CalibrationState. On the success path after
+worker.process, promote_kind_unit then apply_map before set_depth. Single
+apply site — error/dependency products do not invent metric_calibrated meters.
 """
 
 from __future__ import annotations
@@ -29,10 +33,12 @@ class DepthLoop:
         bus: FrameBus,
         worker: Any,
         store: PerceptionStore,
+        calibration: Any | None = None,
     ) -> None:
         self._bus = bus
         self._worker = worker
         self._store = store
+        self._calibration = calibration
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._enabled = threading.Event()
@@ -166,13 +172,20 @@ class DepthLoop:
                 if err and self._is_dependency_error(str(err)):
                     self._handle_dependency_failure(str(err), frame)
                     continue
+                depth_map = getattr(result, "depth_map", None)
+                kind = getattr(result, "kind", DepthKind.RELATIVE)
+                unit = getattr(result, "unit", None)
+                if self._calibration is not None:
+                    # Promote + apply together before set_depth (T-14-02).
+                    kind, unit = self._calibration.promote_kind_unit(kind, unit)
+                    depth_map = self._calibration.apply_map(depth_map)
                 self._store.set_depth(
                     frame_id=frame.frame_id,
                     camera_id=frame.camera_id,
                     t_capture=frame.meta.t_capture,
-                    depth_map=getattr(result, "depth_map", None),
-                    kind=getattr(result, "kind", DepthKind.RELATIVE),
-                    unit=getattr(result, "unit", None),
+                    depth_map=depth_map,
+                    kind=kind,
+                    unit=unit,
                     latency_ms=latency_ms,
                     width=getattr(result, "width", None),
                     height=getattr(result, "height", None),
