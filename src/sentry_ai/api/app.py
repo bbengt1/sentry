@@ -10,6 +10,7 @@ from typing import Any
 from fastapi import FastAPI
 
 from sentry_ai.api.deps import AppState
+from sentry_ai.api.routes_calibration import router as calibration_router
 from sentry_ai.api.routes_depth import router as depth_router
 from sentry_ai.api.routes_detection import router as detection_router
 from sentry_ai.api.routes_open_vocab import router as open_vocab_router
@@ -38,6 +39,7 @@ def create_app(
     backend_live: str | None = None,
     backend_reason: str | None = None,
     fallback_to_torch: bool | None = None,
+    calibration_state: Any | None = None,
     serve_ui: bool = True,
 ) -> FastAPI:
     """Build FastAPI app with preview + detection + depth + pipeline + OV + /v1.
@@ -85,6 +87,8 @@ def create_app(
     app.state.backend_reason = backend_reason
     # Phase 11 BACK-03: soft/strict policy flag (pass-through; preserve False).
     app.state.fallback_to_torch = fallback_to_torch
+    app.state.calibration_state = calibration_state
+    app.state.calibration_freeze_pin = None
     app.state.serve_ui = serve_ui
     app.state.shutdown_flag = shutdown_flag
     # Typed namespace for convenience (mirrors app.state fields).
@@ -105,10 +109,12 @@ def create_app(
         backend_live=backend_live,
         backend_reason=backend_reason,
         fallback_to_torch=fallback_to_torch,
+        calibration_state=calibration_state,
     )
     app.include_router(preview_router)
     app.include_router(detection_router)
     app.include_router(depth_router)
+    app.include_router(calibration_router)
     app.include_router(pipeline_router)
     app.include_router(open_vocab_router)
     app.include_router(v1_router)
