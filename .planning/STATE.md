@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Metric Depth Calibration UX
 status: executing
-stopped_at: Phase 16 research+plans written (not implemented); next execute 16-01
-last_updated: "2026-08-13T20:15:00.000Z"
+stopped_at: Phase 16-01 complete on branch; next execute 16-02
+last_updated: "2026-08-13T23:45:00.000Z"
 last_activity: 2026-08-13
 progress:
   total_phases: 6
   completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
-  percent: 50
+  total_plans: 8
+  completed_plans: 7
+  percent: 58
 ---
 
 # Project State
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots - without proprietary sensors or cloud AI.  
-**Current focus:** Phase 15 complete on main (wizard REST + static Live Preview UI). Phase 16 research + plans written (not implemented). Next is execute 16-01 (pure metric `compute_free_space`).
+**Current focus:** Phase 16-01 metric `compute_free_space` shipped (pure compute). Next is execute 16-02 (loop consume, smoother reset, assemble/validator/store, optional `distance_m`).
 
 ## Current Position
 
-Phase: 16 (Free-Space Metric Path) - plans ready  
-Plan: 0 of 2 (16-01 + 16-02 written, not executed)  
-Status: Phase 15 complete on main; Phase 16 planning-only  
+Phase: 16 (Free-Space Metric Path) - 16-01 done  
+Plan: 1 of 2 (16-01 executed; 16-02 written, not executed)  
+Status: Phase 15 complete on main; 16-01 on `feat/16-01-free-space-metric-compute`  
 Last activity: 2026-08-13
 
-Progress: [########..] 50% of v0.3 executed plans (13-15 complete; 16 plans ready)
+Progress: [#########.] 58% of v0.3 executed plans (13-15 complete; 16-01 done; next 16-02)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed (v0.3): 6 (Phase 13 + Phase 14 + Phase 15)
+- Total plans completed (v0.3): 7 (Phase 13 + Phase 14 + Phase 15 + 16-01)
 - v1.0 + v0.2 history: 28 plans shipped prior milestones
 
 **By Phase:**
@@ -49,6 +49,7 @@ Progress: [########..] 50% of v0.3 executed plans (13-15 complete; 16 plans read
 | Phase 14 P02 | 25min | 2 tasks | 7 files |
 | Phase 15 P01 | 40min | 2 tasks | 16 files |
 | Phase 15 P02 | 35min | 1 task | 4 files |
+| Phase 16 P01 | 25min | 1 task | 3 files |
 
 *Updated after each plan completion*
 
@@ -100,19 +101,20 @@ v0.3 roadmap locks (from research):
 - [Phase 16]: Relative + metric_estimated stay ordinal (percentile + auto polarity)
 - [Phase 16]: nearness_* remain 0..1; optional distance_m on cues only when calibrated (mean blob depth)
 - [Phase 16]: Pin higher_is_farther on calibrated path; never min-max normalize meters
-- [Phase 16]: OccupancySmoother.reset on kind apply↔clear; FreeSpaceLoop.reset_smoother; loop detects kind change (no CalibrationState listeners)
-- [Phase 16]: assemble METRIC_CALIBRATED → "m"; else "ordinal"; calibrated must emit "m" (Phase 13 grace ends)
-- [Phase 16]: Consume DepthLoop scaled map + kind — never re-scale
+- [Phase 16]: OccupancySmoother.reset on kind apply/clear; FreeSpaceLoop.reset_smoother; loop detects kind change (no CalibrationState listeners)
+- [Phase 16]: assemble METRIC_CALIBRATED -> "m"; else "ordinal"; calibrated must emit "m" (Phase 13 grace ends)
+- [Phase 16]: Consume DepthLoop scaled map + kind - never re-scale
 - [Phase 16]: Split 16-01 pure compute honesty / 16-02 loop+wire+reset+distance_m
+- [Phase 16-01]: compute_free_space metric branch shipped; wire still allows calibrated+ordinal until 16-02 assemble flip
 
 ### Pending Todos
 
-- Execute 16-01 (pure `compute_free_space` metric path + FS-01/FS-02 honesty tests)
-- Then 16-02 (loop consume, smoother reset, assemble/validator/store, optional `distance_m`)
+- Execute 16-02 (loop consume, smoother reset, assemble/validator/store, optional `distance_m`)
+- Then Phase 17 YAML persist
 
 ### Blockers/Concerns
 
-- Phase 16 research **resolved**: absolute meter band cuts (1.5/3.0 m) + optional `distance_m`; ordinal path unchanged for relative/estimated; smoother reset via loop kind-detect
+- Phase 16-01 compute path exists; do not tighten `assert_free_space_units` until 16-02 flips assemble/store
 - Persist path: prefer `$SENTRY_MODEL_CACHE/calibration/*.yaml` (STACK) - resolve in Phase 17 plan
 
 ## Deferred Items
@@ -130,7 +132,7 @@ See also: `milestones/v1.0-MILESTONE-AUDIT.md`, `milestones/v0.2-MILESTONE-AUDIT
 
 ## Session Continuity
 
-Last session: 2026-08-13T20:15:00.000Z
-Stopped at: Phase 16 research + 16-01/16-02 plans written (not implemented)
+Last session: 2026-08-13T23:45:00.000Z
+Stopped at: 16-01 metric compute_free_space executed
 Resume file: None
-Next: Execute 16-01 per ROADMAP / `.planning/phases/16-free-space-meters/16-01-PLAN.md`
+Next: Execute 16-02 per ROADMAP / `.planning/phases/16-free-space-meters/16-02-PLAN.md`
