@@ -7,6 +7,10 @@ Phase 14-02 apply formula (document for handoff; not implemented here):
 (float32 copy-on-write; not inverse-depth).
 
 Fit-time reject: callers must not stage draft params when ok is False.
+
+Optional height helper: default HFOV 70 degrees is a documented assumption,
+not calibrated camera intrinsics. Core sample path remains
+(observed_raw, known_meters).
 """
 
 from __future__ import annotations
@@ -23,6 +27,7 @@ __all__ = [
     "CalibrationFitResult",
     "fit_affine_lstsq",
     "fit_scale_median",
+    "known_height_to_distance_m",
     "residual_rms_gate",
 ]
 
@@ -211,3 +216,38 @@ def fit_affine_lstsq(
         known=known,
         method=method,
     )
+
+
+def known_height_to_distance_m(
+    *,
+    known_height_m: float,
+    bbox_xyxy: tuple[float, float, float, float],
+    image_width_px: int,
+    hfov_deg: float = 70.0,
+) -> float:
+    """Weak pinhole: d = (H * fy) / h_px.
+
+    Default HFOV 70 degrees is a documented assumption, not calibrated
+    camera intrinsics. ``fy = (width_px / 2) / tan(radians(hfov_deg) / 2)``.
+
+    Raises
+    ------
+    ValueError
+        When height, bbox height in pixels, image width, or HFOV is
+        non-positive, or the computed distance is not positive finite.
+    """
+    if not math.isfinite(known_height_m) or known_height_m <= 0.0:
+        raise ValueError("known_height_m must be positive")
+    if not math.isfinite(hfov_deg) or hfov_deg <= 0.0:
+        raise ValueError("hfov_deg must be positive")
+    if image_width_px <= 0:
+        raise ValueError("image_width_px must be positive")
+    _x1, y1, _x2, y2 = bbox_xyxy
+    bbox_height_px = abs(float(y2) - float(y1))
+    if not math.isfinite(bbox_height_px) or bbox_height_px <= 0.0:
+        raise ValueError("bbox height_px must be positive")
+    fy = (float(image_width_px) / 2.0) / math.tan(math.radians(hfov_deg) / 2.0)
+    distance_m = (known_height_m * fy) / bbox_height_px
+    if not math.isfinite(distance_m) or distance_m <= 0.0:
+        raise ValueError("computed distance must be positive finite")
+    return float(distance_m)

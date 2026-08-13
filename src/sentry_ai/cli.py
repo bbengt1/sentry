@@ -543,6 +543,12 @@ def serve(
         backend_live = None
         backend_reason = None
 
+    # Hoist CalibrationState so create_app always receives the same object
+    # even when the depth extra is missing (wizard REST 503 vs dual-state).
+    from sentry_ai.control.calibration_state import CalibrationState
+
+    calibration_state = CalibrationState()
+
     # Optional monocular depth (requires `uv sync --extra depth`).
     # Modules import without transformers; probe the dep *before* starting the
     # loop so missing extras do not spam every frame with ImportError.
@@ -551,7 +557,6 @@ def serve(
     try:
         import importlib.util
 
-        from sentry_ai.control.calibration_state import CalibrationState
         from sentry_ai.models.cache import configure_model_cache
         from sentry_ai.models.depth.loop import DepthLoop
         from sentry_ai.models.depth.worker import DepthAnythingWorker
@@ -573,7 +578,6 @@ def serve(
             model_id=rt.depth_model_id,
             device=rt.device,
         )
-        calibration_state = CalibrationState()
         depth_loop = DepthLoop(bus, depth_worker, store, calibration=calibration_state)
     except ImportError as exc:
         typer.echo(
@@ -609,6 +613,7 @@ def serve(
         backend_live=backend_live,
         backend_reason=backend_reason,
         fallback_to_torch=getattr(rt, "fallback_to_torch", True),
+        calibration_state=calibration_state,
         serve_ui=not no_ui,
     )
 

@@ -189,6 +189,24 @@ async def api_status(request: Request) -> dict[str, Any]:
                 data[field] = value
     except Exception:  # noqa: BLE001 — status best-effort
         pass
+
+    # Phase 15 OPS-01: additive calibration fields. Never set depth_kind
+    # from draft — live kind stays the store product until DepthLoop writes.
+    calib = getattr(request.app.state, "calibration_state", None)
+    if calib is not None:
+        try:
+            snap = calib.snapshot()
+            data["calibration_active"] = bool(snap.applied and snap.valid)
+            data["calibration_sample_count"] = int(snap.draft_sample_count)
+            if snap.applied:
+                data["calibration_scale"] = snap.scale
+                data["calibration_method"] = snap.method
+                if snap.fingerprint is not None:
+                    data["calibration_camera_id"] = snap.fingerprint.camera_id
+            else:
+                data["calibration_active"] = False
+        except Exception:  # noqa: BLE001 — status is best-effort
+            pass
     return data
 
 

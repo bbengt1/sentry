@@ -12,6 +12,7 @@ from sentry_ai.control import CalibrationState
 from sentry_ai.schemas.calibration import (
     CalibrationFingerprint,
     CalibrationParams,
+    CalibrationSample,
     CalibrationSnapshot,
     is_valid_calibration_params,
 )
@@ -71,7 +72,10 @@ def test_fingerprint_all_fields_settable() -> None:
 
 def test_fingerprint_rejects_extra_fields() -> None:
     with pytest.raises(ValidationError):
-        CalibrationFingerprint(camera_id="cam0", motor_cmd=1.0)  # type: ignore[call-arg]
+        CalibrationFingerprint(
+            camera_id="cam0",
+            motor_cmd=1.0,  # type: ignore[call-arg]
+        )
 
 
 # --- CalibrationParams ------------------------------------------------------
@@ -207,7 +211,12 @@ def test_snapshot_rejects_extra_fields() -> None:
 
 def test_no_motor_safety_command_fields_on_models() -> None:
     """Perception-only models: no motor/safety/command surface."""
-    for model in (CalibrationFingerprint, CalibrationParams, CalibrationSnapshot):
+    for model in (
+        CalibrationFingerprint,
+        CalibrationParams,
+        CalibrationSample,
+        CalibrationSnapshot,
+    ):
         names = set(model.model_fields)
         for banned in ("motor", "safety", "command", "velocity", "throttle"):
             assert not any(banned in n for n in names), f"{model.__name__} has {banned}"
@@ -452,3 +461,67 @@ def test_apply_map_invalid_applied_does_not_transform() -> None:
     kind, unit = state.promote_kind_unit(DepthKind.RELATIVE, None)
     assert kind == DepthKind.RELATIVE
     assert unit is None
+
+
+
+# --- draft sample public API (WIZ-01) ---------------------------------------
+
+
+def test_calibration_sample_requires_known_meters() -> None:
+    sample = CalibrationSample(known_meters=1.25)
+    assert sample.known_meters == 1.25
+    assert sample.point_uv is None
+    assert sample.bbox_xyxy is None
+    assert sample.observed_raw is None
+    with pytest.raises(ValidationError):
+        CalibrationSample()  # type: ignore[call-arg]
+
+
+def test_calibration_sample_rejects_extra_fields() -> None:
+    with pytest.raises(ValidationError):
+        CalibrationSample(known_meters=1.0, motor_cmd=1.0)  # type: ignore[call-arg]
+
+
+def test_add_draft_sample_increments_count_not_applied() -> None:
+    state = CalibrationState()
+    sample = CalibrationSample(
+        known_meters=2.0, observed_raw=1.0, point_uv=(4.0, 5.0)
+    )
+    snap = state.add_draft_sample(sample)
+    assert snap.draft_sample_count == 1
+    assert snap.applied is False
+    assert snap.has_draft_params is False
+    assert state.is_applied() is False
+
+
+def test_get_draft_samples_returns_copy() -> None:
+    state = CalibrationState()
+    sample = CalibrationSample(known_meters=1.0, observed_raw=0.5)
+    state.add_draft_sample(sample)
+    got = state.get_draft_samples()
+    assert len(got) == 1
+    got.clear()
+    assert len(state.get_draft_samples()) == 1
+    got2 = state.get_draft_samples()
+    got2.append("nope")
+    assert len(state.get_draft_samples()) == 1
+
+
+def test_clear_draft_samples_zeros_count_keeps_draft_params() -> None:
+    state = CalibrationState()
+    state.add_draft_sample(CalibrationSample(known_meters=1.0, observed_raw=0.5))
+    state.set_draft_params(_params())
+    snap = state.clear_draft_samples()
+    assert snap.draft_sample_count == 0
+    assert snap.has_draft_params is True
+    assert state.is_applied() is False
+
+
+def test_clear_draft_clears_samples_and_params() -> None:
+    state = CalibrationState()
+    state.add_draft_sample(CalibrationSample(known_meters=1.0, observed_raw=0.5))
+    state.set_draft_params(_params())
+    snap = state.clear_draft()
+    assert snap.draft_sample_count == 0
+    assert snap.has_draft_params is False
+    assert state.is_applied() is False

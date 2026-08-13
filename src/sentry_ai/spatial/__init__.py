@@ -19,6 +19,7 @@ __all__ = [
     "draw_free_space",
     "fit_affine_lstsq",
     "fit_scale_median",
+    "known_height_to_distance_m",
 ]
 
 
@@ -30,6 +31,7 @@ def __getattr__(name: str) -> Any:
         "MIN_SCALE",
         "fit_affine_lstsq",
         "fit_scale_median",
+        "known_height_to_distance_m",
     }:
         from sentry_ai.spatial.calibration import (
             MAX_SCALE,
@@ -37,6 +39,7 @@ def __getattr__(name: str) -> Any:
             CalibrationFitResult,
             fit_affine_lstsq,
             fit_scale_median,
+            known_height_to_distance_m,
         )
 
         return {
@@ -45,6 +48,7 @@ def __getattr__(name: str) -> Any:
             "MIN_SCALE": MIN_SCALE,
             "fit_affine_lstsq": fit_affine_lstsq,
             "fit_scale_median": fit_scale_median,
+            "known_height_to_distance_m": known_height_to_distance_m,
         }[name]
     if name in {"FreeSpaceResult", "ObstacleCue", "compute_free_space"}:
         from sentry_ai.spatial.free_space import (
