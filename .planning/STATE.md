@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Metric Depth Calibration UX
 status: executing
-stopped_at: 15-02 done; Phase 15 complete; next Phase 16 free-space meters
-last_updated: "2026-08-13T13:45:00.000Z"
+stopped_at: Phase 16 research+plans written (not implemented); next execute 16-01
+last_updated: "2026-08-13T20:15:00.000Z"
 last_activity: 2026-08-13
 progress:
   total_phases: 6
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots - without proprietary sensors or cloud AI.  
-**Current focus:** Phase 15 complete (wizard REST + static Live Preview UI). Next is Phase 16 free-space meters per ROADMAP.
+**Current focus:** Phase 15 complete on main (wizard REST + static Live Preview UI). Phase 16 research + plans written (not implemented). Next is execute 16-01 (pure metric `compute_free_space`).
 
 ## Current Position
 
-Phase: 15 (Wizard REST + Live Preview UI) - complete  
-Plan: 2 of 2 (15-01 + 15-02 done)  
-Status: Phase 15 complete on branch; next Phase 16 free-space meters  
+Phase: 16 (Free-Space Metric Path) - plans ready  
+Plan: 0 of 2 (16-01 + 16-02 written, not executed)  
+Status: Phase 15 complete on main; Phase 16 planning-only  
 Last activity: 2026-08-13
 
-Progress: [########..] 50% of v0.3 plans (13-15 complete; next 16)
+Progress: [########..] 50% of v0.3 executed plans (13-15 complete; 16 plans ready)
 
 ## Performance Metrics
 
@@ -96,14 +96,23 @@ v0.3 roadmap locks (from research):
 - [Phase 15-02]: Static #calibration-wizard on index.html; click-to-sample via naturalWidth/Height
 - [Phase 15-02]: Footer #metric-calibration from status calibration_active/scale/method/sample_count
 - [Phase 15-02]: Draft numbers labeled draft (not live); badge still status depth_kind only
+- [Phase 16]: Calibrated units="m" iff absolute meter cuts (1.5 m / 3.0 m) on scaled depth; never label-only 0.72/0.45 flip
+- [Phase 16]: Relative + metric_estimated stay ordinal (percentile + auto polarity)
+- [Phase 16]: nearness_* remain 0..1; optional distance_m on cues only when calibrated (mean blob depth)
+- [Phase 16]: Pin higher_is_farther on calibrated path; never min-max normalize meters
+- [Phase 16]: OccupancySmoother.reset on kind apply↔clear; FreeSpaceLoop.reset_smoother; loop detects kind change (no CalibrationState listeners)
+- [Phase 16]: assemble METRIC_CALIBRATED → "m"; else "ordinal"; calibrated must emit "m" (Phase 13 grace ends)
+- [Phase 16]: Consume DepthLoop scaled map + kind — never re-scale
+- [Phase 16]: Split 16-01 pure compute honesty / 16-02 loop+wire+reset+distance_m
 
 ### Pending Todos
 
-- Execute Phase 16 (free-space meters) per ROADMAP — research first (absolute cuts vs distance_m fields)
+- Execute 16-01 (pure `compute_free_space` metric path + FS-01/FS-02 honesty tests)
+- Then 16-02 (loop consume, smoother reset, assemble/validator/store, optional `distance_m`)
 
 ### Blockers/Concerns
 
-- Phase 16 needs research: free-space meter band semantics (absolute cuts vs distance_m fields)
+- Phase 16 research **resolved**: absolute meter band cuts (1.5/3.0 m) + optional `distance_m`; ordinal path unchanged for relative/estimated; smoother reset via loop kind-detect
 - Persist path: prefer `$SENTRY_MODEL_CACHE/calibration/*.yaml` (STACK) - resolve in Phase 17 plan
 
 ## Deferred Items
@@ -121,7 +130,7 @@ See also: `milestones/v1.0-MILESTONE-AUDIT.md`, `milestones/v0.2-MILESTONE-AUDIT
 
 ## Session Continuity
 
-Last session: 2026-08-13T13:45:00.000Z
-Stopped at: 15-02 static wizard UI complete; Phase 15 done
+Last session: 2026-08-13T20:15:00.000Z
+Stopped at: Phase 16 research + 16-01/16-02 plans written (not implemented)
 Resume file: None
-Next: Phase 16 free-space meters per ROADMAP
+Next: Execute 16-01 per ROADMAP / `.planning/phases/16-free-space-meters/16-01-PLAN.md`
