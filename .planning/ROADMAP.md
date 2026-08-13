@@ -47,7 +47,7 @@ Audit: [milestones/v0.2-MILESTONE-AUDIT.md](milestones/v0.2-MILESTONE-AUDIT.md)
 **Constraints:** Zero new pip deps; spine freeze (DetectionLoop / FrameBus / ORT-TRT factory); no FSD claims; synthetic CI tests (no physical room).
 
 - [x] **Phase 13: Honesty Contracts & CalibrationState** - Promotion rules, validators, draft vs applied state model (completed 2026-08-11)
-- [ ] **Phase 14: Scale Math + DepthLoop Plug-in** - Fit/reject scale; apply post-worker pre-store
+- [ ] **Phase 14: Scale Math + DepthLoop Plug-in** - Fit/reject scale; apply post-worker pre-store *(research + plans written 2026-08-12 — not implemented)*
 - [ ] **Phase 15: Wizard REST + Live Preview UI** - Sample/fit/apply/cancel API + static wizard panel
 - [ ] **Phase 16: Free-Space Metric Path** - Meters only when calibrated; smoother reset
 - [ ] **Phase 17: Persist & Re-apply on Serve** - Per-camera_id YAML; fingerprint refuse; clear
@@ -79,8 +79,12 @@ Plans:
   2. Invalid fits are rejected (too few samples, residual too high, inconsistent signs) and never become applied scale
   3. When calibration is applied, DepthLoop transforms the depth map after the worker and before `PerceptionStore.set_depth` (store depth is scaled; free-space/UI/API inherit it)
   4. Synthetic unit tests prove fit / reject / apply without a physical room
-**Plans**: TBD
-**Research flag**: Needs `/gsd:plan-phase --research` (pure scale vs affine; residual gates; metric_estimated double-scale)
+**Plans**: 2 plans
+**Research**: Written 2026-08-12 (see `phases/14-scale-math-depthloop-plugin/14-RESEARCH.md`) — implementation not started
+
+Plans:
+- [ ] 14-01-PLAN.md — Pure fit/reject in `spatial/calibration.py` + `tests/test_calibration_fit.py` (CAL-01/02)
+- [ ] 14-02-PLAN.md — `apply_map` + DepthLoop hook + CLI inject + FakeDepthWorker tests (CAL-03)
 
 ### Phase 15: Wizard REST + Live Preview UI
 **Goal**: Makers can run a Live Preview calibration wizard that stages samples, previews a fit, and Apply/Cancel without inventing meters mid-draft
@@ -138,7 +142,7 @@ Plans:
 | 11. Sticky Fallback & Dual-Model Guardrails | v0.2 | 2/2 | Complete | 2026-08-10 |
 | 12. Docs, CI & Packaging Polish | v0.2 | 2/2 | Complete | 2026-08-10 |
 | 13. Honesty Contracts & CalibrationState | v0.3 | 2/2 | Complete   | 2026-08-11 |
-| 14. Scale Math + DepthLoop Plug-in | v0.3 | 0/? | Not started | - |
+| 14. Scale Math + DepthLoop Plug-in | v0.3 | 0/2 | Plans ready | - |
 | 15. Wizard REST + Live Preview UI | v0.3 | 0/? | Not started | - |
 | 16. Free-Space Metric Path | v0.3 | 0/? | Not started | - |
 | 17. Persist & Re-apply on Serve | v0.3 | 0/? | Not started | - |
