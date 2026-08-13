@@ -70,6 +70,23 @@ class CalibrationState:
             fingerprint=fingerprint,
         )
 
+    def add_draft_sample(self, sample: Any) -> CalibrationSnapshot:
+        """Append a draft sample under lock; does not apply."""
+        with self._lock:
+            self._draft_samples.append(sample)
+            return self._snapshot_unlocked()
+
+    def get_draft_samples(self) -> list[Any]:
+        """Return a shallow copy of draft samples."""
+        with self._lock:
+            return list(self._draft_samples)
+
+    def clear_draft_samples(self) -> CalibrationSnapshot:
+        """Clear samples only (keep draft params unless caller also clear_draft)."""
+        with self._lock:
+            self._draft_samples.clear()
+            return self._snapshot_unlocked()
+
     def set_draft_params(self, params: CalibrationParams) -> CalibrationSnapshot:
         """Stage draft params without applying (draft never is_applied)."""
         with self._lock:

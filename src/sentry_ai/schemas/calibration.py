@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 __all__ = [
     "CalibrationFingerprint",
     "CalibrationParams",
+    "CalibrationSample",
     "CalibrationSnapshot",
     "is_valid_calibration_params",
 ]
@@ -47,6 +48,19 @@ class CalibrationParams(BaseModel):
     residual_rms: float | None = None
     fingerprint: CalibrationFingerprint
     created_at: float | None = None
+
+
+class CalibrationSample(BaseModel):
+    """One wizard GT sample. Extra fields rejected."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    point_uv: tuple[float, float] | None = None
+    bbox_xyxy: tuple[float, float, float, float] | None = None
+    known_meters: float
+    observed_raw: float | None = None  # filled at sample time
+    frame_id: int | None = None
+    note: str | None = None
 
 
 class CalibrationSnapshot(BaseModel):

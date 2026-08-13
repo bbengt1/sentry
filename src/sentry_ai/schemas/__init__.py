@@ -5,6 +5,7 @@ from __future__ import annotations
 from sentry_ai.schemas.calibration import (
     CalibrationFingerprint,
     CalibrationParams,
+    CalibrationSample,
     CalibrationSnapshot,
 )
 from sentry_ai.schemas.enums import BackendName, DepthKind, RuntimeProfile
@@ -22,6 +23,7 @@ __all__ = [
     "BackendName",
     "CalibrationFingerprint",
     "CalibrationParams",
+    "CalibrationSample",
     "CalibrationSnapshot",
     "Completeness",
     "DepthKind",
