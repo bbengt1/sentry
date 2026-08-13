@@ -47,8 +47,8 @@ Audit: [milestones/v0.2-MILESTONE-AUDIT.md](milestones/v0.2-MILESTONE-AUDIT.md)
 **Constraints:** Zero new pip deps; spine freeze (DetectionLoop / FrameBus / ORT-TRT factory); no FSD claims; synthetic CI tests (no physical room).
 
 - [x] **Phase 13: Honesty Contracts & CalibrationState** - Promotion rules, validators, draft vs applied state model (completed 2026-08-11)
-- [ ] **Phase 14: Scale Math + DepthLoop Plug-in** - Fit/reject scale; apply post-worker pre-store *(research + plans written 2026-08-12 — not implemented)*
-- [ ] **Phase 15: Wizard REST + Live Preview UI** - Sample/fit/apply/cancel API + static wizard panel
+- [x] **Phase 14: Scale Math + DepthLoop Plug-in** - Fit/reject scale; apply post-worker pre-store (completed 2026-08-13)
+- [ ] **Phase 15: Wizard REST + Live Preview UI** - Sample/fit/apply/cancel API + static wizard panel *(research + plans written 2026-08-13 — not implemented)*
 - [ ] **Phase 16: Free-Space Metric Path** - Meters only when calibrated; smoother reset
 - [ ] **Phase 17: Persist & Re-apply on Serve** - Per-camera_id YAML; fingerprint refuse; clear
 - [ ] **Phase 18: Docs + Synthetic CI Polish** - Operator guide; honesty docs; hardware-free tests
@@ -80,11 +80,12 @@ Plans:
   3. When calibration is applied, DepthLoop transforms the depth map after the worker and before `PerceptionStore.set_depth` (store depth is scaled; free-space/UI/API inherit it)
   4. Synthetic unit tests prove fit / reject / apply without a physical room
 **Plans**: 2 plans
-**Research**: Written 2026-08-12 (see `phases/14-scale-math-depthloop-plugin/14-RESEARCH.md`) — implementation not started
+**Research**: Written 2026-08-12 (see `phases/14-scale-math-depthloop-plugin/14-RESEARCH.md`)
+**Status**: Complete on main (14-01 + 14-02 merged 2026-08-13)
 
 Plans:
-- [ ] 14-01-PLAN.md — Pure fit/reject in `spatial/calibration.py` + `tests/test_calibration_fit.py` (CAL-01/02)
-- [ ] 14-02-PLAN.md — `apply_map` + DepthLoop hook + CLI inject + FakeDepthWorker tests (CAL-03)
+- [x] 14-01-PLAN.md — Pure fit/reject in `spatial/calibration.py` + `tests/test_calibration_fit.py` (CAL-01/02)
+- [x] 14-02-PLAN.md — `apply_map` + DepthLoop hook + CLI inject + FakeDepthWorker tests (CAL-03)
 
 ### Phase 15: Wizard REST + Live Preview UI
 **Goal**: Makers can run a Live Preview calibration wizard that stages samples, previews a fit, and Apply/Cancel without inventing meters mid-draft
@@ -96,8 +97,15 @@ Plans:
   3. Wizard shows sample count, residual/status, and calibrated vs relative labeling clearly
   4. Draft/staging never claims `metric_calibrated` on the live perception stream until Apply
   5. Status / banner / Live Preview show whether calibration is active and base honesty (relative vs calibrated)
-**Plans**: TBD
+**Plans**: 2 plans
+**Research**: Written 2026-08-13 (see `phases/15-wizard-rest-live-preview-ui/15-RESEARCH.md`) — implementation not started
 **UI hint**: yes
+
+Note on WIZ-02: **Cancel = `clear_draft` only** (discard staging; cancel-before-apply never promotes). Explicit **Clear** calls `clear_applied`. Cancel does not wipe an already-applied calibration.
+
+Plans:
+- [ ] 15-01-PLAN.md — REST + AppState inject + samples/fit/apply/cancel/clear + /api/status (WIZ-01/02/04, OPS-01 backend)
+- [ ] 15-02-PLAN.md — static wizard in index.html (WIZ-03, OPS-01 UI); depends_on 15-01
 
 ### Phase 16: Free-Space Metric Path
 **Goal**: Free-space products use honest meters only when underlying depth is `metric_calibrated` — never ordinal percentile bands relabeled as meters
@@ -142,8 +150,8 @@ Plans:
 | 11. Sticky Fallback & Dual-Model Guardrails | v0.2 | 2/2 | Complete | 2026-08-10 |
 | 12. Docs, CI & Packaging Polish | v0.2 | 2/2 | Complete | 2026-08-10 |
 | 13. Honesty Contracts & CalibrationState | v0.3 | 2/2 | Complete   | 2026-08-11 |
-| 14. Scale Math + DepthLoop Plug-in | v0.3 | 0/2 | Plans ready | - |
-| 15. Wizard REST + Live Preview UI | v0.3 | 0/? | Not started | - |
+| 14. Scale Math + DepthLoop Plug-in | v0.3 | 2/2 | Complete | 2026-08-13 |
+| 15. Wizard REST + Live Preview UI | v0.3 | 0/2 | Plans ready | - |
 | 16. Free-Space Metric Path | v0.3 | 0/? | Not started | - |
 | 17. Persist & Re-apply on Serve | v0.3 | 0/? | Not started | - |
 | 18. Docs + Synthetic CI Polish | v0.3 | 0/? | Not started | - |
