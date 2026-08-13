@@ -15,6 +15,7 @@ from sentry_ai.spatial.calibration import (
     CalibrationFitResult,
     fit_affine_lstsq,
     fit_scale_median,
+    known_height_to_distance_m,
     residual_rms_gate,
 )
 
@@ -196,3 +197,37 @@ def test_min_max_scale_constants() -> None:
     assert MIN_SCALE == 1e-4
     assert MAX_SCALE == 1e4
     assert math.isfinite(MIN_SCALE) and math.isfinite(MAX_SCALE)
+
+
+
+def test_known_height_to_distance_m_positive() -> None:
+    d = known_height_to_distance_m(
+        known_height_m=1.7,
+        bbox_xyxy=(10.0, 20.0, 50.0, 220.0),  # height_px = 200
+        image_width_px=640,
+        hfov_deg=70.0,
+    )
+    assert d > 0.0
+    fy = (640.0 / 2.0) / math.tan(math.radians(70.0) / 2.0)
+    assert d == pytest.approx((1.7 * fy) / 200.0)
+
+
+def test_known_height_to_distance_m_rejects_non_positive() -> None:
+    with pytest.raises(ValueError):
+        known_height_to_distance_m(
+            known_height_m=0.0,
+            bbox_xyxy=(0.0, 0.0, 10.0, 10.0),
+            image_width_px=640,
+        )
+    with pytest.raises(ValueError):
+        known_height_to_distance_m(
+            known_height_m=1.0,
+            bbox_xyxy=(0.0, 10.0, 10.0, 10.0),  # zero height
+            image_width_px=640,
+        )
+    with pytest.raises(ValueError):
+        known_height_to_distance_m(
+            known_height_m=1.0,
+            bbox_xyxy=(0.0, 0.0, 10.0, 10.0),
+            image_width_px=0,
+        )

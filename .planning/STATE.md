@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Metric Depth Calibration UX
 status: executing
-stopped_at: Phase 15 plans written; ready to execute 15-01
-last_updated: "2026-08-13T09:50:00.000Z"
+stopped_at: 15-01 done; next 15-02 wizard HTML
+last_updated: "2026-08-13T13:05:00.000Z"
 last_activity: 2026-08-13
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 6
-  completed_plans: 4
-  percent: 33
+  completed_plans: 5
+  percent: 42
 ---
 
 # Project State
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots - without proprietary sensors or cloud AI.  
-**Current focus:** Phase 15 plans written (wizard REST + Live Preview UI); next execute 15-01. Phase 14 complete on main (14-01 and 14-02 merged).
+**Current focus:** Phase 15-01 wizard REST + AppState inject done; next 15-02 static wizard UI. Phase 14 complete on main.
 
 ## Current Position
 
-Phase: 15 (Wizard REST + Live Preview UI) - plans written, not implemented  
-Plan: 0 of 2 (ready to execute 15-01)  
-Status: Phase 14 complete on main; Phase 15 research + plans ready  
+Phase: 15 (Wizard REST + Live Preview UI) - 15-01 complete, 15-02 next  
+Plan: 1 of 2 (15-01 done)  
+Status: Phase 14 complete on main; 15-01 REST shipped  
 Last activity: 2026-08-13
 
-Progress: [######....] 33% of v0.3 phases (13-14 complete; 15 planned)
+Progress: [#######...] 42% of v0.3 plans (13-14 complete; 15-01 done)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed (v0.3): 4 (Phase 13 + Phase 14)
+- Total plans completed (v0.3): 5 (Phase 13 + Phase 14 + 15-01)
 - v1.0 + v0.2 history: 28 plans shipped prior milestones
 
 **By Phase:**
@@ -47,6 +47,7 @@ Progress: [######....] 33% of v0.3 phases (13-14 complete; 15 planned)
 | Phase 13 P02 | 2min | 2 tasks | 5 files |
 | Phase 14 P01 | 8min | 1 task | 5 files |
 | Phase 14 P02 | 25min | 2 tasks | 7 files |
+| Phase 15 P01 | 40min | 2 tasks | 16 files |
 
 *Updated after each plan completion*
 
@@ -88,11 +89,13 @@ v0.3 roadmap locks (from research):
 - [Phase 15]: Same CalibrationState instance for DepthLoop and create_app
 - [Phase 15]: REST in-memory only (no YAML); extra=forbid; 503 if state missing
 - [Phase 15]: UI never locally claims metric_calibrated; preview numbers from draft until Apply
+- [Phase 15-01]: CalibrationSample + public draft sample APIs; freeze pin on app.state
+- [Phase 15-01]: CLI hoists CalibrationState for DepthLoop AND create_app
+- [Phase 15-01]: REST in-memory freeze/sample/compute/apply/cancel/clear; status additive
 
 ### Pending Todos
 
-- Execute Phase 15-01 (wizard REST + AppState inject)
-- Execute Phase 15-02 (static wizard UI) after 15-01
+- Execute Phase 15-02 (static wizard UI) on index.html
 
 ### Blockers/Concerns
 
@@ -114,7 +117,7 @@ See also: `milestones/v1.0-MILESTONE-AUDIT.md`, `milestones/v0.2-MILESTONE-AUDIT
 
 ## Session Continuity
 
-Last session: 2026-08-13T09:50:00.000Z
-Stopped at: Phase 15 plans written on docs/phase-15-plan; ready to execute 15-01
+Last session: 2026-08-13T13:05:00.000Z
+Stopped at: 15-01 wizard REST + AppState inject complete
 Resume file: None
-Next: Execute 15-01 (REST + same-instance inject)
+Next: Execute 15-02 (static wizard UI)
