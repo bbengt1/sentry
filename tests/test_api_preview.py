@@ -340,6 +340,19 @@ def test_root_serves_live_preview_html() -> None:
         assert "metric-ov-fps" in body
         assert "person, red cup, toolbox" in body  # placeholder
         assert "AGPL" in body or "yoloe" in body.lower()
+        # Phase 15: calibration wizard (WIZ-03 / OPS-01 UI)
+        assert "calibration-wizard" in body
+        assert "api/depth/calibration" in body
+        assert "calib-known-m" in body
+        assert "calib-sample" in body
+        assert "calib-compute" in body
+        assert "calib-apply" in body
+        assert "calib-cancel" in body
+        assert "calib-clear" in body
+        assert "calib-count" in body
+        assert "calib-draft" in body
+        assert "metric-calibration" in body
+        assert "calibration_active" in body
         # Copy constraints from UI-SPEC (T-05-06)
         lower = body.lower()
         assert "autonomous" not in lower
@@ -382,6 +395,61 @@ def test_live_preview_and_readme_language_denylist() -> None:
     assert "/v1/stream" in readme
     assert "near_field_bands" in readme
     assert "perception" in readme.lower()
+
+
+def test_calibration_wizard_html_contracts() -> None:
+    """WIZ-03 / OPS-01: static wizard panel + honesty; no local metric_calibrated."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    html = (root / "src" / "sentry_ai" / "ui" / "static" / "index.html").read_text(
+        encoding="utf-8"
+    )
+    lower = html.lower()
+    assert 'id="calibration-wizard"' in html
+    assert "api/depth/calibration" in html
+    assert "/api/depth/calibration/sample" in html
+    assert "/api/depth/calibration/compute" in html
+    assert "/api/depth/calibration/apply" in html
+    assert "/api/depth/calibration/cancel" in html
+    assert "/api/depth/calibration/clear" in html
+    assert 'id="calib-known-m"' in html
+    assert 'id="calib-method"' in html
+    assert 'id="calib-height-m"' in html
+    assert 'id="calib-sample"' in html
+    assert 'id="calib-compute"' in html
+    assert 'id="calib-apply"' in html
+    assert 'id="calib-cancel"' in html
+    assert 'id="calib-clear"' in html
+    assert 'id="calib-count"' in html
+    assert 'id="calib-draft"' in html
+    assert 'id="calib-msg"' in html
+    assert 'id="metric-calibration"' in html
+    assert "calibration_active" in html
+    assert "calibration_sample_count" in html
+    assert "naturalWidth" in html
+    assert "naturalHeight" in html
+    assert "hobby monocular" in lower
+    assert "not vehicle-grade" in lower
+    assert "drops draft only" in lower
+    assert "drops applied" in lower
+    assert "approximate fov helper" in lower
+    assert "draft (not live)" in lower
+    assert "clear applied first" in lower
+    assert "STATUS_POLL_MS = 500" in html
+    # Depth badge driven only by status depth_kind — never assign locally.
+    assert 'elDepthKind.textContent = "metric_calibrated"' not in html
+    assert "elDepthKind.textContent = 'metric_calibrated'" not in html
+    assert "elCalibDraft" in html
+    banned = (
+        "autonomous",
+        "safe_to_drive",
+        "go_nogo",
+        "motor",
+        "velocity",
+    )
+    for phrase in banned:
+        assert phrase not in lower, f"index.html contains banned phrase: {phrase}"
 
 
 def test_api_status_includes_depth_fields_when_store_present() -> None:
