@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Metric Depth Calibration UX
 status: executing
-stopped_at: 15-01 done; next 15-02 wizard HTML
-last_updated: "2026-08-13T13:05:00.000Z"
+stopped_at: 15-02 done; Phase 15 complete; next Phase 16 free-space meters
+last_updated: "2026-08-13T13:45:00.000Z"
 last_activity: 2026-08-13
 progress:
   total_phases: 6
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 6
-  completed_plans: 5
-  percent: 42
+  completed_plans: 6
+  percent: 50
 ---
 
 # Project State
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots - without proprietary sensors or cloud AI.  
-**Current focus:** Phase 15-01 wizard REST + AppState inject done; next 15-02 static wizard UI. Phase 14 complete on main.
+**Current focus:** Phase 15 complete (wizard REST + static Live Preview UI). Next is Phase 16 free-space meters per ROADMAP.
 
 ## Current Position
 
-Phase: 15 (Wizard REST + Live Preview UI) - 15-01 complete, 15-02 next  
-Plan: 1 of 2 (15-01 done)  
-Status: Phase 14 complete on main; 15-01 REST shipped  
+Phase: 15 (Wizard REST + Live Preview UI) - complete  
+Plan: 2 of 2 (15-01 + 15-02 done)  
+Status: Phase 15 complete on branch; next Phase 16 free-space meters  
 Last activity: 2026-08-13
 
-Progress: [#######...] 42% of v0.3 plans (13-14 complete; 15-01 done)
+Progress: [########..] 50% of v0.3 plans (13-15 complete; next 16)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed (v0.3): 5 (Phase 13 + Phase 14 + 15-01)
+- Total plans completed (v0.3): 6 (Phase 13 + Phase 14 + Phase 15)
 - v1.0 + v0.2 history: 28 plans shipped prior milestones
 
 **By Phase:**
@@ -48,6 +48,7 @@ Progress: [#######...] 42% of v0.3 plans (13-14 complete; 15-01 done)
 | Phase 14 P01 | 8min | 1 task | 5 files |
 | Phase 14 P02 | 25min | 2 tasks | 7 files |
 | Phase 15 P01 | 40min | 2 tasks | 16 files |
+| Phase 15 P02 | 35min | 1 task | 4 files |
 
 *Updated after each plan completion*
 
@@ -92,10 +93,13 @@ v0.3 roadmap locks (from research):
 - [Phase 15-01]: CalibrationSample + public draft sample APIs; freeze pin on app.state
 - [Phase 15-01]: CLI hoists CalibrationState for DepthLoop AND create_app
 - [Phase 15-01]: REST in-memory freeze/sample/compute/apply/cancel/clear; status additive
+- [Phase 15-02]: Static #calibration-wizard on index.html; click-to-sample via naturalWidth/Height
+- [Phase 15-02]: Footer #metric-calibration from status calibration_active/scale/method/sample_count
+- [Phase 15-02]: Draft numbers labeled draft (not live); badge still status depth_kind only
 
 ### Pending Todos
 
-- Execute Phase 15-02 (static wizard UI) on index.html
+- Execute Phase 16 (free-space meters) per ROADMAP — research first (absolute cuts vs distance_m fields)
 
 ### Blockers/Concerns
 
@@ -117,7 +121,7 @@ See also: `milestones/v1.0-MILESTONE-AUDIT.md`, `milestones/v0.2-MILESTONE-AUDIT
 
 ## Session Continuity
 
-Last session: 2026-08-13T13:05:00.000Z
-Stopped at: 15-01 wizard REST + AppState inject complete
+Last session: 2026-08-13T13:45:00.000Z
+Stopped at: 15-02 static wizard UI complete; Phase 15 done
 Resume file: None
-Next: Execute 15-02 (static wizard UI)
+Next: Phase 16 free-space meters per ROADMAP
