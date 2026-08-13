@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Metric Depth Calibration UX
 status: executing
-stopped_at: Phase 14-02 implemented on feat/14-02-apply-map-depthloop (PR open)
-last_updated: "2026-08-13T09:33:00.000Z"
+stopped_at: Phase 15 plans written; ready to execute 15-01
+last_updated: "2026-08-13T09:50:00.000Z"
 last_activity: 2026-08-13
 progress:
   total_phases: 6
-  completed_phases: 1
-  total_plans: 4
+  completed_phases: 2
+  total_plans: 6
   completed_plans: 4
   percent: 33
 ---
@@ -21,35 +21,34 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots - without proprietary sensors or cloud AI.  
-**Current focus:** Phase 14-02 (apply_map + DepthLoop plug-in) implemented on branch `feat/14-02-apply-map-depthloop`; next Phase 15 (wizard REST + Live Preview UI)
+**Current focus:** Phase 15 plans written (wizard REST + Live Preview UI); next execute 15-01. Phase 14 complete on main (14-01 and 14-02 merged).
 
 ## Current Position
 
-Phase: 14 (Scale Math + DepthLoop Plug-in) - 14-02 implemented  
-Plan: 2 of 2 (14-01 merged; 14-02 on branch)  
-Status: 14-02 apply_map + DepthLoop plug-in shipped; next Phase 15 wizard  
+Phase: 15 (Wizard REST + Live Preview UI) - plans written, not implemented  
+Plan: 0 of 2 (ready to execute 15-01)  
+Status: Phase 14 complete on main; Phase 15 research + plans ready  
 Last activity: 2026-08-13
 
-Progress: [##########] 100% of Phase 14 (awaiting 14-02 merge)
+Progress: [######....] 33% of v0.3 phases (13-14 complete; 15 planned)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed (v0.3): 4 (Phase 13 + 14-01 + 14-02 on branch)
+- Total plans completed (v0.3): 4 (Phase 13 + Phase 14)
 - v1.0 + v0.2 history: 28 plans shipped prior milestones
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
-
-*Updated after each plan completion*
 | Phase 13 P01 | 3min | 2 tasks | 7 files |
 | Phase 13 P02 | 2min | 2 tasks | 5 files |
 | Phase 14 P01 | 8min | 1 task | 5 files |
 | Phase 14 P02 | 25min | 2 tasks | 7 files |
+
+*Updated after each plan completion*
 
 ## Accumulated Context
 
@@ -62,10 +61,10 @@ v0.3 roadmap locks (from research):
 - Zero new pip dependencies (numpy fit only)
 - Post-process scale in DepthLoop (not worker, not free-space, not UI)
 - Primary GT = known distance; height feeds same fitter with documented assumptions
-- `metric_calibrated` + `unit="m"` only when applied and valid
+- metric_calibrated + unit="m" only when applied and valid
 - Free-space meters only after real metric path (not label-only)
 - Persist per camera_id with fingerprint refuse
-- Static wizard + REST - no React, no FSD claims
+- Static wizard + REST - no new frontend stack, no FSD claims
 - [Phase 13]: relative_depth_forbids_unit delegates to assert_depth_kind_unit for single matrix
 - [Phase 13]: FreeSpacePayload allows metric_calibrated + ordinal until Phase 16
 - [Phase 13]: kind_for_mode production mapping left unchanged; never-calibrated is test-only
@@ -84,11 +83,16 @@ v0.3 roadmap locks (from research):
 - [Phase 14]: Zero new deps; freeze DetectionLoop/FrameBus/ORT-TRT; synthetic tests; no wizard/YAML/free-space meters; CoW float32; lock in apply_map
 - [Phase 14-01]: CalibrationFitResult lives in spatial/calibration.py (not schemas); lazy spatial exports
 - [Phase 14-02]: apply_map CoW float32 under lock; DepthLoop sole apply site; CLI injects CalibrationState; error paths do not invent calibrated meters
+- [Phase 15]: Cancel = clear_draft only; explicit Clear = clear_applied
+- [Phase 15]: Sample only when inactive (409 if applied)
+- [Phase 15]: Same CalibrationState instance for DepthLoop and create_app
+- [Phase 15]: REST in-memory only (no YAML); extra=forbid; 503 if state missing
+- [Phase 15]: UI never locally claims metric_calibrated; preview numbers from draft until Apply
 
 ### Pending Todos
 
-- Merge 14-02 PR
-- Execute Phase 15 (wizard REST + Live Preview UI)
+- Execute Phase 15-01 (wizard REST + AppState inject)
+- Execute Phase 15-02 (static wizard UI) after 15-01
 
 ### Blockers/Concerns
 
@@ -110,7 +114,7 @@ See also: `milestones/v1.0-MILESTONE-AUDIT.md`, `milestones/v0.2-MILESTONE-AUDIT
 
 ## Session Continuity
 
-Last session: 2026-08-13T09:33:00.000Z
-Stopped at: Phase 14-02 implemented on feat/14-02-apply-map-depthloop
+Last session: 2026-08-13T09:50:00.000Z
+Stopped at: Phase 15 plans written on docs/phase-15-plan; ready to execute 15-01
 Resume file: None
-Next: Merge 14-02, then Phase 15 wizard
+Next: Execute 15-01 (REST + same-instance inject)
