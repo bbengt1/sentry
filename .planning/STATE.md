@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Metric Depth Calibration UX
-status: phase_complete
-stopped_at: Completed 13-02-PLAN.md
-last_updated: "2026-08-11T14:07:12.357Z"
-last_activity: 2026-08-11
+status: plans_ready
+stopped_at: Phase 14 plans written (14-01, 14-02)
+last_updated: "2026-08-12T23:57:00.000Z"
+last_activity: 2026-08-12
 progress:
   total_phases: 6
   completed_phases: 1
-  total_plans: 2
+  total_plans: 4
   completed_plans: 2
   percent: 17
 ---
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots — without proprietary sensors or cloud AI.  
-**Current focus:** Phase 13 verification passed (2026-08-11) — next: Phase 14 Scale Math + DepthLoop Plug-in
+**Current focus:** Phase 14 plans written — ready to execute 14-01 (pure fit/reject); then 14-02 (apply_map + DepthLoop plug-in)
 
 ## Current Position
 
-Phase: 13 (Honesty Contracts & CalibrationState) — EXECUTING
-Plan: 2 of 2
-Status: Phase complete — ready for verification
-Last activity: 2026-08-11
+Phase: 14 (Scale Math + DepthLoop Plug-in) — PLANNED  
+Plan: 0 of 2  
+Status: Research + plans landed — ready to execute 14-01  
+Last activity: 2026-08-12
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0% of Phase 14
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed (v0.3): 0
+- Total plans completed (v0.3): 2 (Phase 13)
 - v1.0 + v0.2 history: 28 plans shipped prior milestones
 
 **By Phase:**
@@ -71,14 +71,23 @@ v0.3 roadmap locks (from research):
 - [Phase 13]: get_applied_params() exposed for Phase 14 consumers
 - [Phase 13]: CalibrationSnapshot includes scale/method/fingerprint when applied
 - [Phase 13]: manual_scale skips sample_count floor; other methods require >= 1
+- [Phase 14]: Fit default = scale-only median of D_i/d_i
+- [Phase 14]: Optional affine lstsq when N>=2; store scale+offset
+- [Phase 14]: Apply map' = scale*map + offset (not inverse-depth)
+- [Phase 14]: No polarity flip; reject non-positive observations
+- [Phase 14]: residual_rms reject if > max(0.15*median(D), 0.05); absurd scale outside (1e-4, 1e4); fit-time reject before draft
+- [Phase 14]: Same apply for relative and metric_estimated; fingerprint depth_mode+model_id; no undo of metric prior
+- [Phase 14]: Core fitter = (observed_raw, known_meters) pairs; height helper optional/minimal
+- [Phase 14]: Module spatial/calibration.py; state apply_map in control/calibration_state.py
+- [Phase 14]: Zero new deps; freeze DetectionLoop/FrameBus/ORT-TRT; synthetic tests; no wizard/YAML/free-space meters; CoW float32; lock in apply_map
 
 ### Pending Todos
 
-None yet.
+- Execute 14-01 (pure fit/reject)
+- Execute 14-02 (apply_map + DepthLoop + CLI inject)
 
 ### Blockers/Concerns
 
-- Phase 14 needs plan-phase research: pure scale vs affine; residual gates; metric_estimated double-scale
 - Phase 16 needs research: free-space meter band semantics (absolute cuts vs distance_m fields)
 - Persist path: prefer `$SENTRY_MODEL_CACHE/calibration/*.yaml` (STACK) — resolve in Phase 17 plan
 
@@ -97,7 +106,7 @@ See also: `milestones/v1.0-MILESTONE-AUDIT.md`, `milestones/v0.2-MILESTONE-AUDIT
 
 ## Session Continuity
 
-Last session: 2026-08-11T14:07:12.350Z
-Stopped at: Completed 13-02-PLAN.md
+Last session: 2026-08-12T23:57:00.000Z
+Stopped at: Phase 14 research + plans written
 Resume file: None
-Next: `/gsd:plan-phase 13`
+Next: `/gsd:execute-phase 14` (start with 14-01)
