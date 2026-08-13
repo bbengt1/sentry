@@ -101,9 +101,9 @@ v0.3 roadmap locks (from research):
 - [Phase 16]: Relative + metric_estimated stay ordinal (percentile + auto polarity)
 - [Phase 16]: nearness_* remain 0..1; optional distance_m on cues only when calibrated (mean blob depth)
 - [Phase 16]: Pin higher_is_farther on calibrated path; never min-max normalize meters
-- [Phase 16]: OccupancySmoother.reset on kind apply\u2194clear; FreeSpaceLoop.reset_smoother; loop detects kind change (no CalibrationState listeners)
-- [Phase 16]: assemble METRIC_CALIBRATED \u2192 "m"; else "ordinal"; calibrated must emit "m" (Phase 13 grace ends)
-- [Phase 16]: Consume DepthLoop scaled map + kind \u2014 never re-scale
+- [Phase 16]: OccupancySmoother.reset on kind apply/clear; FreeSpaceLoop.reset_smoother; loop detects kind change (no CalibrationState listeners)
+- [Phase 16]: assemble METRIC_CALIBRATED -> "m"; else "ordinal"; calibrated must emit "m" (Phase 13 grace ends)
+- [Phase 16]: Consume DepthLoop scaled map + kind - never re-scale
 - [Phase 16]: Split 16-01 pure compute honesty / 16-02 loop+wire+reset+distance_m
 - [Phase 16-01]: compute_free_space metric branch shipped; wire still allows calibrated+ordinal until 16-02 assemble flip
 
