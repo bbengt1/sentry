@@ -26,13 +26,13 @@ tech-stack:
 key-files:
   created:
     - .planning/phases/14-scale-math-depthloop-plugin/14-02-SUMMARY.md
+    - tests/test_cli_calibration_inject.py
   modified:
     - src/sentry_ai/control/calibration_state.py
     - src/sentry_ai/models/depth/loop.py
     - src/sentry_ai/cli.py
     - tests/test_calibration_state.py
     - tests/test_depth_loop.py
-    - tests/test_cli_serve.py
     - .planning/STATE.md
 
 key-decisions:
@@ -60,7 +60,7 @@ completed: 2026-08-13
 - **Started:** 2026-08-13T09:08:00Z
 - **Completed:** 2026-08-13T09:33:00Z
 - **Tasks:** 2/2
-- **Files modified:** 7
+- **Files modified:** 8
 
 ## Accomplishments
 
@@ -76,7 +76,7 @@ completed: 2026-08-13
 
 ## Task Commits
 
-Single MCP push commit on `feat/14-02-apply-map-depthloop` (implementation + tests + summary + STATE).
+MCP push commits on `feat/14-02-apply-map-depthloop` (implementation + tests + summary + STATE).
 
 ## Files Created/Modified
 
@@ -85,7 +85,7 @@ Single MCP push commit on `feat/14-02-apply-map-depthloop` (implementation + tes
 - `src/sentry_ai/cli.py` - construct `CalibrationState` and inject into `DepthLoop`
 - `tests/test_calibration_state.py` - apply_map identity / scale / offset / mutation / invalid
 - `tests/test_depth_loop.py` - FakeDepthWorker inactive / applied / error-path honesty
-- `tests/test_cli_serve.py` - inspect-source asserts for CalibrationState inject
+- `tests/test_cli_calibration_inject.py` - inspect-source asserts for CalibrationState inject
 - `.planning/phases/14-scale-math-depthloop-plugin/14-02-SUMMARY.md` - this file
 - `.planning/STATE.md` - 14-02 done; next Phase 15 wizard
 
@@ -97,12 +97,13 @@ Single MCP push commit on `feat/14-02-apply-map-depthloop` (implementation + tes
 
 ## Deviations from Plan
 
-- Added inspect-source asserts in `tests/test_cli_serve.py` (not listed in plan files_modified) so CI proves CLI inject without running full `serve`
+- Added `tests/test_cli_calibration_inject.py` (not listed in plan files_modified) so CI proves CLI inject without running full `serve`
 - Error/dependency paths skip promotion (plan noted "prefer still call promote"; user/tests require no invented calibrated meters)
+- cameras() docstring uses `--device IDX` instead of `--device <IDX>` (angle brackets avoided in MCP payload; help meaning unchanged)
 
 ## Issues Encountered
 
-None
+None blocking. CLI restore required after a placeholder probe write.
 
 ## User Setup Required
 
@@ -119,7 +120,7 @@ None
 ```text
 uv run pytest tests/test_depth_loop.py tests/test_calibration_state.py \
   tests/test_calibration_fit.py tests/test_perception_store_depth_honesty.py \
-  tests/test_calibration_validators.py tests/test_cli_serve.py -q
+  tests/test_calibration_validators.py tests/test_cli_calibration_inject.py -q
 ```
 
 ## Self-Check: PASSED
