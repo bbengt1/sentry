@@ -3,10 +3,15 @@
 Cold-path control plane only — no FastAPI imports, no DepthLoop, no YAML I/O.
 Wizard (Phase 15) mutates draft/apply via REST.
 
+Apply formula (CAL-03): map' = scale * map + offset as a new float32 array
+(copy-on-write; never mutate the worker buffer). Same apply path for
+relative and metric_estimated bases; fingerprint retains depth_mode +
+model_id (no undo of metric prior).
+
 DepthLoop (Phase 14):
   result = worker.process(frame)
   kind, unit = state.promote_kind_unit(result.kind, result.unit)
-  depth_map = state.apply_map(result.depth_map)  # Phase 14
+  depth_map = state.apply_map(result.depth_map)
   store.set_depth(..., kind=kind, unit=unit, depth_map=depth_map)
 """
 
@@ -15,6 +20,8 @@ from __future__ import annotations
 import threading
 from dataclasses import dataclass, field
 from typing import Any
+
+import numpy as np
 
 from sentry_ai.schemas.calibration import (
     CalibrationParams,
@@ -130,6 +137,27 @@ class CalibrationState:
             if self._applied_params is not None:
                 ok, _reason = is_valid_calibration_params(self._applied_params)
                 valid = ok
-        return _promote_kind_unit(
-            base_kind, base_unit, applied=applied, valid=valid
-        )
+        return _promote_kind_unit(base_kind, base_unit, applied=applied, valid=valid)
+
+    def apply_map(self, depth_map: np.ndarray | None) -> np.ndarray | None:
+        """Copy-on-write float32 ``scale * map + offset`` when applied+valid.
+
+        ``None`` always returns ``None``. Inactive, not-applied, or structurally
+        invalid applied params pass through the original array reference (no
+        allocation, no calibrated claim). Transforming always returns a new
+        HxW float32 array and never mutates the worker buffer.
+        """
+        if depth_map is None:
+            return None
+        with self._lock:
+            params = self._applied_params
+            if params is None:
+                return depth_map
+            ok, _reason = is_valid_calibration_params(params)
+            if not ok:
+                return depth_map
+            scale = float(params.scale)
+            offset = float(params.offset)
+        # Compute outside the lock so the hot path does not hold state.
+        arr = np.asarray(depth_map)
+        return np.asarray(scale * arr + offset, dtype=np.float32)
