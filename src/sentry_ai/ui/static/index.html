@@ -95,6 +95,7 @@
       max-height: 70vh;
       object-fit: contain;
       background: #000;
+      cursor: crosshair;
     }
     footer {
       margin-top: 0.9rem;
@@ -180,6 +181,57 @@
       width: 1rem;
       height: 1rem;
     }
+    #calib-known-m,
+    #calib-height-m,
+    #calib-method {
+      padding: 0.35rem 0.5rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: #0e1014;
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+    #calib-known-m,
+    #calib-height-m {
+      width: 7.5rem;
+    }
+    #calib-sample,
+    #calib-compute,
+    #calib-apply,
+    #calib-cancel,
+    #calib-clear {
+      padding: 0.35rem 0.75rem;
+      border-radius: 4px;
+      border: 1px solid var(--accent);
+      background: transparent;
+      color: var(--accent);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    #calib-sample:hover,
+    #calib-compute:hover,
+    #calib-apply:hover,
+    #calib-cancel:hover {
+      background: rgba(0, 255, 180, 0.1);
+    }
+    #calib-sample:disabled,
+    #calib-compute:disabled,
+    #calib-apply:disabled,
+    #calib-cancel:disabled,
+    #calib-clear:disabled {
+      opacity: 0.5;
+      cursor: wait;
+    }
+    #calib-clear {
+      border-color: var(--error);
+      color: #ffcdd2;
+    }
+    #calib-clear:hover { background: rgba(198, 40, 40, 0.12); }
+    .calib-msg {
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
     #metric-conf,
     #metric-near-cut,
     #metric-mid-cut {
@@ -252,6 +304,7 @@
       <div>OV FPS: <strong id="metric-ov-fps">—</strong></div>
       <div>Backend: <strong id="metric-backend">—</strong></div>
       <div>Bind: <strong id="metric-bind">—</strong></div>
+      <div>Calibration: <strong id="metric-calibration">—</strong></div>
 
       <div class="control-row" id="stage-controls">
         <span>Stages:</span>
@@ -331,6 +384,45 @@
         </label>
       </div>
 
+      <div class="control-row" id="calibration-wizard">
+        <label for="calib-method">Calib fit:</label>
+        <select id="calib-method" aria-label="Calibration fit method">
+          <option value="median" selected>median</option>
+          <option value="affine">affine (N&gt;=2)</option>
+        </select>
+        <label for="calib-known-m">Known m:</label>
+        <input
+          id="calib-known-m"
+          type="number"
+          min="0.01"
+          step="0.01"
+          placeholder="distance (m)"
+          aria-label="Known distance in meters"
+        />
+        <label for="calib-height-m">Height m:</label>
+        <input
+          id="calib-height-m"
+          type="number"
+          min="0.01"
+          step="0.01"
+          placeholder="approx FOV helper"
+          aria-label="Approximate FOV helper height, not primary"
+        />
+        <button type="button" id="calib-sample"
+          aria-label="Sample depth at clicked point">Sample</button>
+        <button type="button" id="calib-compute"
+          aria-label="Compute draft calibration fit">Compute</button>
+        <button type="button" id="calib-apply"
+          aria-label="Apply draft calibration">Apply</button>
+        <button type="button" id="calib-cancel"
+          aria-label="Cancel drops draft only">Cancel</button>
+        <button type="button" id="calib-clear"
+          aria-label="Clear drops applied calibration">Clear</button>
+        <span>Samples: <strong id="calib-count">0</strong></span>
+        <span>Draft: <strong id="calib-draft">—</strong></span>
+        <span id="calib-msg" class="calib-msg"></span>
+      </div>
+
       <p class="note">
         Model weights may download on first detection/depth/open-vocab run;
         cached under SENTRY_MODEL_CACHE / ~/.cache/sentry-ai thereafter.
@@ -340,6 +432,10 @@
         modes are labeled when enabled. Free-space uses ordinal near-field
         bands (not a navigation interlock). Stage toggles pause compute
         without restarting serve. Open-vocab default is off.
+        Hobby monocular scale is not vehicle-grade. Cancel drops draft only;
+        Clear drops applied. Click the preview to pick a sample point in
+        natural image pixels. Optional height is an approximate FOV helper,
+        not primary.
       </p>
     </footer>
   </div>
@@ -385,6 +481,18 @@
       var ovRun = document.getElementById("ov-run");
       var ovContinuous = document.getElementById("ov-continuous");
       var preview = document.getElementById("preview");
+      var elCalib = document.getElementById("metric-calibration");
+      var elCalibCount = document.getElementById("calib-count");
+      var elCalibDraft = document.getElementById("calib-draft");
+      var elCalibMsg = document.getElementById("calib-msg");
+      var calibMethod = document.getElementById("calib-method");
+      var calibKnownM = document.getElementById("calib-known-m");
+      var calibSample = document.getElementById("calib-sample");
+      var calibCompute = document.getElementById("calib-compute");
+      var calibApply = document.getElementById("calib-apply");
+      var calibCancel = document.getElementById("calib-cancel");
+      var calibClear = document.getElementById("calib-clear");
+      var pendingUv = null;
       var confTimer = null;
       var cutTimer = null;
       var confFromServer = false;
@@ -614,6 +722,31 @@
           }
           updateCutWarn();
           pipelineFromServer = false;
+        }
+
+        // OPS-01: calibration footer from /api/status only (never invents kind).
+        if (elCalib) {
+          if (data && typeof data.calibration_active === "boolean") {
+            var cparts = [];
+            cparts.push(data.calibration_active ? "active" : "relative");
+            if (typeof data.calibration_sample_count === "number") {
+              cparts.push("n=" + data.calibration_sample_count);
+            }
+            if (data.calibration_active) {
+              if (typeof data.calibration_scale === "number") {
+                cparts.push("scale=" + formatNum(data.calibration_scale, 4));
+              }
+              if (data.calibration_method) {
+                cparts.push(String(data.calibration_method));
+              }
+            }
+            elCalib.textContent = cparts.join(" · ");
+          } else {
+            elCalib.textContent = "—";
+          }
+        }
+        if (elCalibCount && data && typeof data.calibration_sample_count === "number") {
+          elCalibCount.textContent = String(data.calibration_sample_count);
         }
 
         if (status === "error" || status === "reconnecting") {
@@ -868,6 +1001,195 @@
         } else {
           patchOpenVocabMode("off");
         }
+      });
+
+      function setCalibMsg(msg) {
+        if (!elCalibMsg) return;
+        elCalibMsg.textContent = msg || "";
+      }
+
+      function calibDetail(resp, data) {
+        if (data && typeof data.detail === "string") return data.detail;
+        if (data && data.detail && typeof data.detail === "object") {
+          if (data.detail.reason) return String(data.detail.reason);
+          try { return JSON.stringify(data.detail); } catch (e) { /* ignore */ }
+        }
+        return "HTTP " + (resp && resp.status ? resp.status : "?");
+      }
+
+      function applyWizardPayload(data) {
+        if (!data) return;
+        if (typeof data.draft_sample_count === "number" && elCalibCount) {
+          elCalibCount.textContent = String(data.draft_sample_count);
+        } else if (data.samples && elCalibCount) {
+          elCalibCount.textContent = String(data.samples.length);
+        }
+        if (data.fit) {
+          renderDraft(data.fit);
+        }
+      }
+
+      function renderDraft(fit) {
+        if (!elCalibDraft) return;
+        if (!fit) {
+          elCalibDraft.textContent = "—";
+          return;
+        }
+        var bits = ["draft (not live)"];
+        if (typeof fit.sample_count === "number") bits.push("n=" + fit.sample_count);
+        if (typeof fit.scale === "number") bits.push("scale=" + formatNum(fit.scale, 4));
+        if (typeof fit.residual_rms === "number") {
+          bits.push("rms=" + formatNum(fit.residual_rms, 4));
+        }
+        if (fit.method) bits.push(String(fit.method));
+        if (fit.ok === false) bits.push("rejected");
+        elCalibDraft.textContent = bits.join(" · ");
+      }
+
+      function previewClickToUv(ev) {
+        var nw = preview.naturalWidth;
+        var nh = preview.naturalHeight;
+        if (!nw || !nh) return null;
+        var rect = preview.getBoundingClientRect();
+        var scale = Math.min(rect.width / nw, rect.height / nh);
+        var dispW = nw * scale;
+        var dispH = nh * scale;
+        var offsetX = (rect.width - dispW) / 2;
+        var offsetY = (rect.height - dispH) / 2;
+        var x = (ev.clientX - rect.left - offsetX) / scale;
+        var y = (ev.clientY - rect.top - offsetY) / scale;
+        if (x < 0 || y < 0 || x > nw || y > nh) return null;
+        return [x, y];
+      }
+
+      function postCalib(path, body) {
+        var opts = { method: "POST", headers: {} };
+        if (body !== undefined) {
+          opts.headers["Content-Type"] = "application/json";
+          opts.body = JSON.stringify(body);
+        }
+        return fetch(path, opts).then(function (resp) {
+          return resp.json().then(
+            function (data) { return { resp: resp, data: data }; },
+            function () { return { resp: resp, data: {} }; }
+          );
+        });
+      }
+
+      function onCalibHttp(resp, data, okMsg) {
+        if (resp.status === 409) {
+          setCalibMsg(
+            "Calibration already applied — Clear applied first before sampling."
+          );
+          return false;
+        }
+        if (resp.status === 503) {
+          setCalibMsg(
+            "Calibration unavailable — wizard control plane not injected."
+          );
+          return false;
+        }
+        if (!resp.ok) {
+          setCalibMsg(calibDetail(resp, data));
+          return false;
+        }
+        applyWizardPayload(data);
+        if (okMsg) setCalibMsg(okMsg);
+        return true;
+      }
+
+      function sampleCalibration() {
+        if (!pendingUv) {
+          setCalibMsg("Click the preview to pick a point (natural image pixels).");
+          return;
+        }
+        var known = parseFloat(calibKnownM && calibKnownM.value);
+        if (!(known > 0)) {
+          setCalibMsg(
+            "Enter known meters (primary). Height is an approximate FOV helper, not primary."
+          );
+          return;
+        }
+        var body = { point_uv: pendingUv, known_meters: known };
+        calibSample.disabled = true;
+        postCalib("/api/depth/calibration/sample", body)
+          .then(function (r) {
+            onCalibHttp(r.resp, r.data, "Sample recorded.");
+          })
+          .catch(function () {
+            setCalibMsg("Sample failed.");
+          })
+          .finally(function () {
+            calibSample.disabled = false;
+          });
+      }
+
+      function computeCalibration() {
+        var fit = (calibMethod && calibMethod.value) || "median";
+        calibCompute.disabled = true;
+        postCalib("/api/depth/calibration/compute", { fit: fit })
+          .then(function (r) {
+            if (r.resp.status === 422 && r.data && r.data.detail) {
+              var d = r.data.detail;
+              if (d && typeof d === "object") {
+                renderDraft(d);
+                setCalibMsg(d.reason ? String(d.reason) : "Fit rejected.");
+                return;
+              }
+            }
+            if (onCalibHttp(r.resp, r.data, "Draft fit (not live).")) {
+              if (r.data && r.data.fit) renderDraft(r.data.fit);
+            }
+          })
+          .catch(function () {
+            setCalibMsg("Compute failed.");
+          })
+          .finally(function () {
+            calibCompute.disabled = false;
+          });
+      }
+
+      function postThenPoll(path, okMsg, after) {
+        postCalib(path)
+          .then(function (r) {
+            if (!onCalibHttp(r.resp, r.data, okMsg)) return;
+            if (after) after();
+            pollStatus();
+          })
+          .catch(function () {
+            setCalibMsg("Request failed.");
+          });
+      }
+
+      calibSample.addEventListener("click", sampleCalibration);
+      calibCompute.addEventListener("click", computeCalibration);
+      calibApply.addEventListener("click", function () {
+        postThenPoll("/api/depth/calibration/apply", "Applied.", function () {
+          renderDraft(null);
+        });
+      });
+      calibCancel.addEventListener("click", function () {
+        postThenPoll("/api/depth/calibration/cancel", "Draft discarded.", function () {
+          renderDraft(null);
+        });
+      });
+      calibClear.addEventListener("click", function () {
+        postThenPoll(
+          "/api/depth/calibration/clear",
+          "Applied calibration cleared.",
+          function () { renderDraft(null); }
+        );
+      });
+      preview.addEventListener("click", function (ev) {
+        var uv = previewClickToUv(ev);
+        if (!uv) {
+          setCalibMsg("Click inside the image to set point_uv.");
+          return;
+        }
+        pendingUv = uv;
+        setCalibMsg(
+          "point_uv (" + uv[0].toFixed(1) + ", " + uv[1].toFixed(1) + ") — click Sample"
+        );
       });
 
       preview.addEventListener("error", function () {
