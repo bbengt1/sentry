@@ -55,6 +55,7 @@ class _LoopDepthWorker:
     """Processing worker for DepthLoop tick after apply (not used by REST)."""
 
     name = "loop-depth"
+    model_id = "depth-anything/Depth-Anything-V2-Small-hf"
 
     def __init__(self, value: float = 2.0) -> None:
         self._value = value
