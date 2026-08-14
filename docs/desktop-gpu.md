@@ -57,14 +57,16 @@ With both extras installed, a healthy desktop session typically runs:
 
 1. **Capture** — USB / file / synthetic / RTSP → Frame Bus  
 2. **Fixed-class detect** — YOLO26 (`detector_tier: s` → `yolo26s.pt` on desktop-gpu)  
-3. **Monocular depth** — DAV2 Small (relative by default; never labeled as meters)  
-4. **Free-space** — CPU Spatial Post from the depth map (ordinal nearness bands)  
+3. **Monocular depth** — DAV2 Small (relative by default — never labeled as meters; optional Live Preview wizard → `metric_calibrated`)  
+4. **Free-space** — CPU Spatial Post from the depth map (ordinal nearness by default; `units="m"` only when calibrated)  
 5. **Live Preview** — depth blend → free-space overlay → detection boxes  
 6. **Robot API** — `GET /v1/snapshot`, `WS /v1/stream` (same `PerceptionFrame`)
 
 Open-vocab (YOLOE) stays **off** by default. On Live Preview, enter prompts and
 click **Run** (or enable continuous mode). First Run may download YOLOE weights
 (AGPL). See README open-vocab section.
+
+Optional approximate monocular scale: [calibration.md](calibration.md).
 
 ## Model cache
 
@@ -118,7 +120,8 @@ uv run sentry serve --profile jetson --source usb --device 0
 Edge export → serve path: [`docs/edge-serve.md`](edge-serve.md).  
 Edge export recipes: [`docs/export/README.md`](export/README.md).  
 Camera source matrix: [`docs/camera-sources.md`](camera-sources.md).  
-Safety / non-autonomy: [`docs/safety-and-privacy.md`](safety-and-privacy.md).
+Safety / non-autonomy: [`docs/safety-and-privacy.md`](safety-and-privacy.md).  
+Calibration wizard: [`docs/calibration.md`](calibration.md).
 
 ## What this path is not
 

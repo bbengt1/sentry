@@ -46,7 +46,9 @@ scripts/export/    # Offline export helpers (not importable runtime)
 ## Coding conventions
 
 - **Perception-only:** no motor/control API fields  
-- **Depth honesty:** relative never labeled as meters  
+- **Depth honesty:** relative never labeled as meters; `metric_estimated` ≠
+  calibrated; `metric_calibrated` + m only when applied+valid
+  ([calibration.md](calibration.md))  
 - **Workers:** never open cameras; consume `ImageFrame` only  
 - **Keep-latest:** FrameBus and PerceptionStore drop-old under load  
 - **Extras:** optional `detect` / `depth` — core must import without torch  
@@ -65,7 +67,8 @@ ROS2 bridge is a **stub** (`NotImplementedError`); voice is a no-op sink.
 ## Docs
 
 Index: [README.md](README.md). Prefer honesty language (no FPS guarantees
-without measurement; no FSD claims).
+without measurement; no FSD claims). Operator calibration:
+[calibration.md](calibration.md).
 
 ## License
 
