@@ -76,10 +76,14 @@ and [export/yolo26-onnx-tensorrt.md](export/yolo26-onnx-tensorrt.md).
 |----------|---------|
 | `SENTRY_PROFILE` | Default profile when CLI omits `--profile` |
 | `SENTRY_MODEL_CACHE` | Root for weight/HF caches (default `~/.cache/sentry-ai`) |
+| `SENTRY_CALIBRATION_DIR` | Optional directory for `{safe_id}.yaml` (else `$SENTRY_MODEL_CACHE/calibration`) |
 | `SENTRY_DETECTOR_ENGINE` | Explicit allowlisted path to fixed-class `.engine` (live TRT) |
 | `SENTRY_DETECTOR_ONNX` | Explicit allowlisted path to fixed-class `.onnx` (live ORT) |
 | `SENTRY_ARTIFACT_ROOT` | Optional root for allowlisted detector artifact resolution |
 | `SENTRY_FALLBACK_TO_TORCH` | Override `device.fallback_to_torch` (`true`/`false`; env always wins when set; default soft true) |
+
+`sentry serve --calibration-file PATH` overrides the directory/stem. See
+[calibration.md](calibration.md).
 
 ### Model cache layout
 
@@ -87,6 +91,7 @@ and [export/yolo26-onnx-tensorrt.md](export/yolo26-onnx-tensorrt.md).
 |------|---------|
 | `$SENTRY_MODEL_CACHE/weights` | Ultralytics `.pt` (YOLO / YOLOE) |
 | `$SENTRY_MODEL_CACHE/hf` | Hugging Face home for DAV2 Small |
+| `$SENTRY_MODEL_CACHE/calibration/{safe_id}.yaml` | Applied calibration params (STACK persist) |
 
 First run may download weights; later runs work offline if cache is intact.
 

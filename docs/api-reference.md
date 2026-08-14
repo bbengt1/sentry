@@ -92,9 +92,29 @@ Requires `detect` extra for a live worker.
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/api/depth/config` | `depth_mode`, model id |
-| `PATCH` | `/api/depth/config` | `{"depth_mode":"relative"\|"metric_indoor"\|"metric_outdoor"}` |
+| `PATCH` | `/api/depth/config` | `{"depth_mode":"relative"|"metric_indoor"|"metric_outdoor"}` |
 
 Requires `depth` extra. Relative mode never claims meters.
+
+## Calibration
+
+Operator wizard + persist. Numbered path: [calibration.md](calibration.md).
+Request bodies use `extra=forbid`. **503** if `CalibrationState` is missing.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/depth/calibration` | Wizard snapshot (no depth maps) |
+| `POST` | `/api/depth/calibration/freeze` | Pin current depth for stable ROI samples |
+| `POST` | `/api/depth/calibration/sample` | Append draft sample (known distance primary) |
+| `POST` | `/api/depth/calibration/compute` | Fit draft (median/affine); UI **Fit** |
+| `POST` | `/api/depth/calibration/apply` | Commit draft; optional `{"persist": true}` |
+| `POST` | `/api/depth/calibration/save` | Write applied params to YAML |
+| `POST` | `/api/depth/calibration/cancel` | Discard **draft only** (no file delete) |
+| `POST` | `/api/depth/calibration/clear` | Clear applied + **delete** YAML |
+
+`GET /api/status` additive fields: `calibration_active`, `calibration_scale`,
+`calibration_method`, `calibration_persist` (`none` / `applied` / `ignored_mismatch` / `error`), optional `calibration_persist_reason`.
+Persist status is **separate from** `depth.kind`.
 
 ## Open-vocabulary
 

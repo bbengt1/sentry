@@ -53,7 +53,7 @@ uv run sentry serve [OPTIONS]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--source` | `synthetic` | `synthetic` \| `usb` \| `file` \| `rtsp` |
+| `--source` | `synthetic` | `synthetic` / `usb` / `file` / `rtsp` |
 | `--host` | `127.0.0.1` | Bind host (**localhost by default**) |
 | `--port` | `8000` | Bind port |
 | `--device` | `0` | USB OpenCV index (`--source usb`) |
@@ -62,6 +62,10 @@ uv run sentry serve [OPTIONS]
 | `--profile` | `cpu-fallback` | Runtime profile |
 | `--camera-id` | derived | Override `camera_id` on frames |
 | `--no-ui` | off | Headless: perception APIs without Live Preview HTML |
+| `--calibration-file` | — | Explicit calibration YAML (overrides `SENTRY_CALIBRATION_DIR` / camera stem) |
+
+`SENTRY_CALIBRATION_DIR` selects the persist directory when
+`--calibration-file` is omitted. See [calibration.md](calibration.md).
 
 ### Examples
 
@@ -78,6 +82,9 @@ uv run sentry serve --source file --path tests/fixtures/sample_clip.mp4
 # Headless robot API
 uv run sentry serve --no-ui --source usb --device 0
 
+# Explicit persist file
+uv run sentry serve --calibration-file /tmp/cam0.yaml --source synthetic
+
 # Explicit LAN bind (NO AUTH — privacy risk)
 uv run sentry serve --host 0.0.0.0 --source usb --device 0
 ```
@@ -88,7 +95,9 @@ uv run sentry serve --host 0.0.0.0 --source usb --device 0
 2. Builds `profile_runtime` → detector / open-vocab / depth weights + device.  
 3. Optional workers soft-fail if `detect` / `depth` extras missing.  
 4. Always starts free-space loop when a store exists (idles without depth).  
-5. Ctrl+C / SIGINT shuts down workers and Uvicorn cleanly.
+5. Re-applies matching YAML (`try_reapply`); banner `calibration: {status}`
+   where status is `none` / `applied` / `ignored_mismatch` / `error`.  
+6. Ctrl+C / SIGINT shuts down workers and Uvicorn cleanly.
 
 ## Module form
 
