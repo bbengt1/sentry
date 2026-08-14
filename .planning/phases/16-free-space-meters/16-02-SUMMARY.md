@@ -9,8 +9,8 @@ requires:
     provides: compute_free_space METRIC_CALIBRATED branch with absolute 1.5/3.0 m cuts
 provides:
   - FreeSpaceLoop consume kind+map; never re-scale; units passthrough
-  - reset_smoother on kind apply\u2194clear + OccupancySmoother.reset
-  - assemble._units_for_depth_kind METRIC_CALIBRATED \u2192 m
+  - reset_smoother on kind apply↔clear + OccupancySmoother.reset
+  - assemble._units_for_depth_kind METRIC_CALIBRATED → m
   - FreeSpaceProduct.units + set_free_space
   - assert_free_space_units calibrated must be m (Phase 13 grace ended)
   - optional ObstacleCue.distance_m (mean blob meters when calibrated)
@@ -28,6 +28,7 @@ tech-stack:
 key-files:
   created:
     - .planning/phases/16-free-space-meters/16-02-SUMMARY.md
+    - tests/test_api_calibration_smoother.py
   modified:
     - src/sentry_ai/spatial/free_space.py
     - src/sentry_ai/spatial/loop.py
@@ -42,7 +43,6 @@ key-files:
     - tests/test_assemble_perception_frame.py
     - tests/test_calibration_validators.py
     - tests/test_free_space_bands.py
-    - tests/test_api_calibration.py
     - tests/test_schemas_perception.py
     - .planning/STATE.md
 
@@ -66,7 +66,7 @@ completed: 2026-08-13
 
 # Phase 16 Plan 02: Free-Space Loop Wire + Smoother Reset Summary
 
-**FS-03 + FS-01 on the wire: FreeSpaceLoop consumes DepthLoop kind+scaled map, publishes `units="m"` only when calibrated, resets occupancy EMA on apply\u2194clear, and optionally fills `distance_m`. Phase 13 calibrated+ordinal grace is gone.**
+**FS-03 + FS-01 on the wire: FreeSpaceLoop consumes DepthLoop kind+scaled map, publishes `units="m"` only when calibrated, resets occupancy EMA on apply↔clear, and optionally fills `distance_m`. Phase 13 calibrated+ordinal grace is gone.**
 
 ## Performance
 
@@ -74,14 +74,14 @@ completed: 2026-08-13
 - **Started:** 2026-08-13T23:57:00Z
 - **Completed:** 2026-08-14T00:04:00Z
 - **Tasks:** 1/1
-- **Files modified:** 17 (+ this summary)
+- **Files modified:** 18 (+ this summary)
 
 ## Accomplishments
 
 - `FreeSpaceLoop` tracks `_last_kind`, calls `reset_smoother()` on kind change, passes `kind=depth.kind` and `units=result.units` into the store
 - `FreeSpaceLoop.reset_smoother()` is public; `OccupancySmoother.reset()` is documented as safe anytime
 - `FreeSpaceProduct.units` + `set_free_space(..., units=)` + snapshot copy
-- `assemble._units_for_depth_kind(METRIC_CALIBRATED) \u2192 "m"`; else `"ordinal"`; store units preferred
+- `assemble._units_for_depth_kind(METRIC_CALIBRATED) → "m"`; else `"ordinal"`; store units preferred
 - `assert_free_space_units`: calibrated must be `"m"`; relative/estimated still forbid `"m"`
 - Optional `ObstacleCue.distance_m` (spatial dataclass + wire schema); mean finite blob depth when calibrated
 - Belt-and-suspenders: POST apply/clear call `reset_smoother` when `app.state.free_space_loop` has it; cancel does not
@@ -95,7 +95,7 @@ MCP push commits on `feat/16-02-free-space-loop-wire`.
 
 - `src/sentry_ai/spatial/free_space.py` - `ObstacleCue.distance_m`; `_extract_obstacles` mean blob meters
 - `src/sentry_ai/spatial/loop.py` - `reset_smoother`, `_last_kind`, units passthrough, no re-scale
-- `src/sentry_ai/spatial/smoothing.py` - reset docstring (apply\u2194clear)
+- `src/sentry_ai/spatial/smoothing.py` - reset docstring (apply↔clear)
 - `src/sentry_ai/state/perception_store.py` - `FreeSpaceProduct.units`
 - `src/sentry_ai/api/assemble.py` - helper flip + `distance_m` copy
 - `src/sentry_ai/schemas/perception.py` - optional wire `distance_m`; extra=forbid
@@ -114,10 +114,11 @@ MCP push commits on `feat/16-02-free-space-loop-wire`.
 
 - Updated `tests/test_schemas_perception.py` (not in the plan file list) because SPACE-02 still asserted `distance_m` was forbidden on the wire schema
 - `FreeSpaceProduct.units` placed after `obstacle_count` (dataclass default-order), not immediately after `depth_kind`
+- Belt-and-suspenders apply/clear test lives in new `tests/test_api_calibration_smoother.py` rather than appending to the existing 23KB `test_api_calibration.py`
 
 ## Issues Encountered
 
-- Dataclass `TypeError: non-default argument 'obstacle_count' follows default argument` when `units` was inserted before `obstacle_count` \u2014 fixed by field reorder
+- Dataclass `TypeError: non-default argument 'obstacle_count' follows default argument` when `units` was inserted before `obstacle_count` — fixed by field reorder
 
 ## User Setup Required
 
@@ -134,7 +135,7 @@ None
 uv run pytest tests/test_free_space_bands.py tests/test_free_space_loop.py \
   tests/test_free_space_smoothing.py tests/test_calibration_validators.py \
   tests/test_assemble_perception_frame.py tests/test_api_calibration.py \
-  tests/test_depth_loop.py -q
+  tests/test_api_calibration_smoother.py tests/test_depth_loop.py -q
 uv run pytest -q
 uv run ruff check src tests
 ```
