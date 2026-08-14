@@ -51,7 +51,7 @@ Audit: [milestones/v0.2-MILESTONE-AUDIT.md](milestones/v0.2-MILESTONE-AUDIT.md)
 - [x] **Phase 15: Wizard REST + Live Preview UI** - Sample/fit/apply/cancel API + static wizard panel (completed 2026-08-13)
 - [x] **Phase 16: Free-Space Metric Path** - Meters only when calibrated; smoother reset (completed 2026-08-13)
 - [x] **Phase 17: Persist & Re-apply on Serve** - Per-camera_id YAML; fingerprint refuse; clear (completed 2026-08-14)
-- [ ] **Phase 18: Docs + Synthetic CI Polish** - Operator guide; honesty docs; hardware-free tests *(research + plans written 2026-08-14 — not implemented)*
+- [x] **Phase 18: Docs + Synthetic CI Polish** - Operator guide; honesty docs; hardware-free tests (completed 2026-08-14)
 
 ## Phase Details
 
@@ -169,8 +169,8 @@ Plans:
   2. `perception-frame` / safety docs reflect free-space meters only when calibrated (no doc drift to “always ordinal”)
   3. Automated tests cover fit / apply / honesty / persist with synthetic frames (no physical room required in CI)
 **Plans**: 2 plans
-**Research**: Written 2026-08-14 (Skip flag — see `phases/18-docs-synthetic-ci-polish/18-RESEARCH.md`) — implementation not started
-**Status**: Plans ready (not implemented)
+**Research**: Written 2026-08-14 (Skip flag — see `phases/18-docs-synthetic-ci-polish/18-RESEARCH.md`)
+**Status**: Complete on main (18-01 + 18-02; complete-milestone is a later step)
 
 Locked research (must honor at execute):
 - New `docs/calibration.md` operator hub + refresh stale hubs (perception-frame, safety, README, api, cli, config, architecture, desktop-gpu, docs/README, CHANGELOG).
@@ -187,8 +187,8 @@ Locked research (must honor at execute):
 - After 18 merges, v0.3 reqs closable; complete-milestone is a later step.
 
 Plans:
-- [ ] 18-01-PLAN.md — OPS-02 docs hub + keyword tests (TDD); wave 1
-- [ ] 18-02-PLAN.md — OPS-03 CI inventory lock; depends_on 18-01; no runtime product code
+- [x] 18-01-PLAN.md — OPS-02 docs hub + keyword tests (TDD); wave 1
+- [x] 18-02-PLAN.md — OPS-03 CI inventory lock; depends_on 18-01; no runtime product code
 
 ## Progress
 
@@ -205,7 +205,7 @@ Plans:
 | 15. Wizard REST + Live Preview UI | v0.3 | 2/2 | Complete | 2026-08-13 |
 | 16. Free-Space Metric Path | v0.3 | 2/2 | Complete | 2026-08-13 |
 | 17. Persist & Re-apply on Serve | v0.3 | 2/2 | Complete | 2026-08-14 |
-| 18. Docs + Synthetic CI Polish | v0.3 | 0/2 | Plans ready | - |
+| 18. Docs + Synthetic CI Polish | v0.3 | 2/2 | Complete | 2026-08-14 |
 
 **Coverage:** v0.3 19/19 requirements mapped ✓
 

@@ -3,6 +3,10 @@
 Static locks on `.github/workflows/ci.yml` and artifact gitignore hygiene so
 contributors never need Jetson hardware or TensorRT GPU in default CI.
 
+v0.3 OPS-03 (Phase 18-02) reuses this lock: default CI stays
+``uv sync --extra dev`` only — no ``--extra depth``, room, Jetson, or CUDA.
+Living inventory: tests/test_v03_honesty_matrix.py.
+
 EDGE-CI-01 (backend selection / missing-artifact honesty / factory wiring)
 lives in existing mock suites — do not re-implement here:
 
@@ -51,6 +55,7 @@ def test_default_gha_no_jetson_or_tensorrt_gpu() -> None:
     assert "uv sync --extra dev" in yml
     assert "--extra detect" not in yml
     assert "--extra onnx" not in yml
+    # v0.3 OPS-03 relies on this same lock (see test_v03_honesty_matrix.py)
     assert "--extra depth" not in yml
     # Smoke steps present (current workflow contract)
     assert "ruff check" in yml or "ruff" in lowered

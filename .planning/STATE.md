@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Metric Depth Calibration UX
 status: executing
-stopped_at: Phase 18-01 complete; next execute 18-02 honesty matrix / CI lock
-last_updated: "2026-08-14T12:25:00.000Z"
+stopped_at: Phase 18 complete; next complete-milestone (no more product phases)
+last_updated: "2026-08-14T12:50:00.000Z"
 last_activity: 2026-08-14
 progress:
   total_phases: 6
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 12
-  completed_plans: 11
-  percent: 92
+  completed_plans: 12
+  percent: 100
 ---
 
 # Project State
@@ -21,24 +21,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots - without proprietary sensors or cloud AI.
-**Current focus:** Phase 18-01 complete (OPS-02 operator calibration hub + keyword tests). Next execute 18-02 (OPS-03 honesty matrix + CI lock).
+**Current focus:** Phase 18 complete (OPS-02 operator hub + OPS-03 honesty matrix / CI lock). Next is complete-milestone — no more product phases.
 
 ## Current Position
 
-Phase: 18 (Docs + Synthetic CI Polish) - 18-01 done
-Plan: 1 of 2
-Status: Phase 18-01 on `feat/18-01-calibration-docs` (docs + keyword tests). Phase 17 complete on `main` (PR #12).
+Phase: 18 (Docs + Synthetic CI Polish) - complete
+Plan: 2 of 2
+Status: Phase 18 complete on `feat/18-02-honesty-matrix-ci` (inventory + CI lock). 18-01 squash-merged to `main` (PR #14). Phase 17 complete on `main` (PR #12).
 Last activity: 2026-08-14
 
-Progress: [###############] 92% of v0.3 executed plans (13-17 + 18-01; 18-02 remaining)
+Progress: [################] 100% of v0.3 executed plans (13–18)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed (v0.3): 11 (Phase 13 + Phase 14 + Phase 15 + Phase 16 + Phase 17 + 18-01)
+- Total plans completed (v0.3): 12 (Phase 13 + Phase 14 + Phase 15 + Phase 16 + Phase 17 + Phase 18)
 - v1.0 + v0.2 history: 28 plans shipped prior milestones
-- Phase 18: 18-01 executed; 18-02 not started
+- Phase 18: 18-01 + 18-02 executed
 
 **By Phase:**
 
@@ -55,6 +55,7 @@ Progress: [###############] 92% of v0.3 executed plans (13-17 + 18-01; 18-02 rem
 | Phase 17 P01 | 25min | 1 task | 8 files |
 | Phase 17 P02 | 40min | 1 task | 10 files |
 | Phase 18 P01 | 35min | 2 tasks | 16 files |
+| Phase 18 P02 | 25min | 1 task | 5 files |
 
 *Updated after each plan completion*
 
@@ -139,16 +140,17 @@ v0.3 roadmap locks (from research):
 - [Phase 18]: Zero new deps; freeze DetectionLoop/FrameBus/ORT-TRT/kind_for_mode; do not bump pyproject 0.1.0
 - [Phase 18]: After 18 merges, v0.3 reqs closable; complete-milestone is a later step
 - [Phase 18-01]: docs/calibration.md + hub refresh + test_calibration_docs.py shipped (OPS-02). No src/ edits. Next 18-02.
+- [Phase 18-02]: test_v03_honesty_matrix.py inventories Phase 13–17 + 18-01 suites; EDGE-CI-02 reused; ci.yml unchanged. Phase 18 complete.
 
 ### Pending Todos
 
-- Execute Phase 18-02 CI inventory lock (OPS-03)
-- After Phase 18 merges: close v0.3 REQUIREMENTS checkboxes; complete-milestone is a later step
+- After Phase 18 merges: close v0.3 REQUIREMENTS checkboxes; complete-milestone is the next step (no more product phases)
 
 ### Blockers/Concerns
 
 - Persist path locked: `$SENTRY_MODEL_CACHE/calibration/*.yaml` (STACK) — not ARCHITECTURE `~/.config` JSON / platformdirs
 - 18-01 Wave 0: hub surfaces no longer claim v1-always-ordinal
+- 18-02: default CI stays hardware-free; inventory lock prevents silent suite deletion
 
 ## Deferred Items
 
@@ -165,7 +167,7 @@ See also: `milestones/v1.0-MILESTONE-AUDIT.md`, `milestones/v0.2-MILESTONE-AUDIT
 
 ## Session Continuity
 
-Last session: 2026-08-14T12:25:00.000Z
-Stopped at: Phase 18-01 complete (OPS-02)
+Last session: 2026-08-14T12:50:00.000Z
+Stopped at: Phase 18 complete (OPS-02 + OPS-03)
 Resume file: None
-Next: Execute Phase 18-02 per ROADMAP (honesty matrix + CI lock; no product code)
+Next: complete-milestone (close REQUIREMENTS; no more product phases)
