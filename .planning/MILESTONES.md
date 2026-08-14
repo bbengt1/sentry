@@ -1,5 +1,24 @@
 # Milestones
 
+## v0.3 Metric Depth Calibration UX (Shipped: 2026-08-14)
+
+**Phases completed:** 6 phases, 12 plans, 17 tasks  
+**Audit:** passed (19/19 requirements; no critical gaps) — [v0.3-MILESTONE-AUDIT.md](milestones/v0.3-MILESTONE-AUDIT.md)  
+**Known deferred items at close:** Nyquist VALIDATION.md still `wave_0_complete: false`; phases 14–18 SUMMARY only (Phase 13 has VERIFICATION); package stays 0.1.0; no GitHub Release (see audit tech_debt)
+
+**Stats:** timeline 2026-08-11 → 2026-08-14; no package bump (0.1.0)
+
+**Key accomplishments:**
+
+- Honesty contracts: `metric_calibrated` + `unit="m"` only when applied+valid; relative never claims meters (CAL-04/05)
+- Pure NumPy scale/affine fit with reject gates; `CalibrationState.apply_map` on the DepthLoop path after `DepthAnythingWorker.process` and before `PerceptionStore.set_depth` (CAL-01/02/03)
+- Live Preview wizard REST + static UI: sample / fit / Apply / Cancel / Clear; draft never claims calibrated (WIZ-01..04, OPS-01)
+- Free-space `units="m"` iff calibrated via absolute 1.5/3.0 m cuts; smoother reset on apply↔clear (FS-01/02/03)
+- Per-`camera_id` YAML persist under cache root; fingerprint refuse; serve re-apply; Clear deletes file (PER-01..04)
+- Operator hub `docs/calibration.md` + keyword/inventory CI locks; synthetic only; `ci.yml` unchanged (OPS-02/03)
+
+---
+
 ## v0.2 Edge Runtime (Shipped: 2026-08-10)
 
 **Phases completed:** 5 phases, 10 plans, 26 tasks  

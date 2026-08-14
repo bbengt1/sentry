@@ -103,15 +103,67 @@ Live fixed-class YOLO on ORT and TensorRT via a factory-driven backend selection
 
 See `milestones/v0.2-MILESTONE-AUDIT.md` tech_debt (Nyquist frontmatter, residual load honesty, hardware E2E checklist).
 
+## Milestone: v0.3 — Metric Depth Calibration UX
+
+**Shipped:** 2026-08-14  
+**Phases:** 6 | **Plans:** 12 | **Tasks:** 17  
+**Timeline:** 2026-08-11 → 2026-08-14  
+**Scale:** package remains 0.1.0; audit **passed** 19/19
+
+### What Was Built
+
+Honest monocular metric scale via Live Preview wizard, DepthLoop `apply_map`, free-space meters iff calibrated, and per-camera YAML persist with fingerprint refuse. Relative depth never claims meters. No vehicle-grade / FSD claims. Synthetic CI only.
+
+### What Worked
+
+- **Honesty first** — Phase 13 contracts + CalibrationState before any product mutation
+- **Math before chrome** — pure NumPy fit + DepthLoop apply before wizard labels
+- **Single apply site** — `apply_map` only after `DepthAnythingWorker.process` and before `set_depth`
+- **Cancel vs Clear** — draft-only cancel; Clear drops applied and deletes YAML
+- **Keyword + inventory tests** — operator hub and Phase 13–17 suites cannot silently drift
+- **Zero new deps** — NumPy + existing stack; DetectionLoop / FrameBus / ORT-TRT frozen
+
+### What Was Inefficient
+
+- **Nyquist VALIDATION.md** still `wave_0_complete: false` after green suites — bookkeeping lag again (v1.0 / v0.2 / v0.3)
+- **Formal VERIFICATION only for Phase 13** — 14–18 closed on SUMMARY; fine for product close, weaker paper trail
+- **REQUIREMENTS checkboxes left open until complete-milestone** — correct process, but live file lagged shipped work
+- **MCP placeholder restores** on `cli.py` / `free_space.py` during execute — extra restore commits
+
+### Patterns Established
+
+- DepthLoop sole `apply_map` site (no re-scale in free-space / UI / persist I/O)
+- Cancel = `clear_draft`; Clear = `clear_applied` + unlink YAML
+- STACK path `$SENTRY_MODEL_CACHE/calibration/{safe_id}.yaml` (not `~/.config` JSON)
+- Free-space `units="m"` iff `metric_calibrated` + absolute 1.5/3.0 m cuts
+- Living `V03_INVENTORY` so deleting a Phase 13–17 suite fails CI
+- Operator hub `docs/calibration.md` as wizard → persist single entry
+
+### Key Lessons
+
+1. Honesty contracts before meters — cheaper than retrofitting unit labels  
+2. One apply site prevents double-scale and split-brain UI/API  
+3. Persist late, only after the in-memory apply path is proven  
+4. Docs keyword tests catch “always ordinal” drift the same way code tests catch unit lies  
+
+### Cost Observations
+
+- Parallel research/plan/execute agents per phase; Phase 18 docs-only + inventory (no product code)
+- Milestone closed on formal audit **passed** 19/19; no next product phase
+
+### Known Deferred at Close
+
+See `milestones/v0.3-MILESTONE-AUDIT.md` tech_debt (Nyquist still false, SUMMARY-only 14–18, no package bump / Release).
+
 ## Cross-Milestone Trends
 
-| Trend | v1.0 | v0.2 |
-|-------|------|------|
-| Honesty constraints | depth_kind, perception-only API | backend_live vs requested |
-| Edge path | export recipes only | live ORT + live TRT |
-| CI | mock ML, no weights | + Jetson-free GHA static locks |
-| Nyquist bookkeeping lag | yes | yes (still) |
-| Close quality | tech_debt (UAT residual) | passed (20/20) |
+| Trend | v1.0 | v0.2 | v0.3 |
+|-------|------|------|------|
+| Honesty constraints | depth_kind, perception-only API | backend_live vs requested | metric_calibrated + m iff applied |
+| Edge path | export recipes only | live ORT + live TRT | unchanged (depth still torch) |
+| CI | mock ML, no weights | + Jetson-free GHA static locks | + honesty-matrix inventory |
+| Nyquist bookkeeping lag | yes | yes (still) | yes (still false) |
+| Close quality | tech_debt (UAT residual) | passed (20/20) | passed (19/19) |
 
 
 ---
