@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 
@@ -33,6 +33,8 @@ from sentry_ai.schemas.validators import promote_kind_unit as _promote_kind_unit
 
 __all__ = ["CalibrationState"]
 
+_PERSIST_STATUSES = frozenset({"none", "applied", "ignored_mismatch", "error"})
+
 
 @dataclass
 class CalibrationState:
@@ -42,6 +44,8 @@ class CalibrationState:
     _draft_params: CalibrationParams | None = field(default=None, repr=False)
     _applied_params: CalibrationParams | None = field(default=None, repr=False)
     _draft_samples: list[Any] = field(default_factory=list, repr=False)
+    _persist_status: str = field(default="none", repr=False)
+    _persist_reason: str | None = field(default=None, repr=False)
 
     def snapshot(self) -> CalibrationSnapshot:
         """Return an isolated status-safe view of current calibration state."""
@@ -68,6 +72,8 @@ class CalibrationState:
             scale=scale,
             method=method,
             fingerprint=fingerprint,
+            persist_status=self._persist_status,  # type: ignore[arg-type]
+            persist_reason=self._persist_reason,
         )
 
     def add_draft_sample(self, sample: Any) -> CalibrationSnapshot:
@@ -122,10 +128,44 @@ class CalibrationState:
             self._draft_samples.clear()
             return self._snapshot_unlocked()
 
+    def apply_params(self, params: CalibrationParams) -> CalibrationSnapshot:
+        """Commit valid params as applied without a wizard draft.
+
+        Raises ValueError if structurally invalid. Clears draft on success
+        (same as apply()). Does not invent samples.
+        """
+        with self._lock:
+            ok, reason = is_valid_calibration_params(params)
+            if not ok:
+                raise ValueError(
+                    f"invalid calibration params: {reason or 'unknown'}"
+                )
+            self._applied_params = params
+            self._draft_params = None
+            self._draft_samples.clear()
+            return self._snapshot_unlocked()
+
+    def set_persist_status(
+        self,
+        status: Literal["none", "applied", "ignored_mismatch", "error"],
+        reason: str | None = None,
+    ) -> None:
+        if status not in _PERSIST_STATUSES:
+            raise ValueError(f"invalid persist status: {status}")
+        with self._lock:
+            self._persist_status = status
+            self._persist_reason = reason
+
+    def get_persist_status(self) -> tuple[str, str | None]:
+        with self._lock:
+            return self._persist_status, self._persist_reason
+
     def clear_applied(self) -> CalibrationSnapshot:
         """Clear applied calibration; restores base kind/unit promotion."""
         with self._lock:
             self._applied_params = None
+            self._persist_status = "none"
+            self._persist_reason = None
             return self._snapshot_unlocked()
 
     def is_applied(self) -> bool:
