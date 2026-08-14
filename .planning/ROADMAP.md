@@ -49,8 +49,8 @@ Audit: [milestones/v0.2-MILESTONE-AUDIT.md](milestones/v0.2-MILESTONE-AUDIT.md)
 - [x] **Phase 13: Honesty Contracts & CalibrationState** - Promotion rules, validators, draft vs applied state model (completed 2026-08-11)
 - [x] **Phase 14: Scale Math + DepthLoop Plug-in** - Fit/reject scale; apply post-worker pre-store (completed 2026-08-13)
 - [x] **Phase 15: Wizard REST + Live Preview UI** - Sample/fit/apply/cancel API + static wizard panel (completed 2026-08-13)
-- [ ] **Phase 16: Free-Space Metric Path** - Meters only when calibrated; smoother reset *(research + plans written 2026-08-13 — not implemented)*
-- [ ] **Phase 17: Persist & Re-apply on Serve** - Per-camera_id YAML; fingerprint refuse; clear
+- [x] **Phase 16: Free-Space Metric Path** - Meters only when calibrated; smoother reset (completed 2026-08-13)
+- [ ] **Phase 17: Persist & Re-apply on Serve** - Per-camera_id YAML; fingerprint refuse; clear *(research + plans written 2026-08-13 — not implemented)*
 - [ ] **Phase 18: Docs + Synthetic CI Polish** - Operator guide; honesty docs; hardware-free tests
 
 ## Phase Details
@@ -117,8 +117,8 @@ Plans:
   2. Relative and `metric_estimated` free-space stay ordinal; unit labels never flip while still computing pure ordinal percentile nearness as if meters
   3. Free-space smoother/state resets on calibration apply and clear so stale ordinal/metric occupancy does not ghost
 **Plans**: 2 plans
-**Research**: Written 2026-08-13 (see `phases/16-free-space-meters/16-RESEARCH.md`) — implementation not started
-**Status**: Plans ready (not implemented)
+**Research**: Written 2026-08-13 (see `phases/16-free-space-meters/16-RESEARCH.md`)
+**Status**: Complete on main (16-01 + 16-02 merged 2026-08-13)
 
 Locked research (must honor at execute):
 - Calibrated → `units="m"` **iff** absolute meter cuts (default 1.5 m / 3.0 m) on scaled depth with pinned `higher_is_farther`. Never label-only 0.72/0.45 flip. Never min–max meters.
@@ -128,19 +128,37 @@ Locked research (must honor at execute):
 - `assemble._units_for_depth_kind`: `METRIC_CALIBRATED` → `"m"`; else `"ordinal"`. After the metric path exists, calibrated must emit `"m"` (Phase 13 grace ends).
 
 Plans:
-- [ ] 16-01-PLAN.md — Pure `compute_free_space` metric path + honesty tests (FS-01, FS-02)
-- [ ] 16-02-PLAN.md — FreeSpaceLoop consume kind/units, smoother reset, assemble units flip, store/wire, optional `distance_m` (FS-03 + wire); depends_on 16-01
+- [x] 16-01-PLAN.md — Pure `compute_free_space` metric path + honesty tests (FS-01, FS-02)
+- [x] 16-02-PLAN.md — FreeSpaceLoop consume kind/units, smoother reset, assemble units flip, store/wire, optional `distance_m` (FS-03 + wire); depends_on 16-01
 
 ### Phase 17: Persist & Re-apply on Serve
 **Goal**: Valid calibration survives restarts for the matching camera/fingerprint; mismatches refuse auto-apply and stay honestly relative
-**Depends on**: Phase 14 (apply path proven in-memory); Phase 15 (wizard can trigger persist)
+**Depends on**: Phase 14 (apply path proven in-memory); Phase 15 (wizard can trigger persist); Phase 16 complete on main (meters already honest when calibrated)
 **Requirements**: PER-01, PER-02, PER-03, PER-04
 **Success Criteria** (what must be TRUE):
   1. Maker can save calibration keyed by `camera_id` (plus fingerprint fields needed for safety)
   2. On `sentry serve`, valid saved calibration re-applies for a matching camera/fingerprint without re-running the wizard
   3. Mismatched fingerprint (resolution, model/mode, camera_id) refuses auto-apply and keeps honest relative depth with a visible reason
   4. Maker can clear/invalidate stored calibration and return to uncalibrated relative depth
-**Plans**: TBD
+**Plans**: 2 plans
+**Research**: Written 2026-08-13 (see `phases/17-persist-reapply-on-serve/17-RESEARCH.md`) — implementation not started
+**Status**: Plans ready (not implemented)
+
+Locked research (must honor at execute):
+- Path: `$SENTRY_MODEL_CACHE` / `default_cache_root()` / `calibration/{safe_id}.yaml`. YAML, not JSON. **No platformdirs.**
+- Optional `SENTRY_CALIBRATION_DIR` + `--calibration-file`. `yaml.safe_load` only; Pydantic `CalibrationParams` round-trip; atomic temp+rename; **no depth maps on disk**.
+- Key by sanitized `camera_id` stem (reject `..`); not profile YAML.
+- Hard-refuse mismatch: `camera_id`, `depth_mode`, `model_id`; `width`/`height` when both sides non-None. No capture-backend / RTSP uniqueID fields this phase.
+- Serve may match camera_id+mode+model first when live sizes are still None; if the file has W×H and a later live product mismatches → refuse/clear.
+- Auto-apply only when file present AND `fingerprints_match`. Corrupt/missing → soft inactive, never `metric_calibrated`. Visible persist status.
+- `CalibrationState.apply_params(params)` for load (do not fake wizard samples). Persist trigger: explicit POST save **and** optional `persist:true` on apply. Apply-without-persist stays session-only.
+- **Clear** deletes the file so restart cannot resurrect. **Cancel** stays draft-only.
+- Additive status `none | applied | ignored_mismatch | error`, separate from `depth.kind`. Serve banner line.
+- DepthLoop remains the sole map apply site. I/O is `config/calibration_store.py`. Zero new deps; freeze DetectionLoop / FrameBus / ORT-TRT / `kind_for_mode`. Docs are Phase 18.
+
+Plans:
+- [ ] 17-01-PLAN.md — YAML store + fingerprint refuse + `apply_params` / `try_reapply` (PER-01, PER-03)
+- [ ] 17-02-PLAN.md — serve re-apply + REST save/clear-file + persist status + late W×H (PER-02, PER-04); depends_on 17-01
 
 ### Phase 18: Docs + Synthetic CI Polish
 **Goal**: Operators have a guided non-FSD calibration flow in docs; CI covers fit/apply/honesty/persist with synthetic data only
@@ -165,8 +183,8 @@ Plans:
 | 13. Honesty Contracts & CalibrationState | v0.3 | 2/2 | Complete   | 2026-08-11 |
 | 14. Scale Math + DepthLoop Plug-in | v0.3 | 2/2 | Complete | 2026-08-13 |
 | 15. Wizard REST + Live Preview UI | v0.3 | 2/2 | Complete | 2026-08-13 |
-| 16. Free-Space Metric Path | v0.3 | 0/2 | Plans ready | - |
-| 17. Persist & Re-apply on Serve | v0.3 | 0/? | Not started | - |
+| 16. Free-Space Metric Path | v0.3 | 2/2 | Complete | 2026-08-13 |
+| 17. Persist & Re-apply on Serve | v0.3 | 0/2 | Plans ready | - |
 | 18. Docs + Synthetic CI Polish | v0.3 | 0/? | Not started | - |
 
 **Coverage:** v0.3 19/19 requirements mapped ✓
@@ -182,7 +200,7 @@ Camera Sources → Frame Bus → Model Workers (depth || detection || open-vocab
                       ▼              ▼
                Perception State Store
                       │
-          ┌───────────┴───────────┐
+          ┌───────────┬───────────┐
           ▼                       ▼
    Web Dev UI              Perception Stream API
    (overlays+controls)     (WS/REST → robots)
@@ -216,13 +234,13 @@ DepthAnythingWorker.process → raw map + kind/unit
 ## Phase Ordering Rationale (v0.3)
 
 ```
-13 Honesty/state ──► 14 Scale apply (DepthLoop) ──► 15 Wizard + API
+13 Honesty/state ──▶ 14 Scale apply (DepthLoop) ──▶ 15 Wizard + API
                               │
                               ▼
                        16 Free-space metric
                               │
                               ▼
-                       17 Persist/re-apply ──► 18 Docs/CI
+                       17 Persist/re-apply ──▶ 18 Docs/CI
 ```
 
 1. **Honesty first** — kind/unit/calib state before any product mutation  
