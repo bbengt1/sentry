@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Metric Depth Calibration UX
-status: executing
-stopped_at: Phase 16 complete on branch; next execute Phase 17 persist/re-apply
-last_updated: "2026-08-14T00:04:00.000Z"
+status: planning
+stopped_at: Phase 17 plans written; next execute 17-01 YAML store + fingerprint
+last_updated: "2026-08-14T00:25:00.000Z"
 last_activity: 2026-08-13
 progress:
   total_phases: 6
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots - without proprietary sensors or cloud AI.  
-**Current focus:** Phase 16 complete (metric compute + loop/wire/smoother). Next is Phase 17 YAML persist / re-apply on serve.
+**Current focus:** Phase 17 plans written (not implemented). Phase 16 complete on main. Next execute 17-01 YAML persist / fingerprint refuse.
 
 ## Current Position
 
-Phase: 16 (Free-Space Metric Path) - 16-01 + 16-02 done  
-Plan: 2 of 2 (16-02 executed)  
-Status: Phase 16 complete on `feat/16-02-free-space-loop-wire`  
+Phase: 17 (Persist & Re-apply on Serve) - plans written, not implemented  
+Plan: 0 of 2 (ready to execute 17-01)  
+Status: Phase 16 complete on `main` (16-01 + 16-02 merged). Phase 17 research + plans on `docs/phase-17-plan`  
 Last activity: 2026-08-13
 
-Progress: [##########] 67% of v0.3 executed plans (13-16 complete; next Phase 17 persist/re-apply)
+Progress: [##########] 67% of v0.3 executed plans (13-16 complete; Phase 17 plans ready)
 
 ## Performance Metrics
 
@@ -110,15 +110,29 @@ v0.3 roadmap locks (from research):
 - [Phase 16-02]: FreeSpaceLoop consumes kind+map, never re-scales; store units; assemble helper flip; validator calibrated must be "m"
 - [Phase 16-02]: reset_smoother on kind != _last_kind; belt-and-suspenders POST apply/clear (not cancel)
 - [Phase 16-02]: ObstacleCue.distance_m optional additive (mean finite blob depth) when calibrated
+- [Phase 16]: Complete on main (16-01 + 16-02 merged 2026-08-13)
+- [Phase 17]: Path $SENTRY_MODEL_CACHE / default_cache_root() / calibration/{safe_id}.yaml; YAML; no platformdirs
+- [Phase 17]: Optional SENTRY_CALIBRATION_DIR + --calibration-file; yaml.safe_load only; Pydantic CalibrationParams; atomic temp+rename; no depth maps
+- [Phase 17]: Key by sanitized camera_id stem (reject ..); not profile YAML
+- [Phase 17]: Hard-refuse camera_id, depth_mode, model_id; width/height when both sides non-None; no uniqueID/RTSP fields this phase
+- [Phase 17]: Serve may match camera_id+mode+model when live sizes still None; later W×H mismatch refuse/clear
+- [Phase 17]: Auto-apply only when file present AND fingerprints_match; corrupt/missing soft inactive
+- [Phase 17]: apply_params for load (no fake wizard samples); persist via POST save and optional persist:true on apply
+- [Phase 17]: Clear deletes the file; Cancel stays draft-only
+- [Phase 17]: Additive persist status none|applied|ignored_mismatch|error, separate from depth.kind; serve banner
+- [Phase 17]: DepthLoop sole map apply site; I/O in config/calibration_store.py; try_reapply in control/calibration_persist.py
+- [Phase 17]: Split 17-01 store+fingerprint+apply_params / 17-02 serve+REST+status+late size
+- [Phase 17]: Plans written 2026-08-13 — not implemented
 
 ### Pending Todos
 
-- Execute Phase 17 YAML persist / re-apply on serve
+- Execute Phase 17-01 YAML store + fingerprint refuse (PER-01, PER-03)
+- Then 17-02 serve re-apply + REST save/clear + status (PER-02, PER-04)
 - Then Phase 18 docs + synthetic CI polish
 
 ### Blockers/Concerns
 
-- Persist path: prefer `$SENTRY_MODEL_CACHE/calibration/*.yaml` (STACK) - resolve in Phase 17 plan
+- Persist path locked: `$SENTRY_MODEL_CACHE/calibration/*.yaml` (STACK) — not ARCHITECTURE `~/.config` JSON / platformdirs
 
 ## Deferred Items
 
@@ -135,7 +149,7 @@ See also: `milestones/v1.0-MILESTONE-AUDIT.md`, `milestones/v0.2-MILESTONE-AUDIT
 
 ## Session Continuity
 
-Last session: 2026-08-14T00:04:00.000Z
-Stopped at: Phase 16 complete (16-02 loop/wire/smoother)
+Last session: 2026-08-14T00:25:00.000Z
+Stopped at: Phase 17 plans written (not implemented)
 Resume file: None
-Next: Execute Phase 17 persist/re-apply per ROADMAP
+Next: Execute Phase 17-01 persist store + fingerprint per ROADMAP
