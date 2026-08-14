@@ -525,3 +525,84 @@ def test_clear_draft_clears_samples_and_params() -> None:
     assert snap.draft_sample_count == 0
     assert snap.has_draft_params is False
     assert state.is_applied() is False
+
+
+# --- apply_params + persist status (PER-01 / 17-01) -------------------------
+
+
+def test_apply_params_valid_without_draft() -> None:
+    state = CalibrationState()
+    snap = state.apply_params(_params(scale=2.25, sample_count=2))
+    assert snap.applied is True
+    assert snap.valid is True
+    assert snap.has_draft_params is False
+    assert state.is_applied() is True
+    assert state.get_draft_samples() == []
+    applied = state.get_applied_params()
+    assert applied is not None
+    assert applied.scale == 2.25
+    kind, unit = state.promote_kind_unit(DepthKind.RELATIVE, None)
+    assert kind == DepthKind.METRIC_CALIBRATED
+    assert unit == "m"
+
+
+def test_apply_params_clears_existing_draft() -> None:
+    state = CalibrationState()
+    state.add_draft_sample(CalibrationSample(known_meters=1.0, observed_raw=0.5))
+    state.set_draft_params(_params(scale=9.0, sample_count=2))
+    snap = state.apply_params(_params(scale=1.5, sample_count=1))
+    assert snap.applied is True
+    assert snap.has_draft_params is False
+    assert snap.draft_sample_count == 0
+    assert state.get_draft_samples() == []
+    applied = state.get_applied_params()
+    assert applied is not None
+    assert applied.scale == 1.5
+
+
+def test_apply_params_invalid_scale_leaves_applied_unchanged() -> None:
+    state = CalibrationState()
+    state.apply_params(_params(scale=1.25, sample_count=2))
+    with pytest.raises(ValueError):
+        state.apply_params(_params(scale=0.0, sample_count=5))
+    assert state.is_applied() is True
+    applied = state.get_applied_params()
+    assert applied is not None
+    assert applied.scale == 1.25
+
+
+def test_apply_still_requires_draft_after_apply_params() -> None:
+    state = CalibrationState()
+    with pytest.raises(ValueError, match="no draft"):
+        state.apply()
+    assert state.is_applied() is False
+
+
+def test_persist_status_defaults_and_snapshot() -> None:
+    state = CalibrationState()
+    snap = state.snapshot()
+    assert snap.persist_status == "none"
+    assert snap.persist_reason is None
+    assert state.get_persist_status() == ("none", None)
+    state.set_persist_status("error", "bad yaml")
+    snap = state.snapshot()
+    assert snap.persist_status == "error"
+    assert snap.persist_reason == "bad yaml"
+    assert state.get_persist_status() == ("error", "bad yaml")
+
+
+def test_clear_applied_resets_persist_status() -> None:
+    state = CalibrationState()
+    state.apply_params(_params())
+    state.set_persist_status("applied")
+    snap = state.clear_applied()
+    assert snap.applied is False
+    assert snap.persist_status == "none"
+    assert snap.persist_reason is None
+    assert state.get_persist_status() == ("none", None)
+
+
+def test_snapshot_persist_defaults() -> None:
+    snap = CalibrationSnapshot()
+    assert snap.persist_status == "none"
+    assert snap.persist_reason is None
