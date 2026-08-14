@@ -410,6 +410,14 @@ def serve(
         "--no-ui",
         help="Serve perception API without Live Preview HTML (EDGE-05).",
     ),
+    calibration_file: str | None = typer.Option(
+        None,
+        "--calibration-file",
+        help=(
+            "Explicit calibration YAML path (overrides directory/"
+            "camera_id stem). Honors SENTRY_CALIBRATION_DIR when omitted."
+        ),
+    ),
 ) -> None:
     """Start capture + localhost Live Preview (MJPEG + status).
 
@@ -588,6 +596,43 @@ def serve(
         depth_worker = None
         depth_loop = None
 
+    # PER-02: re-apply matching YAML after source + depth worker exist.
+    # --no-ui / headless still loads. W×H stays None at serve start.
+    from sentry_ai.config.calibration_store import calibration_path
+    from sentry_ai.control.calibration_persist import try_reapply
+    from sentry_ai.schemas.calibration import CalibrationFingerprint
+
+    persist_path = calibration_path(
+        getattr(src, "camera_id", None) or camera_id or "unknown",
+        explicit_file=calibration_file,
+    )
+    live_mode = None
+    live_model = None
+    if depth_worker is not None:
+        getter = getattr(depth_worker, "get_depth_mode", None)
+        if callable(getter):
+            try:
+                live_mode = str(getter())
+            except Exception:  # noqa: BLE001 — fingerprint best-effort
+                live_mode = None
+        mid = getattr(depth_worker, "model_id", None)
+        if mid is not None:
+            live_model = str(mid)
+    live = CalibrationFingerprint(
+        camera_id=str(
+            getattr(src, "camera_id", None) or camera_id or "unknown"
+        ),
+        width=None,
+        height=None,
+        depth_mode=live_mode,
+        model_id=live_model,
+    )
+    reapply = try_reapply(calibration_state, persist_path, live)
+    banner = f"calibration: {reapply.status}"
+    if reapply.reason:
+        banner += f" reason={reapply.reason}"
+    typer.echo(banner)
+
     # Free-space Spatial Post always runs when store exists (CPU; no ML extra).
     # Idles until a good depth product appears — no ImportError gate.
     from sentry_ai.control.pipeline_state import PipelineState
@@ -614,6 +659,7 @@ def serve(
         backend_reason=backend_reason,
         fallback_to_torch=getattr(rt, "fallback_to_torch", True),
         calibration_state=calibration_state,
+        calibration_path=persist_path,
         serve_ui=not no_ui,
     )
 

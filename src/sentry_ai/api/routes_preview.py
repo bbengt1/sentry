@@ -192,12 +192,16 @@ async def api_status(request: Request) -> dict[str, Any]:
 
     # Phase 15 OPS-01: additive calibration fields. Never set depth_kind
     # from draft — live kind stays the store product until DepthLoop writes.
+    # Phase 17-02: persist status is additive and separate from depth.kind.
     calib = getattr(request.app.state, "calibration_state", None)
     if calib is not None:
         try:
             snap = calib.snapshot()
             data["calibration_active"] = bool(snap.applied and snap.valid)
             data["calibration_sample_count"] = int(snap.draft_sample_count)
+            data["calibration_persist"] = snap.persist_status
+            if snap.persist_reason:
+                data["calibration_persist_reason"] = snap.persist_reason
             if snap.applied:
                 data["calibration_scale"] = snap.scale
                 data["calibration_method"] = snap.method

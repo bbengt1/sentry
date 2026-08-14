@@ -5,6 +5,7 @@ from __future__ import annotations
 import threading
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI
@@ -40,6 +41,7 @@ def create_app(
     backend_reason: str | None = None,
     fallback_to_torch: bool | None = None,
     calibration_state: Any | None = None,
+    calibration_path: Path | str | None = None,
     serve_ui: bool = True,
 ) -> FastAPI:
     """Build FastAPI app with preview + detection + depth + pipeline + OV + /v1.
@@ -69,6 +71,7 @@ def create_app(
         redoc_url=None,
         lifespan=lifespan,
     )
+    resolved_calib_path = Path(calibration_path) if calibration_path else None
     app.state.bus = bus
     app.state.capture_loop = capture_loop
     app.state.bind = bind
@@ -88,6 +91,7 @@ def create_app(
     # Phase 11 BACK-03: soft/strict policy flag (pass-through; preserve False).
     app.state.fallback_to_torch = fallback_to_torch
     app.state.calibration_state = calibration_state
+    app.state.calibration_path = resolved_calib_path
     app.state.calibration_freeze_pin = None
     app.state.serve_ui = serve_ui
     app.state.shutdown_flag = shutdown_flag
@@ -110,6 +114,7 @@ def create_app(
         backend_reason=backend_reason,
         fallback_to_torch=fallback_to_torch,
         calibration_state=calibration_state,
+        calibration_path=resolved_calib_path,
     )
     app.include_router(preview_router)
     app.include_router(detection_router)

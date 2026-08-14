@@ -44,12 +44,17 @@ class FakeDepthWorker:
     """Injectable worker for loop tests (no HF)."""
 
     name: str = "fake-depth"
+    model_id: str = "fake-depth"
 
     def __init__(self, *, raise_once: bool = False, value: float = 1.0) -> None:
         self._raise_once = raise_once
         self._value = value
+        self._depth_mode = "relative"
         self.process_calls = 0
         self.seen_frame_ids: list[int] = []
+
+    def get_depth_mode(self) -> str:
+        return self._depth_mode
 
     def process(self, frame: Any) -> DepthResult:
         self.process_calls += 1
@@ -211,6 +216,8 @@ def _applied_calibration(
     camera_id: str = "cam0",
     depth_mode: str = "relative",
     model_id: str = "fake-depth",
+    width: int | None = None,
+    height: int | None = None,
 ) -> CalibrationState:
     """Stage+apply valid params with fingerprint including depth_mode+model_id."""
     state = CalibrationState()
@@ -220,6 +227,8 @@ def _applied_calibration(
         sample_count=1,
         fingerprint=CalibrationFingerprint(
             camera_id=camera_id,
+            width=width,
+            height=height,
             depth_mode=depth_mode,
             model_id=model_id,
         ),
@@ -394,3 +403,114 @@ def test_loop_single_apply_site() -> None:
     assert "apply_map" in source
     assert source.count("apply_map(") == 1
     assert source.count("promote_kind_unit(") == 1
+
+
+def test_loop_has_no_calibration_store_io() -> None:
+    """Persist I/O stays out of DepthLoop; only refuse_if_mismatch."""
+    source = inspect.getsource(loop_mod)
+    assert "calibration_store" not in source
+    assert "refuse_if_mismatch" in source
+    assert "yaml" not in source
+
+
+def test_loop_late_size_mismatch_refuses_before_apply(
+    image_frame_factory: Callable[..., ImageFrame],
+) -> None:
+    """Applied 640×480 vs live 320×240 map → clear; stay relative unscaled."""
+    bus = FrameBus()
+    store = PerceptionStore()
+    worker = FakeDepthWorker(value=2.0)
+    calib = _applied_calibration(scale=3.0, width=640, height=480)
+    loop = DepthLoop(bus, worker, store, calibration=calib)
+    try:
+        loop.start()
+        bus.publish(
+            image_frame_factory(
+                frame_id=21,
+                camera_id="cam0",
+                width=320,
+                height=240,
+            )
+        )
+        assert _wait_until(
+            lambda: (s := store.snapshot_depth()) is not None and s.frame_id == 21,
+            timeout=2.0,
+        )
+        snap = store.snapshot_depth()
+        assert snap is not None
+        assert calib.is_applied() is False
+        assert snap.kind == DepthKind.RELATIVE
+        assert snap.kind != DepthKind.METRIC_CALIBRATED
+        assert snap.unit is None
+        assert snap.depth_map is not None
+        assert float(np.mean(snap.depth_map)) == pytest.approx(2.0)
+        status, reason = calib.get_persist_status()
+        assert status == "ignored_mismatch"
+        assert reason == "resolution"
+    finally:
+        loop.stop()
+
+
+def test_loop_matching_size_stays_applied_and_scaled(
+    image_frame_factory: Callable[..., ImageFrame],
+) -> None:
+    bus = FrameBus()
+    store = PerceptionStore()
+    worker = FakeDepthWorker(value=2.0)
+    calib = _applied_calibration(scale=3.0, width=640, height=480)
+    loop = DepthLoop(bus, worker, store, calibration=calib)
+    try:
+        loop.start()
+        bus.publish(
+            image_frame_factory(
+                frame_id=22,
+                camera_id="cam0",
+                width=640,
+                height=480,
+            )
+        )
+        assert _wait_until(
+            lambda: (s := store.snapshot_depth()) is not None and s.frame_id == 22,
+            timeout=2.0,
+        )
+        snap = store.snapshot_depth()
+        assert snap is not None
+        assert calib.is_applied() is True
+        assert snap.kind == DepthKind.METRIC_CALIBRATED
+        assert snap.unit == "m"
+        assert snap.depth_map is not None
+        assert float(np.mean(snap.depth_map)) == pytest.approx(6.0)
+    finally:
+        loop.stop()
+
+
+def test_loop_none_size_skips_resolution_compare(
+    image_frame_factory: Callable[..., ImageFrame],
+) -> None:
+    bus = FrameBus()
+    store = PerceptionStore()
+    worker = FakeDepthWorker(value=2.0)
+    calib = _applied_calibration(scale=3.0, width=None, height=None)
+    loop = DepthLoop(bus, worker, store, calibration=calib)
+    try:
+        loop.start()
+        bus.publish(
+            image_frame_factory(
+                frame_id=23,
+                camera_id="cam0",
+                width=640,
+                height=480,
+            )
+        )
+        assert _wait_until(
+            lambda: (s := store.snapshot_depth()) is not None and s.frame_id == 23,
+            timeout=2.0,
+        )
+        snap = store.snapshot_depth()
+        assert snap is not None
+        assert calib.is_applied() is True
+        assert snap.kind == DepthKind.METRIC_CALIBRATED
+        assert snap.depth_map is not None
+        assert float(np.mean(snap.depth_map)) == pytest.approx(6.0)
+    finally:
+        loop.stop()
