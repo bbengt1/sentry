@@ -4,8 +4,9 @@ Structural twin of DetectionLoop — never opens cameras or owns capture I/O.
 Keep-latest: skip when frame_id matches last processed; short Event.wait sleep.
 
 Calibration (CAL-03): optional CalibrationState. On the success path after
-worker.process, promote_kind_unit then apply_map before set_depth. Single
-apply site — error/dependency products do not invent metric_calibrated meters.
+worker.process, refuse_if_mismatch then promote_kind_unit then apply_map
+before set_depth. Single apply site — error/dependency products do not
+invent metric_calibrated meters.
 """
 
 from __future__ import annotations
@@ -16,7 +17,9 @@ import time
 from typing import Any
 
 from sentry_ai.bus.frame_bus import FrameBus
+from sentry_ai.control.calibration_persist import refuse_if_mismatch
 from sentry_ai.models.depth.mapping import kind_for_mode
+from sentry_ai.schemas.calibration import CalibrationFingerprint
 from sentry_ai.schemas.enums import DepthKind
 from sentry_ai.state.perception_store import PerceptionStore
 
@@ -146,6 +149,47 @@ class DepthLoop:
         # Pause without tearing down thread; UI can still show stage off-ish.
         self._enabled.clear()
 
+    def _live_fingerprint(
+        self,
+        frame: Any,
+        depth_map: Any,
+    ) -> CalibrationFingerprint:
+        """Build live fingerprint from frame meta + map HxW + worker."""
+        camera_id = getattr(frame, "camera_id", None)
+        if not camera_id:
+            meta = getattr(frame, "meta", None)
+            if meta is not None:
+                camera_id = getattr(meta, "camera_id", None)
+        if not camera_id and self._calibration is not None:
+            params = self._calibration.get_applied_params()
+            if params is not None:
+                camera_id = params.fingerprint.camera_id
+        width: int | None = None
+        height: int | None = None
+        shape = getattr(depth_map, "shape", None)
+        if shape is not None and len(shape) >= 2:
+            height = int(shape[0])
+            width = int(shape[1])
+        depth_mode = None
+        getter = getattr(self._worker, "get_depth_mode", None)
+        if callable(getter):
+            try:
+                depth_mode = str(getter())
+            except Exception:  # noqa: BLE001 — fingerprint best-effort
+                depth_mode = None
+        model_id = getattr(self._worker, "model_id", None)
+        if model_id is None:
+            model_id = getattr(self._worker, "_model_id", None)
+        if model_id is not None:
+            model_id = str(model_id)
+        return CalibrationFingerprint(
+            camera_id=str(camera_id or "unknown"),
+            width=width,
+            height=height,
+            depth_mode=depth_mode,
+            model_id=model_id,
+        )
+
     def _run(self) -> None:
         while not self._stop.is_set():
             if not self._enabled.is_set() or self._dep_failed:
@@ -176,6 +220,9 @@ class DepthLoop:
                 kind = getattr(result, "kind", DepthKind.RELATIVE)
                 unit = getattr(result, "unit", None)
                 if self._calibration is not None:
+                    if depth_map is not None:
+                        live = self._live_fingerprint(frame, depth_map)
+                        refuse_if_mismatch(self._calibration, live)
                     # Promote + apply together before set_depth (T-14-02).
                     kind, unit = self._calibration.promote_kind_unit(kind, unit)
                     depth_map = self._calibration.apply_map(depth_map)
