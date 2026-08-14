@@ -96,9 +96,7 @@ uv sync --extra dev
                     │  draft samples / draft params       │
                     │  applied params + valid flag        │
                     │  fingerprint fields                 │
-                    │  promote_kind_unit() ───────────────� params + valid flag        │
-                    │  fingerprint fields                 │
-                    │  promote_kind_unit() ───────────────┼──► only applied+valid
+                    │  promote_kind_unit() ───────────────┤──► only applied+valid
                     └──────────────────▲──────────────────┘     → metric_calibrated + "m"
                                        │
                                        │ (read later in Phase 14)
