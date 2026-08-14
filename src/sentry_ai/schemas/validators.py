@@ -28,17 +28,21 @@ def assert_depth_kind_unit(kind: DepthKind, unit: str | None) -> None:
 
 
 def assert_free_space_units(depth_kind: DepthKind, units: str) -> None:
-    """Enforce free-space units honesty (CAL-05).
+    """Enforce free-space units honesty (CAL-05 / FS-01).
 
-    ``units="m"`` is allowed only when ``depth_kind`` is metric_calibrated.
-    ``metric_calibrated`` + ``units="ordinal"`` remains allowed until Phase 16.
+    ``metric_calibrated`` must emit ``units="m"``. Relative and
+    ``metric_estimated`` must not claim meters. Unknown units error.
     """
-    if units == "m" and depth_kind != DepthKind.METRIC_CALIBRATED:
+    if units not in ("ordinal", "m"):
+        raise ValueError(f"unknown free-space units: {units!r}")
+    if depth_kind == DepthKind.METRIC_CALIBRATED:
+        if units != "m":
+            raise ValueError("metric_calibrated free-space must use units='m'")
+        return
+    if units == "m":
         raise ValueError(
             "free-space units='m' only allowed when depth_kind=metric_calibrated"
         )
-    if units not in ("ordinal", "m"):
-        raise ValueError(f"unknown free-space units: {units!r}")
 
 
 def promote_kind_unit(

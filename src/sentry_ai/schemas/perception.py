@@ -6,6 +6,7 @@ Depth honesty (FOUND-03 / CAL-04 / CAL-05):
 - relative depth must never claim meters (unit must be None)
 - metric_estimated and metric_calibrated require unit='m'
 - free-space units='m' only when depth_kind is metric_calibrated
+- metric_calibrated free-space must emit units='m' (Phase 13 ordinal grace ended)
 There is intentionally no ``depth_m`` field on :class:`DepthPayload`.
 
 Perception-only: no motor, velocity, or command fields (T-1-05).
@@ -64,7 +65,11 @@ class Detection(BaseModel):
 
 
 class ObstacleCue(BaseModel):
-    """Image-space obstacle blob on the wire (ordinal nearness, not meters)."""
+    """Image-space obstacle blob on the wire (ordinal nearness, not meters).
+
+    ``nearness_*`` stay in ``[0, 1]`` on every path. Optional ``distance_m``
+    is mean scaled depth in the blob when calibrated; omit/None otherwise.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -73,7 +78,7 @@ class ObstacleCue(BaseModel):
     nearness_max: float
     area_px: int
     band: Literal["near", "mid", "far"] = "near"
-    # Intentionally NO distance_m
+    distance_m: float | None = None  # calibrated only
 
 
 class FreeSpacePayload(BaseModel):
