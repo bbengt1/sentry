@@ -8,12 +8,17 @@ from __future__ import annotations
 
 import time
 from dataclasses import replace
+from pathlib import Path
 from typing import Any, Literal
 
 import numpy as np
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 
+from sentry_ai.config.calibration_store import (
+    calibration_path as resolve_calibration_file,
+)
+from sentry_ai.control.calibration_persist import clear_persisted, persist_applied
 from sentry_ai.schemas.calibration import (
     CalibrationFingerprint,
     CalibrationParams,
@@ -50,6 +55,20 @@ class CalibrationComputeBody(BaseModel):
     method: str = "known_distance"
 
 
+class CalibrationApplyBody(BaseModel):
+    """Optional apply body. Extra fields rejected."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    persist: bool = False
+
+
+class CalibrationSaveBody(BaseModel):
+    """Save body (no fields). Extra fields rejected."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
 def _require_calibration_state(request: Request) -> Any:
     state = getattr(request.app.state, "calibration_state", None)
     if state is None:
@@ -82,6 +101,34 @@ def _get_freeze_pin(request: Request) -> Any:
 
 def _drop_freeze_pin(request: Request) -> None:
     request.app.state.calibration_freeze_pin = None
+
+
+def _parse_json_body(raw: bytes, model: type[Any]) -> Any:
+    """Parse optional JSON body; empty → defaults; extra=forbid → 422."""
+    if not raw or not raw.strip():
+        return model()
+    try:
+        return model.model_validate_json(raw)
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=exc.errors()) from exc
+
+
+def _persist_path(request: Request, state: Any) -> Path | None:
+    """Prefer app.state.calibration_path; else stem from applied camera_id."""
+    raw = getattr(request.app.state, "calibration_path", None)
+    if raw is not None:
+        return Path(raw)
+    getter = getattr(state, "get_applied_params", None)
+    params = getter() if callable(getter) else None
+    if params is None:
+        return None
+    camera_id = getattr(getattr(params, "fingerprint", None), "camera_id", None)
+    if not camera_id:
+        return None
+    try:
+        return resolve_calibration_file(str(camera_id))
+    except ValueError:
+        return None
 
 
 def _copy_depth_product(product: Any) -> Any:
@@ -406,14 +453,46 @@ async def compute_calibration(
 
 @router.post("/api/depth/calibration/apply")
 async def apply_calibration(request: Request) -> dict[str, Any]:
-    """Commit draft params to applied. Does not write PerceptionStore."""
+    """Commit draft params to applied. Optional persist:true writes YAML."""
     state = _require_calibration_state(request)
+    body = _parse_json_body(await request.body(), CalibrationApplyBody)
     try:
         state.apply()
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if body.persist:
+        path = _persist_path(request, state)
+        if path is None:
+            raise HTTPException(status_code=422, detail="no calibration_path")
+        try:
+            persist_applied(state, path)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        setter = getattr(state, "set_persist_status", None)
+        if callable(setter):
+            setter("applied")
     _drop_freeze_pin(request)
     _reset_free_space_smoother(request)
+    return _snapshot_payload(request, state)
+
+
+@router.post("/api/depth/calibration/save")
+async def save_calibration(request: Request) -> dict[str, Any]:
+    """Write applied params to YAML. 422 if not applied or no path."""
+    state = _require_calibration_state(request)
+    _parse_json_body(await request.body(), CalibrationSaveBody)
+    if not state.is_applied():
+        raise HTTPException(status_code=422, detail="no applied calibration")
+    path = _persist_path(request, state)
+    if path is None:
+        raise HTTPException(status_code=422, detail="no calibration_path")
+    try:
+        persist_applied(state, path)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    setter = getattr(state, "set_persist_status", None)
+    if callable(setter):
+        setter("applied")
     return _snapshot_payload(request, state)
 
 
@@ -428,10 +507,14 @@ async def cancel_calibration(request: Request) -> dict[str, Any]:
 
 @router.post("/api/depth/calibration/clear")
 async def clear_calibration(request: Request) -> dict[str, Any]:
-    """Wipe applied calibration and leftover draft."""
+    """Wipe applied + draft and delete persisted YAML when path known."""
     state = _require_calibration_state(request)
-    state.clear_applied()
-    state.clear_draft()
+    path = _persist_path(request, state)
+    if path is not None:
+        clear_persisted(state, path)
+    else:
+        state.clear_applied()
+        state.clear_draft()
     _drop_freeze_pin(request)
     _reset_free_space_smoother(request)
     return _snapshot_payload(request, state)
