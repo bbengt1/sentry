@@ -19,8 +19,10 @@ not a robot controller.
 
 ## Free-space is not a safety interlock
 
-Near-field free-space / obstacle cues are **ordinal** image-space signals
-derived from monocular depth:
+Near-field free-space / obstacle cues are **ordinal unless** depth is
+`metric_calibrated` (then `units="m"` with 1.5 m / 3.0 m cuts). Even when
+calibrated, meters are approximate monocular scale — still **not** a safety
+interlock:
 
 - Products can be **incomplete** or marked **STALE** (`stats.free_space_stale`,
   `products_stale`, age fields). Consumers **must** honor completeness and
@@ -28,6 +30,8 @@ derived from monocular depth:
 - Invalidated or missing free-space must **not** be treated as “clear path.”
 - Free-space is **not a safety interlock**. Do not wire it alone into enable
   lines, brake release, or unsupervised motion.
+
+Operator wizard and persist: [calibration.md](calibration.md).
 
 ## Privacy and network exposure
 
@@ -67,9 +71,12 @@ TLS, and access control.
 4. Read model licenses before commercial redistribution.  
 5. Prefer `--profile desktop-gpu` for full dual-model maker work; keep
    `cpu-fallback` for CI / no-GPU (see [desktop GPU path](desktop-gpu.md)).  
+6. Treat calibrated meters as **approximate monocular scale**, not
+   vehicle-grade — see [calibration.md](calibration.md).  
 
 ## Related docs
 
+- [Calibration wizard](calibration.md)  
 - [Desktop GPU primary path](desktop-gpu.md)  
 - [Camera sources](camera-sources.md)  
 - [Export / Jetson packaging](export/README.md)  

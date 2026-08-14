@@ -9,6 +9,7 @@ and a versioned perception stream for robots. **No motor commands.**
 |-----|-----------------|
 | [../README.md](../README.md) | Install, quick start, feature overview |
 | [desktop-gpu.md](desktop-gpu.md) | **Primary maker path** — full detect + depth pipeline |
+| [calibration.md](calibration.md) | Operator wizard: approximate monocular scale, persist, honesty triad |
 | [safety-and-privacy.md](safety-and-privacy.md) | Non-autonomy, free-space honesty, localhost / LAN risk |
 | [architecture.md](architecture.md) | Pipeline spine, processes, design boundaries |
 | [api-reference.md](api-reference.md) | HTTP / WebSocket endpoints |
@@ -35,11 +36,12 @@ and navigation stay with the robot integrator.
 |----------|---------|
 | Python package (`pyproject.toml`) | **0.1.0** |
 | GitHub release | **v0.1.0** |
-| Planning milestone (GSD) | v0.2 Edge Runtime (package may still be 0.1.0) |
+| Planning milestone (GSD) | v0.3 Metric Depth Calibration UX (package remains 0.1.0) |
 
 Package **0.1.0** is the first public software release of the v1.0 MVP slice.
-Planning milestone **v0.2** adds live ORT/TRT edge paths without a package
-version bump until a release cut.
+Planning milestone **v0.3** is Metric Depth Calibration UX. The package
+**stays 0.1.0** until a release cut (v0.2 Edge Runtime shipped without a
+version bump).
 
 ## Quick links
 

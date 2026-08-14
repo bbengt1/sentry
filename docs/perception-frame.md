@@ -59,11 +59,11 @@ with `source: "open_vocab"`.
 | `kind` | Meaning |
 |--------|---------|
 | `relative` | Ordinal / inverse-depth style — **never** meters |
-| `metric_estimated` | Approximate meters without full calibration |
-| `metric_calibrated` | Meters after calibration (not the default path) |
+| `metric_estimated` | Approximate meters without full calibration (**not** calibrated) |
+| `metric_calibrated` | Meters after **applied+valid** calibration (wizard or persist), not the default path |
 
 **No `depth_map` array on the wire.** Relative + `unit: "m"` is rejected by
-validators.
+validators. Draft wizard numbers never claim `metric_calibrated`.
 
 ## Free-space / obstacles
 
@@ -87,9 +87,12 @@ validators.
 
 | Rule | Detail |
 |------|--------|
-| Units | v0.1 free-space **ordinal** (not calibrated meters) |
+| Units | `units="m"` **iff** `depth.kind=metric_calibrated` and absolute 1.5 m / 3.0 m cuts; else ordinal |
+| Nearness | `nearness_*` stay 0..1 (not meters) |
+| Optional `distance_m` | On obstacle cues **only when calibrated** (mean finite blob depth) |
 | No masks | Full free/occupied masks not serialized |
-| No `distance_m` | Nearness is 0..1 ordinal |
+
+See [calibration.md](calibration.md) for the operator wizard and persist path.
 
 ## Stats / staleness
 
