@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Metric Depth Calibration UX
 status: executing
-stopped_at: Phase 16-01 complete on branch; next execute 16-02
-last_updated: "2026-08-13T23:45:00.000Z"
+stopped_at: Phase 16 complete on branch; next execute Phase 17 persist/re-apply
+last_updated: "2026-08-14T00:04:00.000Z"
 last_activity: 2026-08-13
 progress:
   total_phases: 6
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 8
-  completed_plans: 7
-  percent: 58
+  completed_plans: 8
+  percent: 67
 ---
 
 # Project State
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots - without proprietary sensors or cloud AI.  
-**Current focus:** Phase 16-01 metric `compute_free_space` shipped (pure compute). Next is execute 16-02 (loop consume, smoother reset, assemble/validator/store, optional `distance_m`).
+**Current focus:** Phase 16 complete (metric compute + loop/wire/smoother). Next is Phase 17 YAML persist / re-apply on serve.
 
 ## Current Position
 
-Phase: 16 (Free-Space Metric Path) - 16-01 done  
-Plan: 1 of 2 (16-01 executed; 16-02 written, not executed)  
-Status: Phase 15 complete on main; 16-01 on `feat/16-01-free-space-metric-compute`  
+Phase: 16 (Free-Space Metric Path) - 16-01 + 16-02 done  
+Plan: 2 of 2 (16-02 executed)  
+Status: Phase 16 complete on `feat/16-02-free-space-loop-wire`  
 Last activity: 2026-08-13
 
-Progress: [#########.] 58% of v0.3 executed plans (13-15 complete; 16-01 done; next 16-02)
+Progress: [##########] 67% of v0.3 executed plans (13-16 complete; next Phase 17 persist/re-apply)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed (v0.3): 7 (Phase 13 + Phase 14 + Phase 15 + 16-01)
+- Total plans completed (v0.3): 8 (Phase 13 + Phase 14 + Phase 15 + Phase 16)
 - v1.0 + v0.2 history: 28 plans shipped prior milestones
 
 **By Phase:**
@@ -50,6 +50,7 @@ Progress: [#########.] 58% of v0.3 executed plans (13-15 complete; 16-01 done; n
 | Phase 15 P01 | 40min | 2 tasks | 16 files |
 | Phase 15 P02 | 35min | 1 task | 4 files |
 | Phase 16 P01 | 25min | 1 task | 3 files |
+| Phase 16 P02 | 20min | 1 task | 17 files |
 
 *Updated after each plan completion*
 
@@ -106,15 +107,17 @@ v0.3 roadmap locks (from research):
 - [Phase 16]: Consume DepthLoop scaled map + kind - never re-scale
 - [Phase 16]: Split 16-01 pure compute honesty / 16-02 loop+wire+reset+distance_m
 - [Phase 16-01]: compute_free_space metric branch shipped; wire still allows calibrated+ordinal until 16-02 assemble flip
+- [Phase 16-02]: FreeSpaceLoop consumes kind+map, never re-scales; store units; assemble helper flip; validator calibrated must be "m"
+- [Phase 16-02]: reset_smoother on kind != _last_kind; belt-and-suspenders POST apply/clear (not cancel)
+- [Phase 16-02]: ObstacleCue.distance_m optional additive (mean finite blob depth) when calibrated
 
 ### Pending Todos
 
-- Execute 16-02 (loop consume, smoother reset, assemble/validator/store, optional `distance_m`)
-- Then Phase 17 YAML persist
+- Execute Phase 17 YAML persist / re-apply on serve
+- Then Phase 18 docs + synthetic CI polish
 
 ### Blockers/Concerns
 
-- Phase 16-01 compute path exists; do not tighten `assert_free_space_units` until 16-02 flips assemble/store
 - Persist path: prefer `$SENTRY_MODEL_CACHE/calibration/*.yaml` (STACK) - resolve in Phase 17 plan
 
 ## Deferred Items
@@ -132,7 +135,7 @@ See also: `milestones/v1.0-MILESTONE-AUDIT.md`, `milestones/v0.2-MILESTONE-AUDIT
 
 ## Session Continuity
 
-Last session: 2026-08-13T23:45:00.000Z
-Stopped at: 16-01 metric compute_free_space executed
+Last session: 2026-08-14T00:04:00.000Z
+Stopped at: Phase 16 complete (16-02 loop/wire/smoother)
 Resume file: None
-Next: Execute 16-02 per ROADMAP / `.planning/phases/16-free-space-meters/16-02-PLAN.md`
+Next: Execute Phase 17 persist/re-apply per ROADMAP
