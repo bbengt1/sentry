@@ -93,8 +93,14 @@ def test_assert_free_space_units_metric_calibrated_m_ok() -> None:
     assert_free_space_units(DepthKind.METRIC_CALIBRATED, "m")
 
 
-def test_assert_free_space_units_metric_calibrated_ordinal_ok() -> None:
-    assert_free_space_units(DepthKind.METRIC_CALIBRATED, "ordinal")
+def test_assert_free_space_units_metric_calibrated_ordinal_raises() -> None:
+    with pytest.raises(ValueError, match=r"must use units=.m.|metric_calibrated"):
+        assert_free_space_units(DepthKind.METRIC_CALIBRATED, "ordinal")
+
+
+def test_assert_free_space_units_unknown_raises() -> None:
+    with pytest.raises(ValueError, match=r"unknown"):
+        assert_free_space_units(DepthKind.RELATIVE, "feet")
 
 
 # --- FreeSpacePayload wire matrix -------------------------------------------
@@ -120,9 +126,9 @@ def test_free_space_payload_metric_calibrated_m_ok() -> None:
     assert p.units == "m"
 
 
-def test_free_space_payload_metric_calibrated_ordinal_ok() -> None:
-    p = FreeSpacePayload(depth_kind=DepthKind.METRIC_CALIBRATED, units="ordinal")
-    assert p.units == "ordinal"
+def test_free_space_payload_metric_calibrated_ordinal_raises() -> None:
+    with pytest.raises(ValidationError):
+        FreeSpacePayload(depth_kind=DepthKind.METRIC_CALIBRATED, units="ordinal")
 
 
 def test_free_space_payload_relative_ordinal_ok() -> None:
