@@ -41,6 +41,18 @@ def test_safety_doc_non_autonomy_and_privacy() -> None:
     )
 
 
+def test_safety_doc_calibration_honesty() -> None:
+    """OPS-02: safety page must not claim always-ordinal; link calibrated path."""
+    text = DOC_PATH.read_text(encoding="utf-8")
+    lowered = text.lower().replace("*", "").replace("`", "")
+    assert "always ordinal" not in lowered
+    assert (
+        "calibration.md" in text
+        or "when calibrated" in lowered
+        or "metric_calibrated" in lowered
+    )
+
+
 def test_readme_links_safety_doc() -> None:
     readme = README_PATH.read_text(encoding="utf-8")
     assert "docs/safety-and-privacy.md" in readme
