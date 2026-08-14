@@ -4,7 +4,7 @@
 
 - ✅ **v1.0 Camera-only perception MVP** — Phases 1–7 (shipped 2026-08-09)
 - ✅ **v0.2 Edge Runtime** — Phases 8–12 (shipped 2026-08-10)
-- 🚧 **v0.3 Metric Depth Calibration UX** — Phases 13–18 (in progress)
+- ✅ **v0.3 Metric Depth Calibration UX** — Phases 13–18 (shipped 2026-08-14)
 
 ## Phases
 
@@ -40,155 +40,21 @@ Audit: [milestones/v0.2-MILESTONE-AUDIT.md](milestones/v0.2-MILESTONE-AUDIT.md)
 
 </details>
 
-### 🚧 v0.3 Metric Depth Calibration UX (In Progress)
+<details>
+<summary>✅ v0.3 Metric Depth Calibration UX (Phases 13–18) — SHIPPED 2026-08-14</summary>
 
-**Milestone Goal:** Makers can turn monocular relative depth into honest metric distances using a Live Preview calibration wizard (known distance / height) — without claiming vehicle-grade accuracy. Persist scale per camera, re-apply on serve, wire free-space meters only when calibrated.
+- [x] Phase 13: Honesty Contracts & CalibrationState (2/2 plans) — completed 2026-08-11
+- [x] Phase 14: Scale Math + DepthLoop Plug-in (2/2 plans) — completed 2026-08-13
+- [x] Phase 15: Wizard REST + Live Preview UI (2/2 plans) — completed 2026-08-13
+- [x] Phase 16: Free-Space Metric Path (2/2 plans) — completed 2026-08-13
+- [x] Phase 17: Persist & Re-apply on Serve (2/2 plans) — completed 2026-08-14
+- [x] Phase 18: Docs + Synthetic CI Polish (2/2 plans) — completed 2026-08-14
 
-**Constraints:** Zero new pip deps; spine freeze (DetectionLoop / FrameBus / ORT-TRT factory); no FSD claims; synthetic CI tests (no physical room).
+Full phase detail: [milestones/v0.3-ROADMAP.md](milestones/v0.3-ROADMAP.md)  
+Requirements archive: [milestones/v0.3-REQUIREMENTS.md](milestones/v0.3-REQUIREMENTS.md)  
+Audit: [milestones/v0.3-MILESTONE-AUDIT.md](milestones/v0.3-MILESTONE-AUDIT.md)
 
-- [x] **Phase 13: Honesty Contracts & CalibrationState** - Promotion rules, validators, draft vs applied state model (completed 2026-08-11)
-- [x] **Phase 14: Scale Math + DepthLoop Plug-in** - Fit/reject scale; apply post-worker pre-store (completed 2026-08-13)
-- [x] **Phase 15: Wizard REST + Live Preview UI** - Sample/fit/apply/cancel API + static wizard panel (completed 2026-08-13)
-- [x] **Phase 16: Free-Space Metric Path** - Meters only when calibrated; smoother reset (completed 2026-08-13)
-- [x] **Phase 17: Persist & Re-apply on Serve** - Per-camera_id YAML; fingerprint refuse; clear (completed 2026-08-14)
-- [x] **Phase 18: Docs + Synthetic CI Polish** - Operator guide; honesty docs; hardware-free tests (completed 2026-08-14)
-
-## Phase Details
-
-### Phase 13: Honesty Contracts & CalibrationState
-**Goal**: Depth honesty contracts and an in-process CalibrationState make `metric_calibrated` + meters reachable only when applied and valid — relative depth can never claim meters
-**Depends on**: Phase 12 (v0.2 shipped; depth kind triad already exists)
-**Requirements**: CAL-04, CAL-05
-**Success Criteria** (what must be TRUE):
-  1. Relative (and uncalibrated) depth products reject or never emit `unit="m"` on store / snapshot / `/v1` contracts (validators + tests)
-  2. `CalibrationState` distinguishes draft vs applied; draft/staging alone does not report as calibrated
-  3. Promotion policy is explicit: only applied + valid calibration yields the pair `depth_kind=metric_calibrated` and `unit="m"` together
-  4. Calibration params include fingerprint fields (camera_id, resolution/size, depth mode/model) designed for later persist safety
-**Plans**: 2 plans
-
-Plans:
-- [x] 13-01-PLAN.md — Honesty validators, wire models, store gate, promote_kind_unit pure helper
-- [x] 13-02-PLAN.md — CalibrationState draft/applied + fingerprint params + promotion wrapper
-
-### Phase 14: Scale Math + DepthLoop Plug-in
-**Goal**: Makers (and tests) can fit a global monocular scale from ground-truth samples and have that scale transform depth maps on the single DepthLoop truth path
-**Depends on**: Phase 13
-**Requirements**: CAL-01, CAL-02, CAL-03
-**Success Criteria** (what must be TRUE):
-  1. A pure fit (numpy, no new deps) recovers scale from known-distance samples (known height supported when geometry is defined)
-  2. Invalid fits are rejected (too few samples, residual too high, inconsistent signs) and never become applied scale
-  3. When calibration is applied, DepthLoop transforms the depth map after the worker and before `PerceptionStore.set_depth` (store depth is scaled; free-space/UI/API inherit it)
-  4. Synthetic unit tests prove fit / reject / apply without a physical room
-**Plans**: 2 plans
-**Research**: Written 2026-08-12 (see `phases/14-scale-math-depthloop-plugin/14-RESEARCH.md`)
-**Status**: Complete on main (14-01 + 14-02 merged 2026-08-13)
-
-Plans:
-- [x] 14-01-PLAN.md — Pure fit/reject in `spatial/calibration.py` + `tests/test_calibration_fit.py` (CAL-01/02)
-- [x] 14-02-PLAN.md — `apply_map` + DepthLoop hook + CLI inject + FakeDepthWorker tests (CAL-03)
-
-### Phase 15: Wizard REST + Live Preview UI
-**Goal**: Makers can run a Live Preview calibration wizard that stages samples, previews a fit, and Apply/Cancel without inventing meters mid-draft
-**Depends on**: Phase 14
-**Requirements**: WIZ-01, WIZ-02, WIZ-03, WIZ-04, OPS-01
-**Success Criteria** (what must be TRUE):
-  1. Maker can open a Live Preview calibration wizard, collect samples, and stage a fit before commit
-  2. Maker can Apply (commits calibrated state) or Cancel (leaves no calibrated state or meter claims)
-  3. Wizard shows sample count, residual/status, and calibrated vs relative labeling clearly
-  4. Draft/staging never claims `metric_calibrated` on the live perception stream until Apply
-  5. Status / banner / Live Preview show whether calibration is active and base honesty (relative vs calibrated)
-**Plans**: 2 plans
-**Research**: Written 2026-08-13 (see `phases/15-wizard-rest-live-preview-ui/15-RESEARCH.md`)
-**Status**: Complete on main (15-01 + 15-02 merged 2026-08-13)
-**UI hint**: yes
-
-Note on WIZ-02: **Cancel = `clear_draft` only** (discard staging; cancel-before-apply never promotes). Explicit **Clear** calls `clear_applied`. Cancel does not wipe an already-applied calibration.
-
-Plans:
-- [x] 15-01-PLAN.md — REST + AppState inject + samples/fit/apply/cancel/clear + /api/status (WIZ-01/02/04, OPS-01 backend)
-- [x] 15-02-PLAN.md — static wizard in index.html (WIZ-03, OPS-01 UI); depends_on 15-01
-
-### Phase 16: Free-Space Metric Path
-**Goal**: Free-space products use honest meters only when underlying depth is `metric_calibrated` — never ordinal percentile bands relabeled as meters
-**Depends on**: Phase 14 (scaled depth maps exist); Phase 15 recommended for end-to-end UX feedback
-**Requirements**: FS-01, FS-02, FS-03
-**Success Criteria** (what must be TRUE):
-  1. Free-space products emit `units="m"` only when depth kind is `metric_calibrated`
-  2. Relative and `metric_estimated` free-space stay ordinal; unit labels never flip while still computing pure ordinal percentile nearness as if meters
-  3. Free-space smoother/state resets on calibration apply and clear so stale ordinal/metric occupancy does not ghost
-**Plans**: 2 plans
-**Research**: Written 2026-08-13 (see `phases/16-free-space-meters/16-RESEARCH.md`)
-**Status**: Complete on main (16-01 + 16-02 merged 2026-08-13)
-
-Locked research (must honor at execute):
-- Calibrated → `units="m"` **iff** absolute meter cuts (default 1.5 m / 3.0 m) on scaled depth with pinned `higher_is_farther`. Never label-only 0.72/0.45 flip. Never min–max meters.
-- Relative + `metric_estimated` stay `units="ordinal"` (percentile + `auto` polarity).
-- `nearness_*` remain 0..1; optional additive `distance_m` on cues only when calibrated (mean depth in blob).
-- Loop consumes DepthLoop scaled map + kind — never re-scales. `reset_smoother` on kind apply↔clear (`CalibrationState` has no listeners).
-- `assemble._units_for_depth_kind`: `METRIC_CALIBRATED` → `"m"`; else `"ordinal"`. After the metric path exists, calibrated must emit `"m"` (Phase 13 grace ends).
-
-Plans:
-- [x] 16-01-PLAN.md — Pure `compute_free_space` metric path + honesty tests (FS-01, FS-02)
-- [x] 16-02-PLAN.md — FreeSpaceLoop consume kind/units, smoother reset, assemble units flip, store/wire, optional `distance_m` (FS-03 + wire); depends_on 16-01
-
-### Phase 17: Persist & Re-apply on Serve
-**Goal**: Valid calibration survives restarts for the matching camera/fingerprint; mismatches refuse auto-apply and stay honestly relative
-**Depends on**: Phase 14 (apply path proven in-memory); Phase 15 (wizard can trigger persist); Phase 16 complete on main (meters already honest when calibrated)
-**Requirements**: PER-01, PER-02, PER-03, PER-04
-**Success Criteria** (what must be TRUE):
-  1. Maker can save calibration keyed by `camera_id` (plus fingerprint fields needed for safety)
-  2. On `sentry serve`, valid saved calibration re-applies for a matching camera/fingerprint without re-running the wizard
-  3. Mismatched fingerprint (resolution, model/mode, camera_id) refuses auto-apply and keeps honest relative depth with a visible reason
-  4. Maker can clear/invalidate stored calibration and return to uncalibrated relative depth
-**Plans**: 2 plans
-**Research**: Written 2026-08-13 (see `phases/17-persist-reapply-on-serve/17-RESEARCH.md`)
-**Status**: Complete on main (17-01 + 17-02 merged 2026-08-14, PR #12)
-
-Locked research (must honor at execute):
-- Path: `$SENTRY_MODEL_CACHE` / `default_cache_root()` / `calibration/{safe_id}.yaml`. YAML, not JSON. **No platformdirs.**
-- Optional `SENTRY_CALIBRATION_DIR` + `--calibration-file`. `yaml.safe_load` only; Pydantic `CalibrationParams` round-trip; atomic temp+rename; **no depth maps on disk**.
-- Key by sanitized `camera_id` stem (reject `..`); not profile YAML.
-- Hard-refuse mismatch: `camera_id`, `depth_mode`, `model_id`; `width`/`height` when both sides non-None. No capture-backend / RTSP uniqueID fields this phase.
-- Serve may match camera_id+mode+model first when live sizes are still None; if the file has W×H and a later live product mismatches → refuse/clear.
-- Auto-apply only when file present AND `fingerprints_match`. Corrupt/missing → soft inactive, never `metric_calibrated`. Visible persist status.
-- `CalibrationState.apply_params(params)` for load (do not fake wizard samples). Persist trigger: explicit POST save **and** optional `persist:true` on apply. Apply-without-persist stays session-only.
-- **Clear** deletes the file so restart cannot resurrect. **Cancel** stays draft-only.
-- Additive status `none | applied | ignored_mismatch | error`, separate from `depth.kind`. Serve banner line.
-- DepthLoop remains the sole map apply site. I/O is `config/calibration_store.py`. Zero new deps; freeze DetectionLoop / FrameBus / ORT-TRT / `kind_for_mode`. Docs are Phase 18.
-
-Plans:
-- [x] 17-01-PLAN.md — YAML store + fingerprint refuse + `apply_params` / `try_reapply` (PER-01, PER-03)
-- [x] 17-02-PLAN.md — serve re-apply + REST save/clear-file + persist status + late W×H (PER-02, PER-04); depends_on 17-01
-
-### Phase 18: Docs + Synthetic CI Polish
-**Goal**: Operators have a guided non-FSD calibration flow in docs; CI covers fit/apply/honesty/persist with synthetic data only
-**Depends on**: Phases 13–17 (wire behavior exists)
-**Requirements**: OPS-02, OPS-03
-**Success Criteria** (what must be TRUE):
-  1. Operator docs describe the calibration wizard, persistence path, and honesty rules without vehicle-grade / FSD claims
-  2. `perception-frame` / safety docs reflect free-space meters only when calibrated (no doc drift to “always ordinal”)
-  3. Automated tests cover fit / apply / honesty / persist with synthetic frames (no physical room required in CI)
-**Plans**: 2 plans
-**Research**: Written 2026-08-14 (Skip flag — see `phases/18-docs-synthetic-ci-polish/18-RESEARCH.md`)
-**Status**: Complete on main (18-01 + 18-02; complete-milestone is a later step)
-
-Locked research (must honor at execute):
-- New `docs/calibration.md` operator hub + refresh stale hubs (perception-frame, safety, README, api, cli, config, architecture, desktop-gpu, docs/README, CHANGELOG).
-- Persist path in docs = **STACK** `$SENTRY_MODEL_CACHE/calibration/{safe_id}.yaml` (or `default_cache_root`); optional `SENTRY_CALIBRATION_DIR` + `--calibration-file`. **Not** `~/.config` JSON.
-- Honesty triad: relative never m; `metric_estimated` ≠ calibrated; `metric_calibrated` + m only when applied+valid; draft never claims calibrated.
-- Free-space: `units="m"` iff `metric_calibrated` + 1.5/3.0 m cuts; else ordinal; optional `distance_m` when calibrated.
-- Cancel = draft-only; Clear deletes YAML.
-- Persist status `none|applied|ignored_mismatch|error` separate from `depth.kind`.
-- Wizard copy: approximate metric scale, monocular, not vehicle-grade.
-- Keyword tests forbid stale “always ordinal” / FSD-as-claim / precise meters / autonomous-as-claim.
-- 18-02: do **not** require room, Jetson, CUDA, `--extra depth`; keep `ci.yml` as `uv sync --extra dev` + ruff + pytest + `sentry health`.
-- Optional thin `tests/test_v03_honesty_matrix.py` documenting existing suites — no new product code.
-- Zero new deps; freeze DetectionLoop / FrameBus / ORT-TRT / `kind_for_mode`; do **not** bump pyproject 0.1.0.
-- After 18 merges, v0.3 reqs closable; complete-milestone is a later step.
-
-Plans:
-- [x] 18-01-PLAN.md — OPS-02 docs hub + keyword tests (TDD); wave 1
-- [x] 18-02-PLAN.md — OPS-03 CI inventory lock; depends_on 18-01; no runtime product code
+</details>
 
 ## Progress
 
@@ -200,14 +66,9 @@ Plans:
 | 10. Live TensorRT Fixed-Class YOLO | v0.2 | 2/2 | Complete | 2026-08-10 |
 | 11. Sticky Fallback & Dual-Model Guardrails | v0.2 | 2/2 | Complete | 2026-08-10 |
 | 12. Docs, CI & Packaging Polish | v0.2 | 2/2 | Complete | 2026-08-10 |
-| 13. Honesty Contracts & CalibrationState | v0.3 | 2/2 | Complete   | 2026-08-11 |
-| 14. Scale Math + DepthLoop Plug-in | v0.3 | 2/2 | Complete | 2026-08-13 |
-| 15. Wizard REST + Live Preview UI | v0.3 | 2/2 | Complete | 2026-08-13 |
-| 16. Free-Space Metric Path | v0.3 | 2/2 | Complete | 2026-08-13 |
-| 17. Persist & Re-apply on Serve | v0.3 | 2/2 | Complete | 2026-08-14 |
-| 18. Docs + Synthetic CI Polish | v0.3 | 2/2 | Complete | 2026-08-14 |
+| 13–18 | v0.3 | 12/12 | Complete | 2026-08-14 |
 
-**Coverage:** v0.3 19/19 requirements mapped ✓
+**Coverage:** v0.3 19/19 requirements mapped and shipped ✓
 
 ## Architecture Spine (reference)
 
@@ -250,21 +111,3 @@ DepthAnythingWorker.process → raw map + kind/unit
 | Frontend | Static Live Preview (MJPEG + controls + calibration wizard) |
 | Edge | Live ORT + live TRT for fixed-class YOLO; soft/strict fallback; Jetson-free CI |
 | Persist | Per-`camera_id` YAML under cache/config root; fingerprint-gated auto-load |
-
-## Phase Ordering Rationale (v0.3)
-
-```
-13 Honesty/state ──▶ 14 Scale apply (DepthLoop) ──▶ 15 Wizard + API
-                              │
-                              ▼
-                       16 Free-space metric
-                              │
-                              ▼
-                       17 Persist/re-apply ──▶ 18 Docs/CI
-```
-
-1. **Honesty first** — kind/unit/calib state before any product mutation  
-2. **Math before chrome** — pure fit + DepthLoop apply before wizard labels  
-3. **Depth apply before free-space meters** — free-space must consume real scaled maps  
-4. **Persist late among features** — only persist a proven apply path  
-5. **Docs finalize after wire behavior exists**
