@@ -33,3 +33,4 @@ class AppState:
     # Phase 11 BACK-03: soft vs strict policy (pass-through; False must survive).
     fallback_to_torch: bool | None = None
     calibration_state: Any | None = None
+    calibration_path: Any | None = None
