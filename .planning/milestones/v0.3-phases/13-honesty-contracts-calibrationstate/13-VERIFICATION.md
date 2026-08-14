@@ -75,7 +75,7 @@ No hollow/static stubs: promotion never hardcodes calibrated without applied+val
 ### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
-| -------- | ------- | ------ | ------ |
+| -------- | ------- | ------ | ------- |
 | Phase 13 pytest suite | `uv run pytest tests/test_calibration_validators.py tests/test_calibration_state.py tests/test_schemas_depth_kind.py tests/test_perception_store_depth_honesty.py tests/test_depth_mapping.py tests/test_depth_kind_honesty.py tests/test_free_space_bands.py tests/test_schemas_perception.py -q` | **115 passed** | ✓ PASS |
 | Import smoke + promote/draft/fingerprint script | `uv run python -c "..."` (DepthPayload reject, draft no promote, apply promotes, fingerprint fields, failed apply preserves applied) | `SPOT_CHECKS_OK` | ✓ PASS |
 | No `apply_map` in tree | `rg 'def apply_map' src/sentry_ai/` | no matches | ✓ PASS |
