@@ -48,13 +48,18 @@ NearnessPolarity = Literal["auto", "higher_is_farther", "higher_is_nearer"]
 
 @dataclass
 class ObstacleCue:
-    """Image-space obstacle blob from connected components (ordinal nearness)."""
+    """Image-space obstacle blob from connected components (ordinal nearness).
+
+    ``nearness_*`` stay in ``[0, 1]``. Optional ``distance_m`` is the mean
+    finite scaled depth in the blob when ``kind`` is ``METRIC_CALIBRATED``.
+    """
 
     bbox_xyxy: tuple[float, float, float, float]
     nearness_mean: float
     nearness_max: float
     area_px: int
     band: str = "near"
+    distance_m: float | None = None
 
 
 @dataclass
@@ -309,6 +314,8 @@ def compute_free_space(
             occ_u8,
             nearness,
             min_area_px=max(1, int(float(min_area_frac) * roi_count)),
+            depth_map=arr if calibrated else None,
+            calibrated=calibrated,
         )
 
         free_u8 = np.zeros((h, w), dtype=np.uint8)
@@ -340,8 +347,14 @@ def _extract_obstacles(
     nearness: np.ndarray,
     *,
     min_area_px: int,
+    depth_map: np.ndarray | None = None,
+    calibrated: bool = False,
 ) -> list[ObstacleCue]:
-    """Connected components → obstacle cues (bbox + nearness stats)."""
+    """Connected components → obstacle cues (bbox + nearness stats).
+
+    When ``calibrated``, ``distance_m`` is the mean of finite depth pixels
+    in the component. Relative / estimated cues leave it ``None``.
+    """
     binary = (occupied_u8 > 0).astype(np.uint8)
     num_labels, labels, stats, _centroids = cv2.connectedComponentsWithStats(
         binary, connectivity=8
@@ -359,6 +372,12 @@ def _extract_obstacles(
         vals = nearness[component]
         if vals.size == 0:
             continue
+        distance_m: float | None = None
+        if calibrated and depth_map is not None:
+            depth_vals = np.asarray(depth_map)[component]
+            finite_d = depth_vals[np.isfinite(depth_vals)]
+            if finite_d.size > 0:
+                distance_m = float(finite_d.mean())
         obstacles.append(
             ObstacleCue(
                 bbox_xyxy=(
@@ -371,6 +390,7 @@ def _extract_obstacles(
                 nearness_max=float(vals.max()),
                 area_px=area,
                 band="near",
+                distance_m=distance_m,
             )
         )
     # Largest first for stable consumers.
