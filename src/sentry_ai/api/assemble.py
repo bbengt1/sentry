@@ -80,6 +80,7 @@ def _obstacle_to_wire(cue: Any) -> ObstacleCue:
             nearness_max=float(data.get("nearness_max", 0.0)),
             area_px=int(data.get("area_px", 0)),
             band=data.get("band") or "near",
+            distance_m=data.get("distance_m"),
         )
     if hasattr(cue, "model_dump"):
         return ObstacleCue.model_validate(cue.model_dump())
@@ -89,14 +90,15 @@ def _obstacle_to_wire(cue: Any) -> ObstacleCue:
         nearness_max=float(cue.nearness_max),
         area_px=int(cue.area_px),
         band=getattr(cue, "band", "near") or "near",
+        distance_m=getattr(cue, "distance_m", None),
     )
 
 
 def _units_for_depth_kind(kind: DepthKind) -> str:
-    # v1 free-space stays ordinal even for metric_estimated (no calibration).
+    """Wire units: meters only for metric_calibrated; else ordinal."""
     if kind == DepthKind.METRIC_CALIBRATED:
-        return "ordinal"  # still ordinal bands without calibrated free-space path
-    return "ordinal"
+        return "m"
+    return "ordinal"  # relative AND metric_estimated
 
 
 def assemble_perception_frame(
@@ -254,10 +256,12 @@ def assemble_perception_frame(
     free_space_payload: FreeSpacePayload | None = None
     if free_good and free is not None:
         wire_obstacles = [_obstacle_to_wire(c) for c in free.obstacles]
+        stored_units = getattr(free, "units", None)
+        units = stored_units or _units_for_depth_kind(free.depth_kind)
         free_space_payload = FreeSpacePayload(
             method="near_field_bands",
             depth_kind=free.depth_kind,
-            units=_units_for_depth_kind(free.depth_kind),  # type: ignore[arg-type]
+            units=units,  # type: ignore[arg-type]
             obstacle_count=int(free.obstacle_count),
             obstacles=wire_obstacles,
             bands=dict(free.bands) if free.bands else None,

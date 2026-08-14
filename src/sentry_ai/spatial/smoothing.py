@@ -88,7 +88,10 @@ class OccupancySmoother:
         self._ema: np.ndarray | None = None
 
     def reset(self) -> None:
-        """Drop temporal state (e.g. on camera reconnect)."""
+        """Drop temporal state (camera reconnect or kind apply/clear).
+
+        Safe to call anytime; does not require FreeSpaceLoop cuts lock.
+        """
         self._ema = None
 
     def smooth(self, occupied_u8: np.ndarray) -> np.ndarray:

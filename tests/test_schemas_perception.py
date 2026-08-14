@@ -140,8 +140,8 @@ def test_free_space_payload_rejects_motor_fields() -> None:
         )
 
 
-def test_obstacle_cue_requires_fields_no_distance_m() -> None:
-    """SPACE-02: ObstacleCue is ordinal nearness only — never distance_m."""
+def test_obstacle_cue_requires_fields_optional_distance_m() -> None:
+    """SPACE-02/FS-01: nearness stays 0..1; distance_m optional additive."""
     from sentry_ai.schemas.perception import ObstacleCue
 
     cue = ObstacleCue(
@@ -152,15 +152,17 @@ def test_obstacle_cue_requires_fields_no_distance_m() -> None:
         band="near",
     )
     assert cue.band == "near"
-    assert "distance_m" not in ObstacleCue.model_fields
-    with pytest.raises(ValidationError):
-        ObstacleCue(
-            bbox_xyxy=(0, 0, 1, 1),
-            nearness_mean=0.5,
-            nearness_max=0.6,
-            area_px=10,
-            distance_m=1.2,  # type: ignore[call-arg]
-        )
+    assert cue.distance_m is None
+    assert "distance_m" in ObstacleCue.model_fields
+    with_m = ObstacleCue(
+        bbox_xyxy=(0, 0, 1, 1),
+        nearness_mean=0.5,
+        nearness_max=0.6,
+        area_px=10,
+        distance_m=1.2,
+    )
+    assert with_m.distance_m == 1.2
+    assert 0.0 <= with_m.nearness_mean <= 1.0
     with pytest.raises(ValidationError):
         ObstacleCue(
             bbox_xyxy=(0, 0, 1, 1),
@@ -168,6 +170,14 @@ def test_obstacle_cue_requires_fields_no_distance_m() -> None:
             nearness_max=0.6,
             area_px=10,
             band="ultra",  # type: ignore[arg-type]
+        )
+    with pytest.raises(ValidationError):
+        ObstacleCue(
+            bbox_xyxy=(0, 0, 1, 1),
+            nearness_mean=0.5,
+            nearness_max=0.6,
+            area_px=10,
+            motor=1,  # type: ignore[call-arg]
         )
 
 

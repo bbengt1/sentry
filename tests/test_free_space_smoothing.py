@@ -85,3 +85,19 @@ def test_smoothing_module_has_no_ml_imports() -> None:
     assert "from transformers" not in source
     assert "import transformers" not in source
     assert "ultralytics" not in source
+
+
+def test_reset_clears_ema_so_empty_frame_is_empty() -> None:
+    smoother = OccupancySmoother(alpha=0.35)
+    h, w = 48, 64
+    blob = np.zeros((h, w), dtype=np.uint8)
+    blob[20:40, 15:45] = 255
+    empty = np.zeros((h, w), dtype=np.uint8)
+    last = None
+    for _ in range(5):
+        last = smoother.smooth(blob)
+    assert last is not None
+    assert int(last[30, 30]) > 0
+    smoother.reset()
+    out = smoother.smooth(empty)
+    assert int(out.sum()) == 0

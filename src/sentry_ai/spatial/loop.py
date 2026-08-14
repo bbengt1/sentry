@@ -32,15 +32,16 @@ def _obstacles_for_store(obstacles: list[Any]) -> list[Any]:
     out: list[Any] = []
     for obs in obstacles:
         if isinstance(obs, ObstacleCue):
-            out.append(
-                {
-                    "bbox_xyxy": list(obs.bbox_xyxy),
-                    "nearness_mean": obs.nearness_mean,
-                    "nearness_max": obs.nearness_max,
-                    "area_px": obs.area_px,
-                    "band": obs.band,
-                }
-            )
+            item: dict[str, Any] = {
+                "bbox_xyxy": list(obs.bbox_xyxy),
+                "nearness_mean": obs.nearness_mean,
+                "nearness_max": obs.nearness_max,
+                "area_px": obs.area_px,
+                "band": obs.band,
+            }
+            if obs.distance_m is not None:
+                item["distance_m"] = obs.distance_m
+            out.append(item)
         elif isinstance(obs, dict):
             out.append(dict(obs))
         else:
@@ -69,6 +70,7 @@ class FreeSpaceLoop:
         self._smoother = OccupancySmoother(alpha=0.35)
         self._near_cut = DEFAULT_NEAR_CUT
         self._mid_cut = DEFAULT_MID_CUT
+        self._last_kind: DepthKind | None = None
 
     @property
     def store(self) -> PerceptionStore:
@@ -143,6 +145,13 @@ class FreeSpaceLoop:
             self._near_cut = near
             self._mid_cut = mid
 
+    def reset_smoother(self) -> None:
+        """Drop OccupancySmoother EMA (apply\u2194clear / kind change).
+
+        Safe anytime; does not require the cuts lock.
+        """
+        self._smoother.reset()
+
     def start(self) -> None:
         """Spawn daemon free-space thread. Idempotent if already running."""
         with self._lock:
@@ -187,6 +196,10 @@ class FreeSpaceLoop:
                 if gap > 0:
                     self._store.record_free_space_drop(gap)
 
+            if self._last_kind is not None and depth.kind != self._last_kind:
+                self.reset_smoother()
+            self._last_kind = depth.kind
+
             with self._lock:
                 near_cut = self._near_cut
                 mid_cut = self._mid_cut
@@ -216,6 +229,7 @@ class FreeSpaceLoop:
                         occupied_mask=None,
                         method="near_field_bands",
                         error=result.error,
+                        units=result.units or "ordinal",
                     )
                 else:
                     self._store.set_free_space(
@@ -231,6 +245,7 @@ class FreeSpaceLoop:
                         occupied_mask=result.occupied_mask,
                         method=result.method,
                         error=None,
+                        units=result.units,
                     )
             except Exception as exc:  # noqa: BLE001 — keep thread alive (T-05-03)
                 latency_ms = (time.perf_counter() - t0) * 1000.0
@@ -254,4 +269,5 @@ class FreeSpaceLoop:
                     occupied_mask=None,
                     method="near_field_bands",
                     error=str(exc),
+                    units="ordinal",
                 )

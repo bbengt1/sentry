@@ -80,12 +80,8 @@ def test_relative_kind_units_ordinal_method_and_no_distance_m() -> None:
     assert result.units == "ordinal"
     assert result.method == "near_field_bands"
     assert result.depth_kind == DepthKind.RELATIVE
-    assert not hasattr(result, "distance_m")
     for obs in result.obstacles:
-        assert not hasattr(obs, "distance_m")
-        assert "distance_m" not in getattr(obs, "__dict__", {})
-        if isinstance(obs, dict):
-            assert "distance_m" not in obs
+        assert getattr(obs, "distance_m", None) is None
 
 
 def test_metric_estimated_still_ordinal_units() -> None:
@@ -206,8 +202,8 @@ def test_calibrated_half_meter_blob_emits_meters_and_occupies() -> None:
     for obs in result.obstacles:
         assert 0.0 <= obs.nearness_mean <= 1.0
         assert 0.0 <= obs.nearness_max <= 1.0
-        assert not hasattr(obs, "distance_m")
-        assert "distance_m" not in getattr(obs, "__dict__", {})
+        assert obs.distance_m is not None
+        assert abs(obs.distance_m - 0.5) < 0.05
 
 
 def test_relative_and_estimated_stay_ordinal_on_meter_shaped_array() -> None:
@@ -411,3 +407,23 @@ def test_metric_kwargs_ignored_on_ordinal_path() -> None:
     )
     assert result.units == "ordinal"
     assert len(result.obstacles) >= 1
+
+
+def test_relative_obstacles_omit_distance_m() -> None:
+    depth = _synthetic_near_obstacle_depth()
+    result = compute_free_space(
+        depth,
+        kind=DepthKind.RELATIVE,
+        nearness_polarity="higher_is_farther",
+    )
+    assert len(result.obstacles) >= 1
+    for obs in result.obstacles:
+        assert obs.distance_m is None
+
+
+def test_estimated_obstacles_omit_distance_m() -> None:
+    depth = _synthetic_near_obstacle_depth()
+    result = compute_free_space(depth, kind=DepthKind.METRIC_ESTIMATED)
+    assert result.units == "ordinal"
+    for obs in result.obstacles:
+        assert obs.distance_m is None

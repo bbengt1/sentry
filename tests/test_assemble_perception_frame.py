@@ -3,8 +3,14 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
+from pydantic import ValidationError
 
-from sentry_ai.api.assemble import DEFAULT_TTL_MS, assemble_perception_frame
+from sentry_ai.api.assemble import (
+    DEFAULT_TTL_MS,
+    _units_for_depth_kind,
+    assemble_perception_frame,
+)
 from sentry_ai.schemas.enums import DepthKind
 from sentry_ai.schemas.perception import Detection, ObstacleCue
 from sentry_ai.state.perception_store import PerceptionStore
@@ -37,6 +43,8 @@ def _seed_depth(
     t_capture: float = 1000.1,
     latency_ms: float = 40.0,
     error: str | None = None,
+    kind: DepthKind = DepthKind.RELATIVE,
+    unit: str | None = None,
 ) -> None:
     depth_map = None if error else np.full((24, 32), 1.0, dtype=np.float32)
     store.set_depth(
@@ -44,8 +52,8 @@ def _seed_depth(
         camera_id="cam0",
         t_capture=t_capture,
         depth_map=depth_map,
-        kind=DepthKind.RELATIVE,
-        unit=None,
+        kind=kind,
+        unit=unit,  # type: ignore[arg-type]
         latency_ms=latency_ms,
         width=32,
         height=24,
@@ -62,6 +70,9 @@ def _seed_free_space(
     latency_ms: float = 5.0,
     error: str | None = None,
     with_masks: bool = True,
+    depth_kind: DepthKind = DepthKind.RELATIVE,
+    units: str = "ordinal",
+    distance_m: float | None = None,
 ) -> None:
     cue = ObstacleCue(
         bbox_xyxy=(10.0, 20.0, 30.0, 40.0),
@@ -69,6 +80,7 @@ def _seed_free_space(
         nearness_max=0.95,
         area_px=100,
         band="near",
+        distance_m=distance_m,
     )
     free_mask = np.ones((24, 32), dtype=np.uint8) if with_masks else None
     occupied_mask = np.zeros((24, 32), dtype=np.uint8) if with_masks else None
@@ -77,7 +89,7 @@ def _seed_free_space(
         camera_id="cam0",
         t_capture=t_capture,
         latency_ms=latency_ms,
-        depth_kind=DepthKind.RELATIVE,
+        depth_kind=depth_kind,
         obstacle_count=1,
         obstacles=[cue],
         bands={"near_frac": 0.2, "mid_frac": 0.3, "far_frac": 0.5},
@@ -85,6 +97,7 @@ def _seed_free_space(
         occupied_mask=occupied_mask,
         method="near_field_bands",
         error=error,
+        units=units,
     )
 
 
@@ -300,3 +313,99 @@ def test_default_ttl_constants() -> None:
     assert DEFAULT_TTL_MS["detections"] == 500
     assert DEFAULT_TTL_MS["depth"] == 750
     assert DEFAULT_TTL_MS["free_space"] == 750
+
+
+def test_units_for_depth_kind_helper() -> None:
+    assert _units_for_depth_kind(DepthKind.METRIC_CALIBRATED) == "m"
+    assert _units_for_depth_kind(DepthKind.RELATIVE) == "ordinal"
+    assert _units_for_depth_kind(DepthKind.METRIC_ESTIMATED) == "ordinal"
+
+
+def test_assemble_calibrated_free_space_units_meters() -> None:
+    store = PerceptionStore()
+    _seed_depth(
+        store,
+        t_capture=200.0,
+        kind=DepthKind.METRIC_CALIBRATED,
+        unit="m",
+    )
+    _seed_free_space(
+        store,
+        t_capture=200.0,
+        depth_kind=DepthKind.METRIC_CALIBRATED,
+        units="m",
+        distance_m=1.2,
+    )
+    frame = assemble_perception_frame(store, now=200.05)
+    assert frame is not None
+    assert frame.free_space is not None
+    assert frame.free_space.units == "m"
+    assert frame.free_space.depth_kind == DepthKind.METRIC_CALIBRATED
+    cue = frame.free_space.obstacles[0]
+    assert cue.distance_m == 1.2
+    assert 0.0 <= cue.nearness_mean <= 1.0
+
+
+def test_assemble_metric_estimated_free_space_stays_ordinal() -> None:
+    store = PerceptionStore()
+    _seed_depth(
+        store,
+        t_capture=200.0,
+        kind=DepthKind.METRIC_ESTIMATED,
+        unit="m",
+    )
+    _seed_free_space(
+        store,
+        t_capture=200.0,
+        depth_kind=DepthKind.METRIC_ESTIMATED,
+        units="ordinal",
+    )
+    frame = assemble_perception_frame(store, now=200.05)
+    assert frame is not None
+    assert frame.free_space is not None
+    assert frame.free_space.units == "ordinal"
+    assert frame.free_space.obstacles[0].distance_m is None
+
+
+def test_assemble_relative_dict_obstacles_distance_m_absent_ok() -> None:
+    store = PerceptionStore()
+    _seed_depth(store, t_capture=300.0)
+    store.set_free_space(
+        frame_id=2,
+        camera_id="cam0",
+        t_capture=300.0,
+        latency_ms=5.0,
+        depth_kind=DepthKind.RELATIVE,
+        obstacle_count=1,
+        obstacles=[
+            {
+                "bbox_xyxy": [10.0, 20.0, 30.0, 40.0],
+                "nearness_mean": 0.8,
+                "nearness_max": 0.95,
+                "area_px": 100,
+                "band": "near",
+            }
+        ],
+        bands={"near_frac": 0.2},
+        free_mask=None,
+        occupied_mask=None,
+        method="near_field_bands",
+        error=None,
+        units="ordinal",
+    )
+    frame = assemble_perception_frame(store, now=300.05)
+    assert frame is not None
+    assert frame.free_space is not None
+    assert frame.free_space.units == "ordinal"
+    assert frame.free_space.obstacles[0].distance_m is None
+
+
+def test_obstacle_cue_extra_forbid() -> None:
+    with pytest.raises(ValidationError):
+        ObstacleCue(
+            bbox_xyxy=(0.0, 0.0, 1.0, 1.0),
+            nearness_mean=0.5,
+            nearness_max=0.6,
+            area_px=10,
+            motor=1,  # type: ignore[call-arg]
+        )
