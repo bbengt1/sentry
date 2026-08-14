@@ -28,13 +28,19 @@ Camera Sources (synthetic | usb | file | rtsp)
 `PerceptionStore` via the same assembler. Workers never open cameras;
 capture owns the source lifecycle.
 
+**v0.3 plug-in:** `CalibrationState.apply_map` runs in `DepthLoop` after
+`DepthAnythingWorker.process` and **before** `set_depth`. Persist I/O lives
+in `config/calibration_store.py` (`try_reapply` in
+`control/calibration_persist.py`). `metric_estimated` ≠ `metric_calibrated`.
+Relative depth is never sold as meters.
+
 ## Processes and threads
 
 | Component | Role |
 |-----------|------|
 | `CaptureLoop` | Daemon thread; open source, publish `ImageFrame` to bus, reconnect on disconnect |
 | `DetectionLoop` | Poll bus `get_latest()`; write `set_detections` |
-| `DepthLoop` | Poll bus; write `set_depth` |
+| `DepthLoop` | Poll bus; `apply_map` when calibrated; write `set_depth` |
 | `OpenVocabLoop` | Poll bus; write `set_open_vocab` only (never dual-write detections) |
 | `FreeSpaceLoop` | Poll `snapshot_depth()`; write `set_free_space` (no FrameBus) |
 | Uvicorn / FastAPI | HTTP, WebSocket, MJPEG; inject store + loops + `PipelineState` |
@@ -101,11 +107,12 @@ artifacts.
 |----------|--------------|
 | Camera-only sensing | Required LiDAR / radar |
 | Perception stream | Motor commands, path plans, e-stop |
-| Relative depth (+ optional metric labels) | Selling relative depth as meters |
+| Relative depth (never m); optional estimated / calibrated | Selling relative or estimated as calibrated meters |
 | Single active camera | Multi-cam fusion |
 | ROS2 / voice **stubs** | Production ROS2 node / ASR-TTS product |
 
-See [safety-and-privacy.md](safety-and-privacy.md).
+See [safety-and-privacy.md](safety-and-privacy.md) and
+[calibration.md](calibration.md).
 
 ## Extension points
 
@@ -128,3 +135,6 @@ See [safety-and-privacy.md](safety-and-privacy.md).
 | `src/sentry_ai/config/profile_runtime.py` | Profile → weights/device |
 | `src/sentry_ai/models/device.py` | Device availability resolution |
 | `src/sentry_ai/control/pipeline_state.py` | Stage flags + free-space cuts |
+| `src/sentry_ai/control/calibration_state.py` | Apply / draft / `apply_map` |
+| `src/sentry_ai/config/calibration_store.py` | STACK YAML persist I/O |
+| `src/sentry_ai/control/calibration_persist.py` | `try_reapply` + fingerprint refuse |

@@ -20,6 +20,7 @@ This project is **not** the [getsentry](https://sentry.io) error-tracking produc
 |-------|-------------|
 | [docs/README.md](docs/README.md) | **Documentation index** |
 | [docs/desktop-gpu.md](docs/desktop-gpu.md) | Primary end-to-end maker path |
+| [docs/calibration.md](docs/calibration.md) | Operator metric calibration wizard + honesty |
 | [docs/architecture.md](docs/architecture.md) | Pipeline spine and boundaries |
 | [docs/api-reference.md](docs/api-reference.md) | HTTP / WebSocket API |
 | [docs/cli.md](docs/cli.md) | CLI commands |
@@ -212,6 +213,11 @@ Default mode is **relative** depth (`DepthKind.relative`) — **never** labeled
 as meters. Optional metric indoor/outdoor Small heads are labeled
 `metric_estimated` with `unit="m"`. Base/Large NC weights are never default.
 
+The Live Preview **calibration wizard** can apply an approximate monocular
+scale (`metric_calibrated`) after known-distance samples — see
+[`docs/calibration.md`](docs/calibration.md). Draft fit numbers never claim
+calibrated.
+
 Without the depth extra, `sentry serve` still starts capture + Live Preview
 and logs a clear install hint (`uv sync --extra depth`).
 
@@ -225,12 +231,14 @@ offline. Unit tests inject fake models and never hit the HF hub.
 |----------|---------|
 | `GET /api/snapshot` | `PerceptionFrame` with optional `depth` (`DepthPayload`: kind, unit, width, height) + completeness; **no** full depth map arrays |
 | `GET /api/depth/config` | Current `depth_mode` (+ model id/device when available) |
-| `PATCH /api/depth/config` | Runtime mode: `{"depth_mode":"relative"\|"metric_indoor"\|"metric_outdoor"}` |
+| `PATCH /api/depth/config` | Runtime mode: `{"depth_mode":"relative"|"metric_indoor"|"metric_outdoor"}` |
 | `GET /api/status` | Capture + optional depth metrics (`depth_kind`, `depth_latency_ms`, `depth_fps`, `depth_frame_id`, …) |
 | Live Preview MJPEG | Server-side OpenCV `COLORMAP_TURBO` blend from the same PerceptionStore product |
 
 Honesty rules: relative products omit unit / never claim meters; metric modes
-show `metric_estimated` + `m`. Status/UI footer show depth kind + latency.
+show `metric_estimated` + `m`. Applied+valid wizard/persist calibration
+promotes `metric_calibrated` (see [`docs/calibration.md`](docs/calibration.md)).
+Status/UI footer show depth kind + latency.
 
 ## Free-space & unified stream (Phase 5)
 
@@ -252,7 +260,7 @@ it idles until depth products appear.
 Wire free-space shape (`FreeSpacePayload`):
 
 - `method`: `near_field_bands`
-- `depth_kind` + `units` (v1 always **ordinal** — not calibrated meters)
+- `depth_kind` + `units` (`"m"` **iff** `metric_calibrated` and 1.5/3.0 m cuts; else ordinal). Optional `distance_m` on cues when calibrated.
 - `obstacle_count`, `obstacles[]` (bbox + nearness + band), optional `bands`
 - **Not** on the wire: full `free_mask` / `occupied_mask` / `depth_map` arrays
 
@@ -313,7 +321,8 @@ wire. Free-space is **not a safety interlock** (honor STALE / incomplete).
 Default bind is localhost; LAN is unauthenticated opt-in; `allow_cloud: false`.
 
 Canonical page: [`docs/safety-and-privacy.md`](docs/safety-and-privacy.md).  
-Primary GPU path: [`docs/desktop-gpu.md`](docs/desktop-gpu.md).
+Primary GPU path: [`docs/desktop-gpu.md`](docs/desktop-gpu.md).  
+Calibration wizard: [`docs/calibration.md`](docs/calibration.md).
 
 ## Extension stubs (post-v1 hooks)
 

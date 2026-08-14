@@ -7,12 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Operator calibration guide (`docs/calibration.md`): Live Preview wizard, STACK YAML persist, honesty triad (v0.3 / OPS-02)
+
 ### Changed
 
 - Document live fixed-class ORT/TRT serve conditions (preferred + artifact + dep)
 - Root/desktop/export hub honesty: retire “export-only / still PyTorch live” language
 - Add `docs/edge-serve.md` numbered export → place artifact → `sentry serve` path
 - AGPL lineage for YOLO-derived `.onnx` / `.engine` in `THIRD_PARTY_MODELS` (see EDGE-DOC-02)
+- Hub honesty: free-space `units="m"` only when `metric_calibrated` + 1.5/3.0 m cuts; persist path is `$SENTRY_MODEL_CACHE/calibration/{safe_id}.yaml`
 
 ### Known limitations
 
