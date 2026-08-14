@@ -50,8 +50,8 @@ Audit: [milestones/v0.2-MILESTONE-AUDIT.md](milestones/v0.2-MILESTONE-AUDIT.md)
 - [x] **Phase 14: Scale Math + DepthLoop Plug-in** - Fit/reject scale; apply post-worker pre-store (completed 2026-08-13)
 - [x] **Phase 15: Wizard REST + Live Preview UI** - Sample/fit/apply/cancel API + static wizard panel (completed 2026-08-13)
 - [x] **Phase 16: Free-Space Metric Path** - Meters only when calibrated; smoother reset (completed 2026-08-13)
-- [ ] **Phase 17: Persist & Re-apply on Serve** - Per-camera_id YAML; fingerprint refuse; clear *(research + plans written 2026-08-13 — not implemented)*
-- [ ] **Phase 18: Docs + Synthetic CI Polish** - Operator guide; honesty docs; hardware-free tests
+- [x] **Phase 17: Persist & Re-apply on Serve** - Per-camera_id YAML; fingerprint refuse; clear (completed 2026-08-14)
+- [ ] **Phase 18: Docs + Synthetic CI Polish** - Operator guide; honesty docs; hardware-free tests *(research + plans written 2026-08-14 — not implemented)*
 
 ## Phase Details
 
@@ -141,8 +141,8 @@ Plans:
   3. Mismatched fingerprint (resolution, model/mode, camera_id) refuses auto-apply and keeps honest relative depth with a visible reason
   4. Maker can clear/invalidate stored calibration and return to uncalibrated relative depth
 **Plans**: 2 plans
-**Research**: Written 2026-08-13 (see `phases/17-persist-reapply-on-serve/17-RESEARCH.md`) — implementation not started
-**Status**: Plans ready (not implemented)
+**Research**: Written 2026-08-13 (see `phases/17-persist-reapply-on-serve/17-RESEARCH.md`)
+**Status**: Complete on main (17-01 + 17-02 merged 2026-08-14, PR #12)
 
 Locked research (must honor at execute):
 - Path: `$SENTRY_MODEL_CACHE` / `default_cache_root()` / `calibration/{safe_id}.yaml`. YAML, not JSON. **No platformdirs.**
@@ -157,8 +157,8 @@ Locked research (must honor at execute):
 - DepthLoop remains the sole map apply site. I/O is `config/calibration_store.py`. Zero new deps; freeze DetectionLoop / FrameBus / ORT-TRT / `kind_for_mode`. Docs are Phase 18.
 
 Plans:
-- [ ] 17-01-PLAN.md — YAML store + fingerprint refuse + `apply_params` / `try_reapply` (PER-01, PER-03)
-- [ ] 17-02-PLAN.md — serve re-apply + REST save/clear-file + persist status + late W×H (PER-02, PER-04); depends_on 17-01
+- [x] 17-01-PLAN.md — YAML store + fingerprint refuse + `apply_params` / `try_reapply` (PER-01, PER-03)
+- [x] 17-02-PLAN.md — serve re-apply + REST save/clear-file + persist status + late W×H (PER-02, PER-04); depends_on 17-01
 
 ### Phase 18: Docs + Synthetic CI Polish
 **Goal**: Operators have a guided non-FSD calibration flow in docs; CI covers fit/apply/honesty/persist with synthetic data only
@@ -168,7 +168,27 @@ Plans:
   1. Operator docs describe the calibration wizard, persistence path, and honesty rules without vehicle-grade / FSD claims
   2. `perception-frame` / safety docs reflect free-space meters only when calibrated (no doc drift to “always ordinal”)
   3. Automated tests cover fit / apply / honesty / persist with synthetic frames (no physical room required in CI)
-**Plans**: TBD
+**Plans**: 2 plans
+**Research**: Written 2026-08-14 (Skip flag — see `phases/18-docs-synthetic-ci-polish/18-RESEARCH.md`) — implementation not started
+**Status**: Plans ready (not implemented)
+
+Locked research (must honor at execute):
+- New `docs/calibration.md` operator hub + refresh stale hubs (perception-frame, safety, README, api, cli, config, architecture, desktop-gpu, docs/README, CHANGELOG).
+- Persist path in docs = **STACK** `$SENTRY_MODEL_CACHE/calibration/{safe_id}.yaml` (or `default_cache_root`); optional `SENTRY_CALIBRATION_DIR` + `--calibration-file`. **Not** `~/.config` JSON.
+- Honesty triad: relative never m; `metric_estimated` ≠ calibrated; `metric_calibrated` + m only when applied+valid; draft never claims calibrated.
+- Free-space: `units="m"` iff `metric_calibrated` + 1.5/3.0 m cuts; else ordinal; optional `distance_m` when calibrated.
+- Cancel = draft-only; Clear deletes YAML.
+- Persist status `none|applied|ignored_mismatch|error` separate from `depth.kind`.
+- Wizard copy: approximate metric scale, monocular, not vehicle-grade.
+- Keyword tests forbid stale “always ordinal” / FSD-as-claim / precise meters / autonomous-as-claim.
+- 18-02: do **not** require room, Jetson, CUDA, `--extra depth`; keep `ci.yml` as `uv sync --extra dev` + ruff + pytest + `sentry health`.
+- Optional thin `tests/test_v03_honesty_matrix.py` documenting existing suites — no new product code.
+- Zero new deps; freeze DetectionLoop / FrameBus / ORT-TRT / `kind_for_mode`; do **not** bump pyproject 0.1.0.
+- After 18 merges, v0.3 reqs closable; complete-milestone is a later step.
+
+Plans:
+- [ ] 18-01-PLAN.md — OPS-02 docs hub + keyword tests (TDD); wave 1
+- [ ] 18-02-PLAN.md — OPS-03 CI inventory lock; depends_on 18-01; no runtime product code
 
 ## Progress
 
@@ -184,8 +204,8 @@ Plans:
 | 14. Scale Math + DepthLoop Plug-in | v0.3 | 2/2 | Complete | 2026-08-13 |
 | 15. Wizard REST + Live Preview UI | v0.3 | 2/2 | Complete | 2026-08-13 |
 | 16. Free-Space Metric Path | v0.3 | 2/2 | Complete | 2026-08-13 |
-| 17. Persist & Re-apply on Serve | v0.3 | 0/2 | Plans ready | - |
-| 18. Docs + Synthetic CI Polish | v0.3 | 0/? | Not started | - |
+| 17. Persist & Re-apply on Serve | v0.3 | 2/2 | Complete | 2026-08-14 |
+| 18. Docs + Synthetic CI Polish | v0.3 | 0/2 | Plans ready | - |
 
 **Coverage:** v0.3 19/19 requirements mapped ✓
 
