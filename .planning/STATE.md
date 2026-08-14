@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: Metric Depth Calibration UX
-status: planning
-stopped_at: Phase 17 plans written; next execute 17-01 YAML store + fingerprint
-last_updated: "2026-08-14T00:25:00.000Z"
-last_activity: 2026-08-13
+status: executing
+stopped_at: 17-01 YAML store + fingerprint refuse done; next execute 17-02
+last_updated: "2026-08-14T08:35:00.000Z"
+last_activity: 2026-08-14
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 8
-  completed_plans: 8
-  percent: 67
+  total_plans: 10
+  completed_plans: 9
+  percent: 75
 ---
 
 # Project State
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots - without proprietary sensors or cloud AI.  
-**Current focus:** Phase 17 plans written (not implemented). Phase 16 complete on main. Next execute 17-01 YAML persist / fingerprint refuse.
+**Current focus:** Phase 17-01 complete (YAML store + fingerprint refuse). Next execute 17-02 serve re-apply + REST save/clear + status.
 
 ## Current Position
 
-Phase: 17 (Persist & Re-apply on Serve) - plans written, not implemented  
-Plan: 0 of 2 (ready to execute 17-01)  
-Status: Phase 16 complete on `main` (16-01 + 16-02 merged). Phase 17 research + plans on `docs/phase-17-plan`  
-Last activity: 2026-08-13
+Phase: 17 (Persist & Re-apply on Serve) - 17-01 executed  
+Plan: 1 of 2 (17-01 done; next 17-02)  
+Status: Phase 16 complete on `main`. 17-01 on `feat/17-01-calibration-store`  
+Last activity: 2026-08-14
 
-Progress: [##########] 67% of v0.3 executed plans (13-16 complete; Phase 17 plans ready)
+Progress: [############] 75% of v0.3 executed plans (13-16 complete; 17-01 done; next 17-02)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed (v0.3): 8 (Phase 13 + Phase 14 + Phase 15 + Phase 16)
+- Total plans completed (v0.3): 9 (Phase 13 + Phase 14 + Phase 15 + Phase 16 + 17-01)
 - v1.0 + v0.2 history: 28 plans shipped prior milestones
 
 **By Phase:**
@@ -51,6 +51,7 @@ Progress: [##########] 67% of v0.3 executed plans (13-16 complete; Phase 17 plan
 | Phase 15 P02 | 35min | 1 task | 4 files |
 | Phase 16 P01 | 25min | 1 task | 3 files |
 | Phase 16 P02 | 20min | 1 task | 17 files |
+| Phase 17 P01 | 25min | 1 task | 8 files |
 
 *Updated after each plan completion*
 
@@ -122,12 +123,12 @@ v0.3 roadmap locks (from research):
 - [Phase 17]: Additive persist status none|applied|ignored_mismatch|error, separate from depth.kind; serve banner
 - [Phase 17]: DepthLoop sole map apply site; I/O in config/calibration_store.py; try_reapply in control/calibration_persist.py
 - [Phase 17]: Split 17-01 store+fingerprint+apply_params / 17-02 serve+REST+status+late size
-- [Phase 17]: Plans written 2026-08-13 — not implemented
+- [Phase 17-01]: YAML store + fingerprints_match + apply_params + try_reapply shipped (PER-01, PER-03)
+- [Phase 17-01]: No CLI/REST/DepthLoop/wizard HTML wire (17-02)
 
 ### Pending Todos
 
-- Execute Phase 17-01 YAML store + fingerprint refuse (PER-01, PER-03)
-- Then 17-02 serve re-apply + REST save/clear + status (PER-02, PER-04)
+- Execute Phase 17-02 serve re-apply + REST save/clear + status (PER-02, PER-04)
 - Then Phase 18 docs + synthetic CI polish
 
 ### Blockers/Concerns
@@ -149,7 +150,7 @@ See also: `milestones/v1.0-MILESTONE-AUDIT.md`, `milestones/v0.2-MILESTONE-AUDIT
 
 ## Session Continuity
 
-Last session: 2026-08-14T00:25:00.000Z
-Stopped at: Phase 17 plans written (not implemented)
+Last session: 2026-08-14T08:35:00.000Z
+Stopped at: 17-01 YAML store + fingerprint refuse executed
 Resume file: None
-Next: Execute Phase 17-01 persist store + fingerprint per ROADMAP
+Next: Execute Phase 17-02 serve re-apply + REST save/clear + status per ROADMAP

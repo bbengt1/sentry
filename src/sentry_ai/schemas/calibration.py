@@ -7,6 +7,7 @@ Field design only for Phase 13 — no YAML I/O, no residual RMS product threshol
 from __future__ import annotations
 
 import math
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -76,6 +77,8 @@ class CalibrationSnapshot(BaseModel):
     scale: float | None = None
     method: str | None = None
     fingerprint: CalibrationFingerprint | None = None
+    persist_status: Literal["none", "applied", "ignored_mismatch", "error"] = "none"
+    persist_reason: str | None = None
 
 
 def is_valid_calibration_params(params: CalibrationParams) -> tuple[bool, str | None]:
