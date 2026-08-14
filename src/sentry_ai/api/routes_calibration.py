@@ -64,6 +64,14 @@ def _perception_store(request: Request) -> Any:
     return getattr(request.app.state, "perception_store", None)
 
 
+def _reset_free_space_smoother(request: Request) -> None:
+    """Belt-and-suspenders EMA drop on apply/clear. Cancel must not call."""
+    loop = getattr(request.app.state, "free_space_loop", None)
+    reset = getattr(loop, "reset_smoother", None)
+    if callable(reset):
+        reset()
+
+
 def _depth_worker(request: Request) -> Any:
     return getattr(request.app.state, "depth_worker", None)
 
@@ -405,6 +413,7 @@ async def apply_calibration(request: Request) -> dict[str, Any]:
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     _drop_freeze_pin(request)
+    _reset_free_space_smoother(request)
     return _snapshot_payload(request, state)
 
 
@@ -424,4 +433,5 @@ async def clear_calibration(request: Request) -> dict[str, Any]:
     state.clear_applied()
     state.clear_draft()
     _drop_freeze_pin(request)
+    _reset_free_space_smoother(request)
     return _snapshot_payload(request, state)
