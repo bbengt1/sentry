@@ -85,6 +85,7 @@ class FreeSpaceProduct:
     latency_ms: float
     depth_kind: DepthKind
     obstacle_count: int
+    units: str = "ordinal"  # "ordinal" | "m"
     obstacles: list[Any] = field(default_factory=list)
     bands: dict[str, float] = field(default_factory=dict)
     free_mask: Any | None = None  # np.ndarray — in-process only
@@ -337,6 +338,7 @@ class PerceptionStore:
         method: str = "near_field_bands",
         error: str | None = None,
         t_compute: float | None = None,
+        units: str = "ordinal",
     ) -> None:
         """Store latest free-space product (keep-latest)."""
         product = FreeSpaceProduct(
@@ -346,6 +348,7 @@ class PerceptionStore:
             t_compute=time.time() if t_compute is None else float(t_compute),
             latency_ms=latency_ms,
             depth_kind=depth_kind,
+            units=units,
             obstacle_count=int(obstacle_count),
             obstacles=list(obstacles) if obstacles is not None else [],
             bands=dict(bands) if bands is not None else {},
@@ -389,6 +392,7 @@ class PerceptionStore:
                 t_compute=p.t_compute,
                 latency_ms=p.latency_ms,
                 depth_kind=p.depth_kind,
+                units=p.units,
                 obstacle_count=p.obstacle_count,
                 obstacles=list(p.obstacles),
                 bands=dict(p.bands),
