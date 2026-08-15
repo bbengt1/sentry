@@ -1,280 +1,165 @@
-# Feature Landscape: v0.3 Metric Depth Calibration UX
+# Feature Landscape: v0.4 Online Re-calibration
 
-**Domain:** Monocular depth scale calibration UX for maker robotics (camera-only)  
-**Milestone:** Sentry AI v0.3 Metric Depth Calibration UX  
-**Researched:** 2026-08-11  
-**Confidence:** HIGH for Sentry contracts + maker UX table stakes; MEDIUM for academic auto-scale methods (out of core path)
+**Domain:** Consent-once gated online refinement of an already-applied monocular metric scale  
+**Milestone:** Sentry AI v0.4 Online Re-calibration (CAL-F03)  
+**Researched:** 2026-08-15  
+**Confidence:** HIGH for Sentry contracts + honesty locks; MEDIUM for exact N-sample / throttle defaults (plan-phase)
 
 ## Scope Lock (do not expand)
 
 | In scope | Out of scope this milestone |
 |----------|----------------------------|
-| Live Preview **calibration wizard** (known heights / floor markers) | Full camera **intrinsic** suite (chessboard photogrammetry as primary) |
-| Fit scale (and optional shift) from user ground truth | Stereo / multi-view depth |
-| Persist + re-apply per-camera (or per-profile) at `sentry serve` | Live ORT/TRT for depth models |
-| Honest `depth_kind` / units: relative default; meters only when calibrated | ROS2 metric TF package |
-| Free-space near-field distances use metric when calibrated | Language/CLIP auto-scale as product path |
-| Docs + CI-safe tests (synthetic frames; no real room) | Vehicle-grade / FSD accuracy claims |
+| Opt-in online refine **after** first consented scale | Inventing the first `metric_calibrated` without Apply / persist `try_reapply` |
+| Draft-only online sampler + same fit/reject | Per-frame unguarded refit / oscillating scale |
+| Gated auto-commit via `apply_params` | Auto-writing YAML on every auto-commit |
+| Status `online_off` / `online_draft` / `auto_committed` / `rejected` | Chessboard / ArUco-required kit / stereo |
+| Session-only persist default; docs + synthetic CI | ROS2 metric TF, multi-cam fusion, ORT/TRT depth |
+| Disable-online without Clear | Language/CLIP auto-scale; FSD / vehicle-grade claims |
 
-**Shipped baseline (v1.0 + v0.2):** Relative DAV2 Small depth + optional `metric_indoor` / `metric_outdoor` heads labeled **`metric_estimated`**; free-space near-field bands with **ordinal** units; Live Preview depth badge honesty; wire forbids relative + `unit: "m"`; `DepthKind.METRIC_CALIBRATED` enum exists but has no calibration path yet; free-space still forces ordinal even for estimated metric (`assemble.py`).
+**Shipped baseline (v1.0 + v0.2 + v0.3):** Wizard Apply / Cancel / Clear; `CalibrationState.apply` + `apply_params` + `apply_map`; DepthLoop sole apply site; `metric_calibrated` + `unit="m"` only when applied+valid; free-space meters iff calibrated; YAML persist with fingerprint refuse; WIZ-04 draft never claims meters.
+
+**Flip from v0.3 research:** v0.3 treated “continuous online re-cal without explicit Apply” as an **anti-feature** (CAL-F03). v0.4 **pulls CAL-F03 in** as **consent-once gated auto-commit** — not unguarded online, not silent first scale.
 
 ---
 
-## How Metric Calibration Works (ecosystem reality)
+## How Online Re-cal Works (product reality)
 
-Monocular relative depth is **scale-ambiguous** (classically affine in inverse-depth: scale + shift). Products that feel honest do **not** invent meters from relative maps. They either:
-
-1. **Ship domain metric heads** (DAV2 Hypersim indoor / VKITTI outdoor) → approximate meters, domain-sensitive → Sentry already maps these to `metric_estimated`.  
-2. **Anchor with user ground truth** (known object size, tape distance, floor marker) → fit a global scale (and optionally shift) on the current depth map → label **`metric_calibrated`**.  
-3. **Sensor fusion** (LiDAR/stereo/ARKit) — **out of product thesis** for Sentry.
-
-### Canonical maker procedure (what good UX encodes)
+Monocular scale is sticky after consent. Makers who already applied (or matching persist re-applied) a scale may want it to **nudge** as the scene/mount drifts — without clicking Apply every time, and without the stack inventing meters from a draft or a rejected fit.
 
 ```
-1. Depth already running (relative or metric_estimated)
-2. User starts wizard in Live Preview
-3. Choose method: known height | known distance | floor marker
-4. Place object / tape in view; freeze or use live frame
-5. Mark region(s) in image (box / two points / line on floor)
-6. Enter known physical value in meters (or cm with clear unit)
-7. System samples depth at mark(s), solves scale (and optional shift)
-8. Preview: depth badge flips to metric_calibrated (m); optional sample readout
-9. Apply (persist) or Cancel (revert)
-10. On next serve: load cal for this camera_id / profile automatically
+1. Depth running; online default OFF (v0.3 behavior)
+2. Maker consents once: wizard Apply  OR  matching persist try_reapply
+   → first metric_calibrated exists
+3. Maker opts in to online (UI/REST); status=online_draft while sampling
+4. Sampler collects N samples on a throttle (not every frame)
+5. Same v0.3 fit/reject runs on the window (draft only)
+6. If online on AND already applied AND fit ok AND residual AND fingerprints_match
+   → apply_params (session-only) → DepthLoop apply_map → smoother reset
+   → status=auto_committed
+7. Else keep last sticky applied scale; status=rejected or stay online_draft
+8. Disable online ≠ Clear (applied + YAML remain)
+9. Cancel still clears draft only; Clear still clears applied + YAML
 ```
 
-**Math makers expect under the hood (not in the UI):**  
-For a known distance \(d_{\mathrm{true}}\) at a pixel with relative depth \(z_{\mathrm{rel}}\):
-
-- Simple scale (metric head already roughly metric): \(d = s \cdot z\) with \(s = d_{\mathrm{true}} / z_{\mathrm{rel}}\).  
-- Affine in inverse depth (relative / disparity-like maps): \(d = 1 / (\alpha z_{\mathrm{inv}} + \beta)\).  
-- Multi-point: least-squares over 2–N anchors; show residual / confidence.
-
-**Opinionated Sentry choice:** Prefer **user-anchored scale (optional shift)** on the **current depth product**, promote kind to `metric_calibrated`, persist params — **not** a new network fine-tune and **not** language priors. Wizard complexity stays Med; reliability and honesty stay high.
-
-**Confidence:** HIGH for scale-ambiguity + user-anchor pattern (MiDaS/DAV2 literature + Sentry contracts); MEDIUM for exact affine-vs-scale default (phase research should pick one formula and test on synthetic maps).
+**Opinionated Sentry choice:** Consent-once + gated `apply_params`. Do **not** silently promote the first scale. Do **not** refit on every DepthLoop frame.
 
 ---
 
 ## Expected Maker Behaviors
 
-What hobbyist / student / small-team roboticists actually do when given monocular depth:
-
 | Behavior | Implication for product |
 |----------|-------------------------|
-| “How far is that obstacle in meters?” is the first metric ask | Free-space + depth must surface meters only after calibration |
-| Will put a **door frame, chair, person, or tape measure** in frame once | Wizard must accept known **height** and known **distance** paths |
-| Expects calibration to **stick across restarts** for the same camera mount | Persist per `camera_id` (and/or profile); re-apply at serve |
-| Recalibrates after **remount / different room / lens change** | Clear “Clear calibration” + re-run wizard; never silent stale cal |
-| Trusts UI badges more than docs | Live Preview, snapshot, `/v1` must **never** disagree on kind/units |
-| Accepts “approximate hobby accuracy” if labeled | Copy: calibrated ≈ not vehicle-grade; show residual if multi-point |
-| Prefers **wizard over CLI math** for first success | Primary path is Live Preview; headless file/API is secondary |
-| Uses synthetic/file sources in CI and laptop bring-up | All cal logic must run on synthetic depth without a real room |
-| Headless robot deploy still needs metric | Load persisted cal without UI; status reports calibrated vs not |
-| Will mis-enter units (cm vs m) | Explicit unit control; sanity bounds (e.g. reject 200 m “chair height”) |
-| May calibrate on `metric_estimated` or `relative` | Both supported; resulting kind is always `metric_calibrated` when user anchors |
+| Wants meters after one tape/wizard run | First scale still Apply / persist re-apply |
+| Leaves the robot running after consent | Opt-in online can refine without another click |
+| Turns online off to freeze scale | Disable-online must not Clear applied or YAML |
+| Cancels a bad online window | Cancel = draft only; last applied stays |
+| Remounts / swaps camera | Fingerprint refuse still blocks auto-commit and persist re-apply |
+| Trusts badges more than docs | `online_*` status ≠ `depth.kind` ≠ persist status |
+| Restarts serve | Auto-commit is session-only unless they explicitly saved |
+| Uses synthetic/CI | All gates testable without a room |
 
 ---
 
 ## Table Stakes
 
-Features makers expect once Sentry claims “metric calibration UX.” Missing any of these makes the milestone feel incomplete or dishonest.
-
-| Feature | Why Expected | Complexity | Notes / Sentry dependency |
-|---------|--------------|------------|---------------------------|
-| **Live Preview calibration wizard** | Primary maker surface already exists; CLI-only cal fails the product thesis | Med | Extend `ui/static/index.html` + new `/api/calibration/*` routes; reuse MJPEG + status poll pattern |
-| **Known object height path** | Universal maker ground truth (door ~2.0 m, person, box) | Med | User draws vertical extent or bbox; enter height_m; sample depth along object |
-| **Known distance / floor marker path** | Tape measure to wall / floor mark is the other common anchor | Med | Click point or short segment; enter distance_m; sample depth at mark |
-| **Apply / Cancel with visual feedback** | Calibration is a mutation; reversible preview is table stakes | Low–Med | Staging params until Apply; Cancel restores prior product labeling |
-| **Promote to `metric_calibrated` + `unit: "m"`** | Enum already exists; honesty contract requires distinct kind | Med | Wire `DepthPayload.kind`; depth worker or post-process scale layer; validators already forbid relative+m |
-| **Never label relative as meters** | Shipped v1 honesty; calibration must not regress | Low | Keep badge copy + Pydantic validators; tests for kind/unit matrix |
-| **Free-space uses metric when calibrated** | Obstacle “nearness” without meters is half a product | Med–High | Today free-space is always ordinal (`free_space.py`, `assemble._units_for_depth_kind`); need meter bands or `distance_m` **only** when kind is calibrated |
-| **Persist calibration** | Restart without re-wizard is expected | Med | JSON/YAML under config dir keyed by `camera_id` (+ optional profile); schema versioned |
-| **Re-apply on `sentry serve`** | Headless robots cannot open Live Preview every boot | Med | Load at depth/free-space construction; status shows loaded cal fingerprint |
-| **Clear / invalidate calibration** | Remount / wrong room must be recoverable | Low | Explicit clear API + UI; drop kind back to relative or metric_estimated |
-| **UI ↔ snapshot ↔ `/v1` single truth** | Dual truth is a trust killer | Low–Med | Same store product after apply; no client-side-only meter labels |
-| **Status / badge honesty** | Operators need “relative / estimated / calibrated” at a glance | Low | Extend existing depth badge in `index.html` + `/api/status` |
-| **Sanity checks on user input** | Bad entries create silent wrong meters (worse than ordinal) | Low–Med | Bounds, polarity checks, optional multi-point residual threshold |
-| **CI-safe tests without physical room** | Milestone requires automated tests | Med | Synthetic depth maps with planted scale; inject cal params; no camera |
-| **Operator docs for the flow** | Makers fail open-ended math; need screenshots + failure modes | Low–Med | New `docs/` calibration guide; link from edge/serve hub |
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| **Online opt-in, default off** | Unguarded online was the v0.3 anti-feature | Low | Flag on `CalibrationState` / REST; boot off |
+| **First calibrated still Apply or persist `try_reapply`** | Online must not invent the first scale | Low–Med | Gate auto-commit on `is_applied()` |
+| **Online sampler draft only** | WIZ-04 holds | Med | Samples → draft; never `apply_map` from draft |
+| **Reuse fit/reject** | Same honesty as wizard | Low | `ok=False` never applied |
+| **Gated auto-commit via `apply_params`** | One commit API already exists | Med | All five conjuncts required |
+| **Cancel / Clear unchanged** | Operators already learned v0.3 | Low | disable-online ≠ Clear |
+| **DepthLoop sole `apply_map`** | Single truth | Low | No second scale site |
+| **Smoother reset on auto-commit** | Same as Apply (FS-03) | Low | Reset like wizard Apply |
+| **Persist refuse unchanged** | Wrong camera is a permanent lie | Low | fingerprints_match required |
+| **Session-only auto-commit** | YAML is a restart lie if implicit | Med | save / persist:true / documented opt-in only |
+| **Status four-way** | Distinguish online from kind/persist | Low–Med | `online_off` / `online_draft` / `auto_committed` / `rejected` |
+| **Docs + synthetic CI** | No room / Jetson / CUDA | Med | Extend honesty matrix |
 
 ### Table-stakes quality bar (non-negotiable)
 
-- **Contract stability:** `relative` never has `unit: "m"`; meters only with `metric_estimated` or `metric_calibrated`.  
-- **No dual truth:** Live Preview labels == `/v1/snapshot` depth/free-space kinds and units for the same product snapshot.  
-- **Calibrated ≠ vehicle-grade:** UI and docs say approximate / hobby monocular.  
-- **Perception-only:** No `safe_to_drive` / distance-based interlocks from calibration.  
-- **Synthetic-first tests:** Unit + API tests do not require a real scene.
+- Draft, rejected, and fingerprint-mismatched depth **never** claim `metric_calibrated` / meters.
+- First scale is **never** invented by online mode.
+- Auto-commit does **not** write YAML by default.
+- No per-frame unguarded refit.
+- Calibrated ≠ vehicle-grade. Perception-only. Synthetic-first tests.
 
 ---
 
 ## Differentiators
 
-Features that turn “another scale-factor CLI flag” into a product-shaped maker calibration experience on Sentry’s existing stack.
-
-| Feature | Value Proposition | Complexity | Notes |
-|---------|-------------------|------------|-------|
-| **Guided wizard, not raw scale slider** | Makers succeed without understanding inverse-depth affine math | Med | Multi-step panel on Live Preview; method picker + mark + enter value + preview |
-| **Two first-class anchor methods (height + distance)** | Covers indoor robot benches and hallway tape tests | Med | Prefer both in MVP; third method (ArUco) can wait |
-| **Per-`camera_id` persistence with re-apply** | Multi-cam hooks already in schema; single active cam still benefits | Med | File path or profile field; fingerprint in status |
-| **Immediate free-space meterization when calibrated** | Depth cal that does not move free-space feels unfinished | Med–High | Extend `FreeSpacePayload.units` to `"m"`; optional obstacle `distance_m` only under calibrated kind |
-| **Staging preview before Apply** | See sample distance / band change before committing | Med | Soft-apply on overlay; hard-apply writes store + disk |
-| **Residual / confidence readout (multi-point)** | Builds trust; flags bad marks | Med | If N≥2 anchors, show fit residual; warn if high |
-| **Works on relative *and* metric_estimated bases** | Makers may start from either mode | Low–Med | Cal params relative to current depth product; document which base was used |
-| **Headless re-apply without UI** | Robot deploy path parity with Live Preview | Med | Serve loads cal file; `/api/status` reports calibration state |
-| **Honest triad of kinds in all surfaces** | Differentiates from tools that print “depth (m)” on MiDaS | Low | Badge + docs + wire already partially there; complete free-space path |
-| **Synthetic demo path in docs** | First success without arranging furniture | Low | Scripted synthetic source + planted geometry for tutorial |
-
-### Differentiator priority for v0.3 story
-
-1. Live Preview wizard with known height **and** known distance  
-2. Apply → `metric_calibrated` + meters on depth products  
-3. Free-space near-field uses meters when calibrated (ordinal otherwise)  
-4. Persist + re-apply per camera/profile at serve  
-5. Staging preview + clear cal + residual if multi-point  
-6. Docs + synthetic CI  
+| Feature | Value Proposition | Complexity |
+|---------|-------------------|------------|
+| **Consent-once, then hands-off refine** | Makers get drift correction without Apply spam | Med |
+| **Sticky scale + throttle window** | Robots see stable meters, not oscillating scale | Med |
+| **Three-plane status honesty** | online / kind / persist never collapse into one badge | Low |
+| **Disable without destroy** | Freeze scale without wiping YAML | Low |
+| **Headless opt-in after persist re-apply** | Robots can enable online after a matching file load | Low–Med |
 
 ---
 
 ## Anti-Features
 
-Features to **explicitly not build** in v0.3 (or ever as core without a new milestone).
-
 | Anti-Feature | Why Avoid | What to Do Instead |
 |--------------|-----------|-------------------|
-| **Claim vehicle-grade / FSD metric accuracy** | Monocular + hobby anchors cannot support it; product liability | Explicit approximate language; residual display |
-| **Chessboard intrinsic calibration as primary path** | Deferred in PROJECT.md; high UX cost; not needed for global scale | Optional later; scale anchors first |
-| **Stereo / multi-view / SLAM scale recovery** | Different product; multi-cam fusion still extension-only | Single-camera user anchors |
-| **Language / CLIP auto-scale as default** | Research-grade, caption-noisy, hard to test honestly (RSA-style) | Human-entered known size only |
-| **Silent promotion of `metric_estimated` → `metric_calibrated`** | Estimated heads are domain-biased, not user-calibrated | Only user apply sets calibrated |
-| **Labeling relative depth with `m` or `distance_m`** | Violates FOUND-03 / validators / trust | Keep forbid; free-space stays ordinal until calibrated |
-| **Safety interlocks (`safe_to_drive`, stop if obstacle < 1 m)** | Perception-only boundary | Consumers own control |
-| **Online continuous auto-recalibration without consent** | Scale drift confuses robots; hard to debug | Explicit wizard re-run; optional later “recheck” button |
-| **Requiring LiDAR / RealSense for calibration** | Breaks camera-only thesis | Tape / known object only |
-| **Fine-tuning DAV2 weights in the wizard** | Hours of GPU, non-maker UX, CI nightmare | Global scale/shift on frozen model |
-| **Bulk `depth_map` meters on WebSocket** | Bandwidth; not needed for robot near-field | Metadata + free-space cues; binary later if needed |
-| **ArUco / AprilTag as *required* marker** | Extra print step blocks first success | Optional later; height/distance first |
-| **Per-frame independent scale (no persistence)** | Feels broken after restart | Persist params |
-| **Global single cal shared blindly across all cameras** | Wrong scale on second USB cam | Key by `camera_id` |
-| **Hiding uncalibrated state** | “Looks metric” is the failure mode of the whole domain | Loud relative / estimated badges |
-| **Changing free-space method name for marketing** | `near_field_bands` is honest | Keep method; change units only when calibrated |
+| **Silent first scale from online samples** | Invents meters without consent | Require Apply or matching `try_reapply` first |
+| **Online default on** | Surprises headless robots | Default off |
+| **Draft / rejected labeled as meters** | FOUND-03 / WIZ-04 regression | WIZ-04 holds |
+| **Per-frame unguarded refit** | Oscillating scale; pitfall #5 lock | Throttle / N-sample; sticky applied |
+| **Auto-commit writes YAML by default** | Persist mismatch across restarts | Session-only; explicit save |
+| **Disable-online = Clear** | Destroys consented scale | Flag only |
+| **Second `apply_map` site** | Dual truth | DepthLoop only |
+| **Language/CLIP auto-scale** | Ungrounded | Human-consented geometry only |
+| **Chessboard / ArUco-required / stereo** | CAL-F01/F02/F04 | Deferred |
+| **FSD / vehicle-grade claims** | Product thesis | Approximate hobby monocular |
+| **New pip deps / React / SLAM** | Scope | Zero new deps |
+
+The v0.3 anti-feature “continuous online auto-recalibration **without consent**” remains forbidden. What ships is the **consented, gated** form.
 
 ---
 
-## Feature Dependencies (on shipped depth / free-space / UI)
+## Feature Dependencies
 
 ```
-FrameBus + DepthLoop + DepthAnythingWorker (v1)
-    → depth product (map in-process, kind, unit)
-        → Live Preview colormap + depth_kind badge (v1)
-        → Free-space near_field_bands (v1, ordinal only)
-        → PerceptionFrame /v1 (v1)
-
-NEW v0.3 layer (conceptually):
-  CalibrationService / scale applicator
-    depends on: live depth product (relative OR metric_estimated)
-    produces: scale (+ optional shift) params + kind=metric_calibrated
-    feeds: depth post-process OR worker config
-    feeds: free-space meter path when calibrated
-    feeds: persist file → serve re-apply
-    feeds: Live Preview wizard + status
+v0.3 CalibrationState (draft vs applied, apply / apply_params / apply_map)
+    → online flag (default off)
+    → online sampler (draft only, throttled)
+    → same fit/reject
+    → gated apply_params
+    → DepthLoop apply_map (unchanged site)
+    → FreeSpaceLoop smoother reset (same as Apply)
+    → persist refuse unchanged; YAML not implicit
 
 Does NOT depend on: ORT/TRT backends, open-vocab, ROS2, multi-cam fusion
-Must NOT break: relative honesty, perception-only boundary, keep-latest loops
+Must NOT break: WIZ-04, relative honesty, Cancel/Clear, fingerprint refuse
 ```
-
-| Existing component | Dependency type | v0.3 impact |
-|--------------------|-----------------|-------------|
-| `DepthKind` enum | **Reuse** | `METRIC_CALIBRATED` becomes live path |
-| `DepthPayload` + validators | **Reuse / extend** | unit `"m"` only with estimated/calibrated |
-| `kind_for_mode` / depth_mode API | **Keep** | estimated modes remain; cal is orthogonal |
-| Depth colormap MJPEG | **Reuse** | Colormap may stay relative-normalized; **labels** change |
-| Free-space `near_field_bands` | **Extend** | Meter bands / optional `distance_m` when calibrated |
-| `assemble_perception_frame` | **Extend** | `_units_for_depth_kind` currently always ordinal — must change for calibrated |
-| Live Preview `index.html` | **Extend** | Wizard panel + badge states |
-| `/api/depth/config` | **Adjacent** | Do not overload; prefer `/api/calibration/*` |
-| Profiles / `camera_id` | **Keying** | Persist map keyed by camera (+ optional profile) |
-| Headless `--no-ui` | **Support** | Load cal without wizard; no HTML dependency |
-| Synthetic / file sources | **Test harness** | CI plants known geometry |
-
-### Suggested wire deltas (feature-level, not full schema design)
-
-| Surface | Uncalibrated (today) | After successful Apply |
-|---------|----------------------|------------------------|
-| `depth.kind` | `relative` or `metric_estimated` | `metric_calibrated` |
-| `depth.unit` | `null` or `"m"` (estimated) | `"m"` |
-| `free_space.units` | `"ordinal"` | `"m"` (only if calibrated) |
-| `free_space.depth_kind` | matches depth | `metric_calibrated` |
-| Obstacle fields | `nearness_*` only | Keep nearness; **optional** additive `distance_m` if schema allows later — or meterized band cuts only in v0.3 |
-| Status | depth_kind badge | + `calibration: applied \| none` + age/fingerprint |
-
-**Opinion:** Prefer **minimal schema growth** in v0.3: flip kinds/units and meterize free-space band cuts when calibrated; defer additive `distance_m` on every obstacle if it expands validators too much — but **some** robot-facing meter signal is table stakes.
-
----
-
-## Complexity Notes
-
-| Work item | Complexity | Why |
-|-----------|------------|-----|
-| Scale fit (1-point known distance) | Low | Closed-form; pure numpy |
-| Height path (vertical extent + pinhole height) | Med | Needs careful sampling (median of object strip); optional weak intrinsics assumption |
-| Affine inverse-depth fit (multi-point) | Med | Standard least-squares; edge cases on bad masks |
-| Wizard UI in static Live Preview | Med | Multi-step state machine in existing HTML/JS; no React rewrite |
-| Persist + load + fingerprint | Low–Med | File I/O + schema version; serve wiring |
-| Free-space metric bands | Med–High | Band cuts today are ordinal nearness thresholds; metric needs distance thresholds or scaled nearness — easy to get wrong |
-| Honesty matrix tests | Med | Combinatorial: relative / estimated / calibrated × UI / snapshot / free-space |
-| Headless re-apply | Low | Load path without UI |
-| Docs + synthetic tutorial | Low–Med | Content work; high leverage |
-
-**Highest risk feature:** free-space meterization without lying — ordinal nearness polarity + ROI heuristics were designed without meters. Phase research should lock: *convert depth map to meters first, then re-derive nearness from metric depth*, rather than “multiply ordinal by a constant.”
 
 ---
 
 ## MVP Recommendation
 
-**Prioritize (must ship for milestone claim):**
+**Prioritize (must ship):**
 
-1. **Known distance** wizard path (tape / floor mark) — simplest correct scale  
-2. **Known height** wizard path (door / person / box) — maker-expected second path  
-3. **Apply / Cancel** + Live Preview badge → `metric_calibrated (m)`  
-4. **Persist + re-apply** per `camera_id` at serve  
-5. **Free-space honesty:** meters when calibrated; ordinal when not; never relative-as-meters  
-6. **Clear calibration** + status fingerprint  
-7. **CI synthetic tests** + operator docs  
+1. Online flag default off + status four-way  
+2. First scale still Apply / persist `try_reapply`  
+3. Draft-only sampler + reused fit/reject  
+4. Gated `apply_params` auto-commit + DepthLoop / smoother  
+5. Cancel/Clear/disable-online semantics  
+6. Session-only persist + docs + synthetic CI  
 
-**Defer (nice / next milestone):**
-
-| Feature | Reason |
-|---------|--------|
-| Multi-point residual UI polish | Ship 1-point first; residual is differentiator #2 |
-| ArUco automatic detection | Extra dependency; print friction |
-| Chessboard intrinsics | Explicit out of scope |
-| Language auto-scale | Research, not maker-trustworthy |
-| Obstacle `distance_m` on every cue | Prefer band/unit flip first if schema churn is high |
-| Continuous online re-cal | Consent + drift issues |
-| Metric free-space cut sliders in meters in UI | Can keep ordinal cut sliders until calibrated path is solid |
+**Defer:** chessboard, required ArUco, stereo, ROS2 TF, multi-cam fusion, ORT/TRT depth, CLIP auto-scale, per-frame refit.
 
 ---
 
 ## Phase Ordering Hints (for roadmap)
 
-1. **Contracts & applicator** — scale/shift model, kind promotion, validators, synthetic unit tests  
-2. **Persist / load / serve re-apply** — file schema, status fingerprint, headless path  
-3. **Live Preview wizard** — mark + enter + staging preview + apply/cancel  
-4. **Free-space metric path** — only after depth product is honestly calibrated  
-5. **Docs + integration tests** — synthetic E2E; operator guide  
+1. **Consent & honesty state** — flag, first-scale lock, Cancel/Clear/disable  
+2. **Sample + fit/reject** — draft only, throttle / N-window  
+3. **Gated auto-commit** — `apply_params` + DepthLoop + smoother + status  
+4. **Persist policy + docs/CI** — session-only YAML; honesty matrix  
 
-**Ordering rationale:** Free-space meters **depend** on calibrated depth product; wizard **depends** on applicator; persist can parallelize with wizard once contract is fixed. Do not build UI labels before store/API kind flips — dual truth is the domain’s worst pitfall.
-
-**Research flags:**
-
-| Topic | Flag |
-|-------|------|
-| Affine-in-inverse vs pure scale for relative DAV2 | **Needs phase research** (map polarity + formula) |
-| Free-space band semantics in meters | **Needs phase research** (threshold design) |
-| Height path geometry (intrinsics assumptions) | **Needs phase research** (or document weak-pinhole) |
-| Persist path (file vs profile field) | Standard; low research |
-| Wizard step UX | Standard maker patterns; low research |
+**Research flags:** Phase 20 window/throttle defaults need plan-phase lock. Other phases are standard extensions of shipped code.
 
 ---
 
@@ -282,15 +167,12 @@ Must NOT break: relative honesty, perception-only boundary, keep-latest loops
 
 | Source | Use | Confidence |
 |--------|-----|------------|
-| Sentry `PROJECT.md` v0.3 goals | Scope lock | HIGH |
-| `docs/perception-frame.md`, `schemas/enums.py`, `schemas/perception.py` | Kind/unit/free-space contracts | HIGH |
-| `models/depth/mapping.py`, `api/routes_depth.py` | Existing relative vs metric_estimated modes | HIGH |
-| `spatial/free_space.py`, `api/assemble.py` | Ordinal free-space; calibrated path not wired | HIGH |
-| Depth Anything V2 metric_depth README + Context7 | Metric heads = domain estimated meters, not user-cal | HIGH |
-| HF monocular depth guide (relative vs absolute; scale/shift) | Domain fundamentals | HIGH |
-| arXiv:2601.01457 (language-as-prior scale recovery) | Academic auto-cal; **anti-feature for core** | MEDIUM (research only) |
-| Phase 4 UI-SPEC / research (depth honesty badges) | UI patterns to extend | HIGH |
+| PROJECT.md v0.4 goals + locked decisions | Scope lock | HIGH |
+| `control/calibration_state.py` | apply / apply_params / apply_map | HIGH |
+| `spatial/calibration.py` | fit/reject reuse | HIGH |
+| `config/calibration_store.py` | persist refuse | HIGH |
+| v0.3 FEATURES anti-feature “online without consent” | Flip to gated form | HIGH |
+| v0.3 PITFALLS #1/#2/#3/#5 | Locks, not deletions | HIGH |
 
 ---
-
-*Research for v0.3 Metric Depth Calibration UX — features only. Supersedes v0.2 Edge Runtime FEATURES.md as the active research feature landscape for roadmap input.*
+*Research for v0.4 Online Re-calibration — features only. Supersedes the v0.3 “defer online re-cal” landscape as the active feature file for roadmap input.*
