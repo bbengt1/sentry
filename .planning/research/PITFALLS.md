@@ -1,422 +1,233 @@
-# Domain Pitfalls: Metric Depth Calibration UX
+# Domain Pitfalls: Online Re-calibration
 
-**Domain:** Adding monocular **metric scale** (known heights / markers) to an existing **relative-depth** perception stack  
-**Project:** Sentry AI — milestone **v0.3 Metric Depth Calibration UX**  
-**Researched:** 2026-08-11  
-**Overall confidence:** HIGH for honesty / free-space / persistence risks (verified against Sentry code + contracts); MEDIUM for exact scale-estimation geometry formulas (depends on chosen wizard method)
+**Domain:** Adding **consent-once gated online refine** on top of an already-honest monocular metric scale  
+**Project:** Sentry AI — milestone **v0.4 Online Re-calibration (CAL-F03)**  
+**Researched:** 2026-08-15  
+**Overall confidence:** HIGH for honesty / persist / unguarded-refit locks (verified against v0.3 code + contracts)
 
-**Product thesis (non-negotiable):** camera-only maker perception — **not FSD**. Calibration yields **honest approximate meters**, never vehicle-grade clearance.
+**Product thesis (non-negotiable):** camera-only maker perception — **not FSD**. Online refine yields **honest approximate meters**, never vehicle-grade clearance.
 
-**Existing honesty baseline (must not regress):**
-- `DepthKind`: `relative` | `metric_estimated` | `metric_calibrated` ([`enums.py`](../../src/sentry_ai/schemas/enums.py))
-- Relative **forbids** `unit` / meters ([`validators.py`](../../src/sentry_ai/schemas/validators.py), FOUND-03)
-- Free-space v1 is **ordinal** near-field bands; no `distance_m` ([`free_space.py`](../../src/sentry_ai/spatial/free_space.py), [`perception-frame.md`](../../docs/perception-frame.md))
-- Wire free-space units hard-coded ordinal even for `metric_calibrated` today ([`assemble.py`](../../src/sentry_ai/api/assemble.py) `_units_for_depth_kind`)
+**v0.3 honesty baseline (must not regress):**
+- `metric_calibrated` + `unit="m"` only when applied+valid
+- Draft never claims meters (WIZ-04)
+- Free-space `units="m"` iff calibrated (absolute cuts, not label-only)
+- Persist fingerprint refuse; Cancel = draft; Clear = applied + YAML
+
+**Numbered locks below are inherited from v0.3 research. Do not delete them.** v0.3 deferred unguarded online re-cal *because* of #1, #2, #3, and #5. v0.4 ships the gated form and **keeps these as locks**.
 
 ---
 
 ## Critical Pitfalls
 
-### 1. Silent unit lies (relative labeled as meters)
+### 1. LOCK — Silent unit lies (relative / draft / rejected labeled as meters)
 
 **What goes wrong:**  
-UI footer, `/v1` snapshot, colormap legend, or free-space payload says `"m"` / “meters” while the underlying map is still **relative** (or affine-normalized ordinal). Robots treat nearness as stopping distance. Support tickets look like “depth is wrong by 3×” when the real bug is **unit fiction**.
+UI, `/v1`, or free-space says meters while the map is still relative, **draft**, **rejected**, or **fingerprint-mismatched**. Online mode makes this worse if a sampler “looks calibrated enough” and the stack promotes kind without `apply()` / `apply_params` of a passed fit.
 
 **Why it happens:**
-- Temptation to “just multiply by a scale and set unit=m” without promoting `depth_kind`
-- Confusing **`metric_estimated`** (DAV2 metric heads, domain-split, still uncalibrated) with **`metric_calibrated`** (user ground-truth scale)
-- Latent mode-switch hazard already in code: `kind_for_mode()` sets kind/unit from **config string**, but `DepthAnythingWorker._ensure_model()` **returns the already-loaded model** after `set_depth_mode` only updates `model_id` — relative weights can keep running under a metric label ([`worker.py`](../../src/sentry_ai/models/depth/worker.py) `set_depth_mode` + `_ensure_model` early return)
-- Colormap / status copy that hardcodes “m” when `depth_kind` is relative
+- Temptation to treat online samples as already-metric
+- Collapsing `online_status` into `depth.kind`
+- Inventing the **first** scale from online (no prior Apply / `try_reapply`)
+- `ok=False` fit still writing applied params
 
-**Consequences:**
-- Unsafe control-loop assumptions (hobby monocular ≠ clearance)
-- Trust collapse; FOUND-03 regression
-- Impossible field debugging (“meters disagree with tape measure”)
+**Consequences:** Unsafe control-loop assumptions; FOUND-03 / WIZ-04 regression; impossible field debugging.
 
-**Prevention:**
-- **Single promotion rule:** `unit="m"` **only** when `kind ∈ {metric_estimated, metric_calibrated}`; relative always `unit=null`
-- Validators: keep `relative_depth_forbids_unit`; add tests that reject relative+`m` on **every** surface (DepthPayload, free-space `units`, UI status, docs examples)
-- Never derive kind from “array looks like meters” heuristics — kind comes from **mode + calibration state** only (already the mapping.py philosophy)
-- Mode switch must **invalidate or reload** weights when `model_id` changes; status reports **loaded** model id, not just requested mode
-- Live Preview badge text: `relative` / `metric_estimated` / `metric_calibrated` — never bare “meters” without kind
-- Product copy: calibrated ≠ accurate; show residual / method / timestamp
+**Prevention (v0.4 lock):**
+- First `metric_calibrated` still needs explicit Apply or matching persist `try_reapply`
+- Online sampler is **draft only**
+- `ok=False` never becomes applied
+- `unit="m"` only with applied+valid kind promotion (existing helper)
+- Status `online_draft` / `rejected` must not paint meters
 
-**Detection:**
-- Snapshot `depth.kind=relative` with `unit="m"` (should fail schema)
-- Status shows metric while depth worker still holds relative HF id
-- Free-space `units="m"` while obstacles only have 0..1 nearness and no metric band path
+**Detection:** Snapshot `depth.kind=relative` with `unit="m"`; online_draft with `metric_calibrated` invented this session without Apply/`try_reapply`; rejected fit changes kind.
 
-**Phase ownership:** **Phase 1 — Honesty contracts & scale state model** (first phase; blocks every other plan).  
-**Warning signs in PR review:** any PR that sets `unit="m"` without updating `kind`; any mode toggle that does not clear/reload model.
-
-**Confidence:** HIGH  
-**Sources:** [`validators.py`](../../src/sentry_ai/schemas/validators.py), [`mapping.py`](../../src/sentry_ai/models/depth/mapping.py), [`worker.py`](../../src/sentry_ai/models/depth/worker.py), [`docs/perception-frame.md`](../../docs/perception-frame.md), FOUND-03
+**Phase ownership:** **Phase 19** (consent/honesty) + **Phase 21** (auto-commit gate).  
+**Confidence:** HIGH
 
 ---
 
-### 2. Free-space breakage (ordinal bands dressed as meters)
+### 2. LOCK — Free-space breakage / oscillating scale
 
 **What goes wrong:**  
-Calibration flips free-space `units` to `"m"` (or adds `distance_m`) while Spatial Post still runs **per-frame min–max nearness + percentile cuts** (`near_cut=0.72`, `mid_cut=0.45`). Obstacles “look metric” but band membership is still **scene-relative**. EMA smoother (`OccupancySmoother`) carries pre-calibration occupancy into post-calibration frames. Polarity `auto` can flip after scale if the map polarity or value range changes.
+Auto-commit flips free-space labels or scale every few frames. Smoother ghosts pre-commit occupancy. Operators see “meters” jump. Robots oscillate near-field bands.
 
 **Why it happens:**
-- v1 free-space was deliberately ordinal for relative **and** `metric_estimated` ([`test_metric_estimated_still_ordinal_units`](../../tests/test_free_space_bands.py))
-- `assemble._units_for_depth_kind` always returns `"ordinal"` — easy to “fix” by returning `"m"` without a metric algorithm path
-- `depth_to_nearness` normalizes **each frame** to [0,1]; absolute meters are destroyed before banding
-- Near/mid cuts are unitless; they are not “1.5 m / 3 m”
+- Per-frame refit (also pitfall #5)
+- Auto-commit without smoother reset (FS-03 was for Apply/Clear only)
+- Label-only unit flip without a new applied map
 
-**Consequences:**
-- Robot thinks “near band = under 1 m” when it means “top 28% nearest pixels in this FOV”
-- Calibration appears to “work” in UI (label change) while obstacle geometry is unchanged
-- Apply/cancel calibration leaves smoother ghost obstacles or empty free-space for several frames
+**Prevention (v0.4 lock):**
+- Sticky applied scale; throttle / N-sample window
+- Reset `OccupancySmoother` on auto-commit **like Apply**
+- Free-space meters still iff `metric_calibrated` on a real scaled map
+- Rejected fits leave last applied map untouched
 
-**Prevention:**
-- **Two free-space modes, explicit:**
+**Detection:** Band fractions thrash while online; `units="m"` with unchanged map after a rejected fit; smoother ghost after auto-commit.
 
-  | Depth state | Free-space units | Band logic |
-  |-------------|------------------|------------|
-  | `relative` | `ordinal` | Keep percentile nearness + cuts (v1) |
-  | `metric_estimated` (uncalibrated) | `ordinal` (default) or clearly labeled estimated | Do **not** invent meter bands without policy |
-  | `metric_calibrated` | `"m"` only if metric path runs | Absolute depth thresholds in meters (e.g. near &lt; N m) on **scaled map**, not 0..1 cuts |
-
-- Gate `units="m"` on free-space behind **metric band implementation**, not kind alone
-- On calibration apply / clear / mode change: **reset `OccupancySmoother`** and force free-space recompute (clear product once if needed — mirror `set_enabled(False)` honesty)
-- Keep `nearness_*` ordinal fields; if meters are exposed, add **separate** fields (e.g. `distance_mean_m`) — never overload nearness 0..1 as meters
-- Golden tests: same relative map + scale factor → metric free-space bands move with absolute thresholds; uncalibrated path never emits `units="m"`
-
-**Detection:**
-- Free-space `units="m"` but `method=near_field_bands` with only fractional cuts and no metric threshold config
-- Obstacle `nearness_mean` &gt; 1.0 or “distance” identical to pre-calibration nearness
-- Band fractions identical before/after scale apply (label-only change)
-
-**Phase ownership:** **Phase 4 — Free-space metric path** (after depth scale actually applied to maps; **not** in the same PR as the wizard chrome).  
-**Depends on:** Phase 1 honesty + Phase 2 scale application to depth product.
-
-**Confidence:** HIGH  
-**Sources:** [`free_space.py`](../../src/sentry_ai/spatial/free_space.py), [`spatial/loop.py`](../../src/sentry_ai/spatial/loop.py), [`assemble.py`](../../src/sentry_ai/api/assemble.py), Phase 5 research (ordinal by design)
+**Phase ownership:** **Phase 20** (window) + **Phase 21** (smoother reset).  
+**Confidence:** HIGH
 
 ---
 
-### 3. Persistence hazards (wrong camera, stale scale, silent re-apply)
+### 3. LOCK — Persistence mismatch (wrong camera, implicit YAML, silent re-apply)
 
 **What goes wrong:**  
-Calibration is saved globally or under profile name only. Operator swaps USB camera / RTSP URL / resolution / lens; serve reloads last scale and labels `metric_calibrated`. Scale was fit for another FOV/height/mount. Or file is corrupt / half-written and serve either crashes or silently runs uncalibrated while UI still shows “calibrated.”
+Auto-commit writes YAML every time; a later serve reloads a scale fit for another mount/resolution/model. Or disable-online is implemented as Clear and the file disappears. Or mismatch still auto-commits because “online is on.”
 
 **Why it happens:**
-- v1 is single active source but `camera_id` is already the multi-cam extension key — easy to ignore in v0.3
-- Profile YAML is a **deployment** unit, not a physical camera fingerprint
-- Resolution / crop / Continuity uniqueID changes without changing `camera_id` string
-- Race: wizard writes file while serve reads; no schema version / checksum
-- Re-apply on serve before depth worker ready → status lies about calibrated while first frames are relative
+- Treating auto-commit like persist:true Apply
+- Reusing persist `applied` as online success
+- Skipping `fingerprints_match` on the auto-commit gate
 
-**Consequences:**
-- Persistent silent unit lie across restarts (worst class of honesty bug)
-- “It worked yesterday” after camera re-mount
-- Multi-machine copy of calib JSON (like TRT engines) looks portable and is not
+**Prevention (v0.4 lock):**
+- Auto-commit is **session-only** by default
+- YAML only on explicit save / persist:true / documented opt-in
+- `fingerprints_match` is a required auto-commit conjunct
+- Persist refuse unchanged
+- Disable-online ≠ Clear (no file delete)
 
-**Prevention:**
-- **Key calibration by physical identity**, not only profile:
+**Detection:** Serve logs calibration applied after camera/resolution/model change with no new wizard; YAML mtime changes on every auto-commit; Clear-shaped disable.
 
-  | Key component | Why |
-  |---------------|-----|
-  | `camera_id` | Source identity on PerceptionFrame |
-  | Capture fingerprint | backend + device path / uniqueID / RTSP host path |
-  | Image size (W×H) | Scale from bbox height is resolution-sensitive |
-  | Depth mode / model id | Relative vs metric head changes value domain |
-  | Schema version | Forward-compatible load |
-
-- On fingerprint mismatch: **refuse** auto-apply → fall back to relative honesty + loud status reason (`calib_mismatch:resolution`, etc.)
-- Atomic write (temp + rename); validate with Pydantic before applying
-- Status/telemetry: `calibration.state` = `none | applied | ignored_mismatch | error` separate from `depth.kind`
-- Clear/cancel writes explicit “no calib” state (delete or tombstone) — do not leave orphan files that reappear on restart
-- Never ship a default “1.0 m scale” in the wheel
-
-**Detection:**
-- Serve logs “calibration applied” after camera_id or resolution change with no new wizard run
-- Two hosts share one calib file path via NFS/USB
-- UI shows calibrated; `/v1` depth kind is relative (split brain)
-
-**Phase ownership:** **Phase 5 — Persist & re-apply** (after apply path works in-memory). Design the **key schema** in Phase 1 so wizard + serve do not invent divergent formats.  
-**Warning signs:** “save to profile YAML only”; no invalidation tests.
-
-**Confidence:** HIGH (pattern matches multi-cam hooks + edge artifact fingerprint lessons from v0.2)
+**Phase ownership:** **Phase 21** (gate includes fingerprints) + **Phase 22** (persist policy).  
+**Confidence:** HIGH
 
 ---
 
-### 4. Scale math lies (affine depth, wrong target, bbox height misuse)
+### 4. Scale math lies (wrong target, double-scale, bbox misuse)
 
 **What goes wrong:**  
-Wizard takes “object is 1.7 m tall,” measures bbox height in pixels, computes a single scale `s`, multiplies the whole map. Reality: monocular relative depth is often **affine-invariant** (scale **and** shift), not pure scale; known **height** needs a geometric model (camera height / pitch / focal length or a known depth sample), not raw `H_real / h_px` alone. Partial occlusion, non-vertical objects, and detection jitter produce 20–50% scale error that is then labeled `metric_calibrated`.
+Online window samples the **already-scaled** map and fits again (double-scale). Or it invents geometry the wizard never consented to.
 
-**Why it happens:**
-- Blog-post “scale factor” oversimplification
-- Using YOLO bbox height as metric height without upright assumption or foot-point depth
-- Calibrating on **disparity-like** relative maps with a formula meant for metric-head meters
-- Single-click calibration with no multi-sample median / outlier reject
-- Mixing **metric_estimated** head outputs (already meters, domain-clipped at max_depth 20/80 m per DAV2 metric heads) with a second “relative scale” pipeline
+**Prevention:** Sample **pre-apply raw** (or equivalent documented space); reuse v0.3 fit/reject; do not add CLIP/language scale. Residual reject stays closed.
 
-**Consequences:**
-- Systematic bias (always 1.4× too far) trusted as calibrated truth
-- Outdoor/indoor domain mismatch amplified
-- Makers believe wizard “finished” = accurate
-
-**Prevention:**
-- Document the **exact** scale model in code + docs (one formula, one module):
-  - Prefer: sample depth at a known **metric reference** (tape distance to marker **or** known-size target with stated FOV/intrinsics assumptions) → fit `d_m ≈ s * f(d_raw)` (and optional shift if model requires)
-  - Known object height: require upright object + ground contact point + explicit camera-height or focal assumption; surface assumptions in UI
-- Fit on **≥N samples** or temporal median; reject if residual &gt; threshold; stay relative if reject
-- Separate pipelines:
-  - **Relative + user scale** → `metric_calibrated` (with method=`user_scale`)
-  - **Metric head** → `metric_estimated` unless user scale also applied (then calibrated-on-estimated, still not FSD)
-- Never claim sub-5% accuracy; UI: “approximate meters for makers”
-- Synthetic unit tests with known maps (no room required): pure functions for fit/apply/reject
-
-**Detection:**
-- Scale factor changes wildly frame-to-frame during wizard
-- Calibrated distance to a second known marker fails residual check
-- Applying scale to metric_estimated head doubles units (m·s product)
-
-**Phase ownership:** **Phase 2 — Calibration math core (pure, CI-safe)** before any wizard UI.  
-**Confidence:** MEDIUM–HIGH for risk class; MEDIUM for exact formula choice (product decision in planning).
-
-**Sources:** DAV2 metric heads use domain max_depth (indoor 20 m / outdoor 80 m) — [Depth Anything V2 metric_depth README](https://github.com/DepthAnything/Depth-Anything-V2/tree/main/metric_depth); OpenCV calibration docs stress known pattern size for **metric** object points but full intrinsics are **out of v0.3 primary path** (PROJECT.md deferred)
+**Phase ownership:** **Phase 20**.  
+**Confidence:** HIGH for double-scale risk; MEDIUM for exact window recipe.
 
 ---
 
-### 5. Wizard UX thrash (partial apply, cancel lies, mid-stream mutation)
+### 5. LOCK — Per-frame unguarded refit (wizard UX thrash / sticky-scale breach)
 
 **What goes wrong:**  
-User starts wizard, clicks points, Apply fails halfway (depth scaled, free-space still ordinal, UI badge calibrated). Cancel does not restore previous state. Preview shows meters while `/v1` still relative (or reverse). Per-frame re-fit while walking around makes scale oscillate; robots see jumping distances.
+Online “helpfully” refits every DepthLoop frame. Scale oscillates. Cancel does not restore draft-only. Disable-online clears applied. Preview shows meters while `/v1` does not (or reverse).
 
 **Why it happens:**
-- Multi-product store (depth + free-space + status + MJPEG) updated non-atomically
-- Apply mutates live worker without a transactional “pending → commit” model
-- Status poll (500 ms) and MJPEG path race
-- “Helpful” continuous recalibration without sticky commit
+- Fit on the hot path
+- No N-sample / throttle window
+- Auto-commit without the five conjuncts
+- Disable implemented as `clear_applied`
 
-**Consequences:**
-- Split-brain honesty across UI / snapshot / stream
-- Operator cannot trust Cancel
-- Support: “I cancelled but still in meters”
+**Prevention (v0.4 lock):**
+- **No per-frame unguarded refit** — sticky scale after commit
+- Throttle / N-sample window on the control plane
+- Cancel = draft only; Clear = applied + YAML; disable-online ≠ Clear
+- Auto-commit only: online on AND already applied AND fit ok AND residual AND fingerprints_match
+- UI never locally claims `auto_committed` or meters
 
-**Prevention:**
-- **Calibration session state machine:**
+**Detection:** Scale changes every frame while online; Cancel wipes applied; disable deletes YAML; footer kind ≠ `/v1` kind.
 
-  ```
-  idle → drafting (pending samples, no product change)
-      → preview (optional ephemeral overlay only)
-      → committed (atomic: scale + kind + free-space mode + status)
-      → cleared
-  ```
-
-- Commit is one backend API that updates scale holder + invalidates free-space smoother + sets kind policy; UI never “locally” claims calibrated
-- Cancel discards draft only; committed state untouched unless Clear
-- Sticky scale after commit (mirror v0.2 sticky backend): no per-frame re-estimate unless user re-runs wizard
-- Integration tests: apply → snapshot kind/unit/free-space units consistent; cancel draft → no kind change; clear → relative honesty restored
-
-**Detection:**
-- Footer kind ≠ `/v1` depth.kind for &gt;1 status poll
-- Cancel leaves `metric_calibrated` on disk
-- Scale changes without wizard interaction
-
-**Phase ownership:** **Phase 3 — Live Preview wizard + apply/cancel API** (after pure math + in-memory apply exist).  
-**Confidence:** HIGH (same class as v0.2 sticky fallback / honesty)
+**Phase ownership:** **Phase 19** (Cancel/Clear/disable) + **Phase 20** (no hot-path fit) + **Phase 21** (gate).  
+**Confidence:** HIGH
 
 ---
 
 ### 6. Accuracy / FSD overclaim (product thesis breach)
 
 **What goes wrong:**  
-README, wizard success screen, or release notes imply “metric depth = autonomous navigation ready.” Makers wire free-space meters into unsupervised drive. A single good indoor calibration is marketed as general.
+Docs or UI imply “online re-cal = always-accurate meters / autonomous-ready.”
 
-**Why it happens:**
-- Calibration UI feels “professional”
-- Metric heads + scale sound like stereo/LiDAR
-- Competitive pressure vs depth-camera products
+**Prevention:** Keep safety copy; “approximate hobby monocular”; no `safe_to_drive`; residual/status visible; no FSD language.
 
-**Consequences:**
-- Safety incident risk (project explicitly forbids FSD claims)
-- Scope creep into full photogrammetry / SLAM
-
-**Prevention:**
-- Keep safety copy: free-space **not** an interlock ([`safety-and-privacy.md`](../../docs/safety-and-privacy.md))
-- Wizard success: “Approximate metric scale applied — monocular, not vehicle-grade”
-- No `safe_to_drive` / go-nogo fields (API-05 unchanged)
-- Docs: error sources (domain, lighting, mount change, single-scale limits)
-- Residual / method metadata on status, not just a green check
-
-**Detection:**
-- Marketing language “precise meters,” “autonomous,” “FSD-lite”
-- Wizard omits uncertainty
-
-**Phase ownership:** **Docs + UI copy continuous**; gate in Phase 3 wizard strings and Phase 6 docs polish.  
-**Confidence:** HIGH  
-**Sources:** PROJECT.md out-of-scope FSD; safety-and-privacy.md
+**Phase ownership:** **Phase 22** docs + UI copy in 19/21.  
+**Confidence:** HIGH
 
 ---
 
 ## Moderate Pitfalls
 
-### 7. Metric head domain mismatch (indoor head outdoors)
+### 7. Enabling online before first consent
 
-**What goes wrong:**  
-User enables `metric_outdoor` outdoors or `metric_indoor` in a warehouse aisle &gt;20 m; max_depth clipping + domain shift makes “meters” systematically wrong even before user calibration.
+**What goes wrong:** Toggle on with no applied scale silently becomes first meters.
 
-**Prevention:**  
-Wizard and docs state domain; calibration residual fails closed to relative; do not auto-pick outdoor from GPS.
+**Prevention:** Enable while unapplied → 409 or no-op; stay `online_off`; never `apply_params`.
 
-**Phase ownership:** Phase 1 policy + Phase 2 residual gates.
-
-**Confidence:** HIGH (DAV2 metric indoor max_depth=20, outdoor=80 — upstream metric README)
-
----
+**Phase ownership:** Phase 19.
 
 ### 8. Double-scaling and kind confusion
 
-**What goes wrong:**  
-Load metric_estimated head (already meters), then apply relative-style scale again → double scale. Or promote to `metric_calibrated` without recording base mode.
+**What goes wrong:** Online samples calibrated maps and multiplies scale again.
 
-**Prevention:**  
-Store `base_depth_mode` + `scale` + `method` in calib record; apply function is pure and mode-aware; tests for relative→calibrated and estimated→calibrated paths.
+**Prevention:** Sample raw / pre-apply space; store `depth_mode` + `model_id`; tests for relative→calibrated and estimated→calibrated refine.
 
-**Phase ownership:** Phase 1 state model + Phase 2 apply function.
+**Phase ownership:** Phase 20.
 
----
+### 9. Thread / product races on auto-commit
 
-### 9. Thread / product races on apply
+**What goes wrong:** Sampler writes applied while DepthLoop reads half-updated params.
 
-**What goes wrong:**  
-DepthLoop writes unscaled map while apply thread sets kind calibrated; FreeSpaceLoop consumes mixed frames.
+**Prevention:** Existing `CalibrationState` lock; `apply_params` is already atomic; `apply_map` copies params then computes outside the lock (shipped).
 
-**Prevention:**  
-Single scale holder with lock read by depth publish path **or** scale applied only in one place (DepthLoop post-process) with generation counter; free-space reads kind from same DepthProduct.
+**Phase ownership:** Phase 21.
 
-**Phase ownership:** Phase 2 runtime apply wiring.
+### 10. Collapsing three status planes
 
----
+**What goes wrong:** One badge for kind + persist + online.
 
-### 10. UI colormap hides metric meaning
+**Prevention:** `online_*` additive and separate from `depth.kind` and persist `none|applied|ignored_mismatch|error`.
 
-**What goes wrong:**  
-Per-frame min–max TURBO colormap still used after calibration — far wall always “hot,” so operators think scale did nothing; they crank scale until colors “look right,” destroying metric.
+**Phase ownership:** Phase 19 + 21 + 22.
 
-**Prevention:**  
-Optional fixed metric colormap range when calibrated (e.g. 0–5 m) with legend; default may stay relative-normalized for visibility but **must not** be the only feedback — show numeric sample depth under cursor / marker.
+### 11. Intrinsics / stereo / ArUco scope creep
 
-**Phase ownership:** Phase 3 wizard visual feedback.
-
----
-
-### 11. Intrinsics scope creep
-
-**What goes wrong:**  
-Milestone expands into full chessboard photogrammetry, stereo, multi-view — delays ship; half-finished intrinsics path ships as calibrated meters.
-
-**Prevention:**  
-PROJECT.md already defers full intrinsic suite as primary path. v0.3 = **scale UX** on monocular maps; optional rough FOV default documented as assumption, not OpenCV `calibrateCamera` product.
-
-**Phase ownership:** Scope control at roadmap cut; reject in Phase 2 if plan grows calib3d-primary.
-
----
+**Prevention:** CAL-F01/F02/F04 stay future. v0.4 = gated refine of the v0.3 affine.
 
 ### 12. CI requires a real room
 
-**What goes wrong:**  
-Calibration tests need physical markers → GHA red or zero coverage; regressions in honesty only found on maker desks.
-
-**Prevention:**  
-Pure functions + synthetic depth maps + scripted “known height” geometry in tests (PROJECT.md: no real room). Hardware UAT checklist separate (mirror v0.2 ORT/TRT).
-
-**Phase ownership:** Phase 2 tests from day one; Phase 6 docs checklist.
+**Prevention:** Synthetic gate matrix; no room / Jetson / CUDA / `--extra depth` required in default GHA.
 
 ---
 
-## Minor Pitfalls
-
-| Pitfall | Prevention | Phase |
-|---------|------------|-------|
-| Footer shows only “Depth: relative” without calib state | Status: kind + calib method/age | 3, 5 |
-| Persisting scale as free float without units of scale | Schema: `scale`, `shift?`, `depth_space` enum | 1 |
-| Wizard uses detection class “person” height prior without user confirm | Require typed height; priors are defaults only | 3 |
-| Clearing depth stage leaves free-space metric labels | Stage off clears free-space (already) + reset calib display | 4 |
-| Docs still say “v1 free-space always ordinal” after metric path ships | Update perception-frame.md + safety doc in same milestone | 6 |
-| `metric_calibrated` in enum but never reachable in tests | Contract tests promote path end-to-end | 1–4 |
-| RTSP reconnection new `camera_id` semantics | Document id stability; mismatch → re-calib | 5 |
-
----
-
-## Phase ownership map (recommended v0.3 cut)
-
-Suggested phases so each critical pitfall is **prevented before** it can ship:
+## Phase ownership map (v0.4)
 
 | Phase | Name | Prevents (pitfall #) | Delivers |
 |-------|------|----------------------|----------|
-| **1** | **Honesty contracts & calib state model** | #1 silent unit lies; #8 double-scale schema; fingerprint fields for #3 | `CalibrationState` schema; promotion rules; validators; status fields; mode-switch reload policy |
-| **2** | **Scale math + in-process apply** | #4 scale math; #9 races; #7 residual reject | Pure fit/apply; Depth product scaled maps; CI synthetic tests |
-| **3** | **Live Preview wizard apply/cancel** | #5 UX thrash; #6 copy; #10 feedback | Wizard UI; draft/commit; numeric feedback; non-FSD strings |
-| **4** | **Free-space metric path** | #2 free-space breakage | Metric bands when calibrated; ordinal otherwise; smoother reset |
-| **5** | **Persist & re-apply on serve** | #3 persistence hazards | Atomic file/profile store; fingerprint invalidation; serve load honesty |
-| **6** | **Docs + CI polish** | #6, #12, doc drift | Operator calibration guide; hardware-free suites green; perception-frame updates |
-
-**Ordering rationale:**
-1. **Honesty first** — same lesson as v0.2 backend_live; without kind/unit/calib state, every later feature invents lies  
-2. **Math before chrome** — wizard without pure fit is a UI that stamps `metric_calibrated` on garbage  
-3. **Depth apply before free-space meters** — free-space must consume real scaled maps  
-4. **Persist last among features** — wrong persistence is a permanent silent lie; only save what apply already got right  
-5. **Docs continuous** but finalize after wire behavior exists  
+| **19** | **Online consent & honesty state** | #1 first-scale lie; #5 Cancel/Clear/disable; #7 enable-before-consent | Flag default off; status enum; first scale still Apply/`try_reapply` |
+| **20** | **Online sample + fit/reject** | #4/#8 double-scale; #5 unguarded refit | Draft-only sampler; reuse fit/reject; throttle / N-window |
+| **21** | **Gated auto-commit + DepthLoop/status** | #1/#2/#3/#5/#9 | Five-conjunct `apply_params`; smoother reset; status |
+| **22** | **Persist policy + docs/CI** | #3 implicit YAML; #6 FSD; #12 room CI | Session-only persist; docs; synthetic matrix |
 
 ```
-Honesty/state ──► Scale apply ──► Wizard UX
-                      │
-                      ▼
-                 Free-space metric
-                      │
-                      ▼
-                 Persist/re-apply ──► Docs/CI
+19 Consent/honesty ──▶ 20 Sample + fit ──▶ 21 Gated auto-commit ──▶ 22 Persist/docs/CI
 ```
 
 ---
 
 ## Anti-patterns checklist (PR review)
 
-- [ ] `unit="m"` or free-space `units="m"` while `depth_kind=relative`  
-- [ ] Free-space `units="m"` without absolute metric band thresholds  
-- [ ] Overloading `nearness_mean` (0..1) as meters / adding fake `distance_m` without kind gate  
-- [ ] `set_depth_mode` / calib apply that changes labels without reloading or invalidating model/scale  
-- [ ] Global calib file with no `camera_id` + resolution + model fingerprint  
-- [ ] Auto-apply on fingerprint mismatch  
-- [ ] Per-frame scale re-estimation after commit  
-- [ ] Cancel that does not restore draft-only state  
-- [ ] Wizard success implying navigation-safe / FSD  
-- [ ] Tests that require physical room for default CI  
-- [ ] Full chessboard intrinsics as blocker for v0.3 scale UX  
-- [ ] Leaving `assemble._units_for_depth_kind` always-ordinal after claiming metric free-space shipped  
+- [ ] First `metric_calibrated` invented by online (no Apply / `try_reapply`)
+- [ ] Draft / rejected / mismatch labeled as meters
+- [ ] `ok=False` becomes applied
+- [ ] Per-frame unguarded refit on DepthLoop
+- [ ] Auto-commit writes YAML by default
+- [ ] Auto-commit without `fingerprints_match`
+- [ ] Disable-online = Clear (wipes applied or YAML)
+- [ ] Cancel clears applied
+- [ ] Second `apply_map` site
+- [ ] Online status collapsed into `depth.kind` or persist status
+- [ ] FSD / vehicle-grade / “precise meters” copy
+- [ ] Tests that require a physical room
+- [ ] New pip deps / React / SLAM / ORT-TRT depth
 
 ---
 
-## What this milestone must not “fix” via shortcuts
-
-| Shortcut | Why it is a pitfall amplifier |
-|----------|-------------------------------|
-| “Just set unit=m on relative maps” | Silent unit lie (#1) — product-breaking |
-| Flip free-space units without metric bands | Free-space lie (#2) |
-| Save scale in profile only, ignore camera | Persistence hazard (#3) |
-| One bbox click, no residual check | Scale math lie (#4) + overclaim (#6) |
-| Ship wizard before pure apply tests | UX thrash + untested honesty (#5) |
-| Full OpenCV calib3d as v0.3 gate | Scope creep (#11); delays honest scale |
-| Claim stereo/LiDAR parity | FSD thesis breach (#6) |
-
----
-
-## Question → pitfall → phase (direct answers)
+## Question → pitfall → phase
 
 | Question | Answer | Prevent in |
 |----------|--------|------------|
-| Common mistakes adding monocular metric calib UX? | Unit lies; free-space ordinal→“m” label-only; stale/wrong-camera persist; bad scale math; wizard non-atomic apply; FSD overclaim | Phases 1–6 as table above |
-| Silent unit lies? | Yes — highest severity; also latent in mode-switch without model reload | **Phase 1** (+ reload policy in Phase 2 wiring) |
-| Free-space breakage? | Yes — percentile nearness ≠ meters; smoother ghosting | **Phase 4** (depends on Phase 2 maps) |
-| Persistence hazards? | Yes — wrong camera/resolution/model re-apply is permanent lie | **Phase 5** (key design in Phase 1) |
-| Which phase prevents each? | See phase ownership map | — |
+| Can online invent the first scale? | No | **19** |
+| Silent meters from draft/reject/mismatch? | Highest severity — lock #1 | **19 + 21** |
+| Oscillating scale / free-space thrash? | Lock #2 + #5 | **20 + 21** |
+| Implicit YAML / wrong-camera persist? | Lock #3 | **21 + 22** |
+| Per-frame unguarded refit? | Lock #5 | **20 + 21** |
 
 ---
 
@@ -424,21 +235,12 @@ Honesty/state ──► Scale apply ──► Wizard UX
 
 | Source | Confidence | Use |
 |--------|------------|-----|
-| [PROJECT.md](../PROJECT.md) v0.3 goals / out-of-scope | HIGH | Milestone scope, no FSD, no full intrinsics primary |
-| [docs/perception-frame.md](../../docs/perception-frame.md) | HIGH | kind/unit wire honesty |
-| [src/sentry_ai/schemas/validators.py](../../src/sentry_ai/schemas/validators.py) | HIGH | relative forbids meters |
-| [src/sentry_ai/models/depth/worker.py](../../src/sentry_ai/models/depth/worker.py) | HIGH | mode vs loaded-model hazard |
-| [src/sentry_ai/models/depth/mapping.py](../../src/sentry_ai/models/depth/mapping.py) | HIGH | kind from mode only |
-| [src/sentry_ai/spatial/free_space.py](../../src/sentry_ai/spatial/free_space.py) | HIGH | ordinal nearness bands |
-| [src/sentry_ai/api/assemble.py](../../src/sentry_ai/api/assemble.py) | HIGH | free-space units always ordinal today |
-| [tests/test_free_space_bands.py](../../tests/test_free_space_bands.py) | HIGH | metric_estimated still ordinal |
-| [tests/test_depth_kind_honesty.py](../../tests/test_depth_kind_honesty.py) | HIGH | relative unit null contract |
-| [docs/safety-and-privacy.md](../../docs/safety-and-privacy.md) | HIGH | free-space not interlock; not FSD |
-| [docs/export/depth-anything-v2.md](../../docs/export/depth-anything-v2.md) | HIGH | relative vs metric_estimated honesty |
-| DAV2 metric_depth README (Hypersim 20 m / VKITTI 80 m) | HIGH | domain + max_depth limits |
-| OpenCV camera calibration tutorial | MEDIUM | known size → metric object points; full calib deferred |
-| v0.2 PITFALLS (sticky honesty / no silent lies) | HIGH | process pattern transfer |
+| PROJECT.md v0.4 locked decisions | HIGH | Gate conjuncts |
+| v0.3 PITFALLS #1/#2/#3/#5 | HIGH | **Locks — do not delete** |
+| `control/calibration_state.py` | HIGH | apply / apply_params / apply_map |
+| `spatial/calibration.py` | HIGH | fit/reject |
+| `config/calibration_store.py` | HIGH | fingerprint refuse |
+| `docs/calibration.md` + safety-and-privacy.md | HIGH | Non-FSD copy |
 
 ---
-
-*PITFALLS for v0.3 Metric Depth Calibration UX — monocular scale on Sentry’s relative-depth + ordinal free-space stack. Supersedes the v0.2 Edge Runtime focus of this file for roadmap input; ORT/TRT pitfalls remain historically valid for edge work but are not the focus of this milestone.*
+*PITFALLS for v0.4 Online Re-calibration. #1 silent meters, #2 oscillating/free-space, #3 persist mismatch, and #5 per-frame unguarded refit remain locks. Supersedes the v0.3 “defer online re-cal” focus of this file for roadmap input; v0.3 honesty contracts remain in force.*
