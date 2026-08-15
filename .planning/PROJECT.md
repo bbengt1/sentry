@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Sentry AI is an open-source, camera-only perception stack for maker robotics — vision-based spatial awareness and object recognition without LiDAR or radar. It runs local open-source models, exposes a realtime Live Preview with overlays and developer controls, and ships a versioned perception stream (depth, detections, free-space / obstacles, optional open-vocab) that robots consume via REST/WebSocket. Multi-target runtime profiles (desktop GPU, Jetson-class, CPU/lite), headless API mode, and extension stubs (ROS2, multi-cam `camera_id`, voice no-op) are included for post-v1 growth. Makers can apply an honest monocular metric scale via a Live Preview calibration wizard; free-space meters appear only when calibrated.
+Sentry AI is an open-source, camera-only perception stack for maker robotics — vision-based spatial awareness and object recognition without LiDAR or radar. It runs local open-source models, exposes a realtime Live Preview with overlays and developer controls, and ships a versioned perception stream (depth, detections, free-space / obstacles, optional open-vocab) that robots consume via REST/WebSocket. Multi-target runtime profiles (desktop GPU, Jetson-class, CPU/lite), headless API mode, and extension stubs (ROS2, multi-cam `camera_id`, voice no-op) are included for post-v1 growth. Makers can apply an honest monocular metric scale via a Live Preview calibration wizard; free-space meters appear only when calibrated. After that first consent, an opt-in online path can refine the same scale without another Apply — draft, rejected, and fingerprint-mismatched depth never claim meters.
 
 ## Core Value
 
@@ -75,7 +75,12 @@ Reliable camera-only depth + obstacle awareness and object recognition that make
 
 ### Active
 
-None.
+- [ ] Opt-in online re-calibration after first consented metric scale (default off)
+- [ ] First `metric_calibrated` still requires explicit Apply or matching persist `try_reapply`
+- [ ] Online sampler stays draft-only; WIZ-04 holds until apply()/apply_params of a passed fit
+- [ ] Gated auto-commit via apply_params (online + already applied + fit ok + residual + fingerprints_match)
+- [ ] Cancel/Clear unchanged; disable-online ≠ Clear; auto-commit session-only by default
+- [ ] Status distinguishes online_off / online_draft / auto_committed / rejected; docs + synthetic CI
 
 ### Out of Scope
 
@@ -140,23 +145,39 @@ None.
 | STACK YAML persist + fingerprint refuse | Restart-safe without silent mismatch | ✓ Good — v0.3 |
 | Synthetic CI only (no room / Jetson / CUDA) | Hardware-free default GHA | ✓ Good — v0.3 |
 | Do not bump pyproject 0.1.0 | Archive is planning-only | ✓ Good — v0.3 |
+| Consent-once gated auto-commit (not silent first scale) | First meters still need Apply / persist `try_reapply` | Locked — v0.4 |
+| Online mode default off | Opt-in; disable-online ≠ Clear | Locked — v0.4 |
+| Auto-commit via `apply_params` only when already applied + fit ok + residual + fingerprints_match | Same reject gates; DepthLoop sole `apply_map` | Locked — v0.4 |
+| Sticky scale; throttle / N-sample window | No per-frame unguarded refit | Locked — v0.4 |
+| Auto-commit session-only by default | YAML only on explicit save / persist:true / documented opt-in | Locked — v0.4 |
 
-## Current Milestone: v0.3 Metric Depth Calibration UX — SHIPPED 2026-08-14
+## Current Milestone: v0.4 Online Re-calibration (CAL-F03)
 
-**Goal:** Makers can turn monocular relative depth into honest metric distances using a Live Preview calibration wizard based on known heights/markers — without claiming vehicle-grade accuracy.
+**Goal:** After a maker has consented to metric scale (wizard Apply or matching persist re-apply), Sentry can continuously refine that scale online without another Apply click — without ever labeling draft, rejected, or fingerprint-mismatched depth as meters.
 
-**Shipped this milestone:**
-- Live Preview wizard for ground-truth scale (known object distance / optional height)
-- Apply / Cancel / Clear with visual feedback; draft never claims meters
-- Persist calibration per `camera_id` and re-apply on `sentry serve`
-- Wire calibrated scale into depth products with honest `depth_kind` / units
-- Free-space near-field bands use meters when calibrated; stay honest when not
-- Operator docs + CI-safe unit/integration tests (synthetic frames; no real room required)
+**Target features:**
+- Opt-in online mode (default off)
+- First `metric_calibrated` still requires explicit Apply or matching persist `try_reapply`
+- Online sampler writes draft only (WIZ-04 holds until apply()/apply_params of a passed fit)
+- Reuse v0.3 fit/reject gates; `ok=False` never becomes applied
+- Gated auto-commit via `apply_params` when online on AND already applied AND fit ok AND residual gate AND fingerprints_match
+- DepthLoop remains sole `apply_map`; reset free-space smoother on auto-commit like Apply
+- Sticky scale — throttle / N-sample window; no per-frame unguarded refit
+- Cancel = draft only; Clear = applied + YAML; disable-online ≠ Clear
+- Auto-commit is session-only by default (YAML only on explicit save / persist:true / documented opt-in)
+- Status distinguishes `online_off` / `online_draft` / `auto_committed` / `rejected` from `depth.kind` and persist status
+- Docs + synthetic CI; zero new deps
 
-**No next product phase.** Future/out-of-scope items remain candidates only (chessboard suite, stereo, live ORT/TRT depth, ROS2 metric TF) — not a default resume.
+**Out of this milestone (deferred):**
+- Full chessboard / photogrammetry intrinsic suite (CAL-F01)
+- Required ArUco/AprilTag marker kit (CAL-F02)
+- Stereo / multi-view metric depth (CAL-F04)
+- Production ROS2 metric TF / frame package (PLAT-F01)
+- Multi-camera fusion with shared metric world frame (PLAT-F02)
+- Live ORT/TRT for depth models (PLAT-F03)
 
 ---
-*Last updated: 2026-08-14 after v0.3 complete-milestone*
+*Last updated: 2026-08-15 after starting v0.4 milestone*
 
 ## Evolution
 
