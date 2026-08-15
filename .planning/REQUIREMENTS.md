@@ -66,20 +66,27 @@ Which phases cover which requirements. Filled during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ONL-01 | TBD | Pending |
-| ONL-02 | TBD | Pending |
-| ONL-03 | TBD | Pending |
-| ONL-04 | TBD | Pending |
-| ONL-05 | TBD | Pending |
-| ONL-06 | TBD | Pending |
-| ONL-07 | TBD | Pending |
-| ONL-08 | TBD | Pending |
+| ONL-01 | Phase 19 | Pending |
+| ONL-02 | Phase 19 | Pending |
+| ONL-03 | Phase 20 | Pending |
+| ONL-04 | Phase 20 | Pending |
+| ONL-05 | Phase 21 | Pending |
+| ONL-06 | Phase 19 | Pending |
+| ONL-07 | Phase 21 | Pending |
+| ONL-08 | Phase 22 | Pending |
 
 **Coverage:**
 - v0.4 requirements: 8 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 8
+- Mapped to phases: 8/8 ✓
+- Unmapped: 0
+
+| Phase | Requirements | Count |
+|-------|--------------|-------|
+| 19 Online consent & honesty state | ONL-01, ONL-02, ONL-06 | 3 |
+| 20 Online sample + fit/reject | ONL-03, ONL-04 | 2 |
+| 21 Gated auto-commit + DepthLoop/status | ONL-05, ONL-07 | 2 |
+| 22 Persist policy + docs/CI | ONL-08 | 1 |
 
 ---
 *Requirements defined: 2026-08-15*  
-*Last updated: 2026-08-15 after v0.4 milestone start*
+*Last updated: 2026-08-15 after v0.4 roadmap (phases 19–22)*
