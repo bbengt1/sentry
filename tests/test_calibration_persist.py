@@ -191,3 +191,14 @@ def test_refuse_if_mismatch_noop_when_inactive() -> None:
     why = refuse_if_mismatch(state, _live())
     assert why is None
     assert state.is_applied() is False
+
+
+def test_try_reapply_match_does_not_enable_online(tmp_path: Path) -> None:
+    path = tmp_path / "usb0.yaml"
+    save_params(_params(scale=2.25), path)
+    state = CalibrationState()
+    result = try_reapply(state, path, _live())
+    assert result.status == "applied"
+    assert state.is_applied() is True
+    assert state.is_online() is False
+    assert state.snapshot().online is False

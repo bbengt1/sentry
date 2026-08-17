@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Online Re-calibration
-status: plans_ready
-last_updated: "2026-08-15"
-last_activity: 2026-08-15
+status: executing
+last_updated: "2026-08-17"
+last_activity: 2026-08-17
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 2
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 12
 ---
 
 # Project State
@@ -20,28 +20,28 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-15)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots — without proprietary sensors or cloud AI.  
-**Current focus:** v0.4 Phase 19 plans written — ready to execute 19-01 (opt-in flag + first-scale lock).
+**Current focus:** v0.4 Phase 19 — 19-01 shipped (online flag + first-scale lock). Ready to execute 19-02.
 
 ## Current Position
 
 Phase: 19 of 22 (Online consent & honesty state) — v0.4 phases 19–22  
-Plan: 19-01  
+Plan: 19-02  
 Status: Ready to execute  
-Last activity: 2026-08-15 — Phase 19 research + plans written (19-01, 19-02)
+Last activity: 2026-08-17 — 19-01 implemented (session online flag default off; enable refused until Apply / try_reapply)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 12%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed (v0.4): 0
+- Total plans completed (v0.4): 1
 - v1.0 + v0.2 + v0.3 history: 40 plans shipped prior milestones
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 19. Online consent & honesty state | 0/2 | 2 | - |
+| 19. Online consent & honesty state | 1/2 | 2 | - |
 
 *Updated after each plan completion*
 
@@ -71,10 +71,17 @@ Phase 19 plan locks (2026-08-15):
 - Phase 19 never sets `auto_committed` or `rejected` (enum exists for 21)
 - No sampler / auto-commit / persist-policy / DepthLoop `apply_map` in Phase 19
 
+19-01 shipped (2026-08-17):
+- `is_online()` / `set_online(enabled) -> CalibrationSnapshot`
+- `CalibrationSnapshot.online` defaults False
+- `set_online(True)` unapplied → `ValueError("online_requires_applied")`
+- `apply` / `apply_params` / matching `try_reapply` do not enable online
+- `clear_applied` forces online off; `set_online(False)` does not clear applied
+
 ### Pending Todos
 
-- Execute 19-01 (opt-in flag + honesty state machine)
-- Then execute 19-02 (Cancel/Clear/disable-online + status fields)
+- Execute 19-02 (Cancel/Clear/disable-online + four-way status + thin REST POST)
+- Then plan Phase 20 (online sample + fit/reject)
 
 ### Blockers/Concerns
 
@@ -97,7 +104,7 @@ See also: `milestones/v1.0-MILESTONE-AUDIT.md`, `milestones/v0.2-MILESTONE-AUDIT
 
 ## Session Continuity
 
-Last session: 2026-08-15 — Phase 19 plans written (research + 19-01/19-02)  
-Stopped at: `.planning/phases/19-online-consent-honesty-state/` + STATE/ROADMAP updated (plans written, not executed)  
-Resume file: `.planning/phases/19-online-consent-honesty-state/19-01-PLAN.md`  
-Next: execute 19-01
+Last session: 2026-08-17 — 19-01 implemented (online flag + first-scale lock)  
+Stopped at: `feat/19-01-online-consent-flag`  
+Resume file: `.planning/phases/19-online-consent-honesty-state/19-02-PLAN.md`  
+Next: execute 19-02

@@ -46,6 +46,7 @@ class CalibrationState:
     _draft_samples: list[Any] = field(default_factory=list, repr=False)
     _persist_status: str = field(default="none", repr=False)
     _persist_reason: str | None = field(default=None, repr=False)
+    _online_enabled: bool = field(default=False, repr=False)
 
     def snapshot(self) -> CalibrationSnapshot:
         """Return an isolated status-safe view of current calibration state."""
@@ -74,6 +75,7 @@ class CalibrationState:
             fingerprint=fingerprint,
             persist_status=self._persist_status,  # type: ignore[arg-type]
             persist_reason=self._persist_reason,
+            online=self._online_enabled,
         )
 
     def add_draft_sample(self, sample: Any) -> CalibrationSnapshot:
@@ -160,12 +162,31 @@ class CalibrationState:
         with self._lock:
             return self._persist_status, self._persist_reason
 
+    def is_online(self) -> bool:
+        """Session online-recal flag. Default off; never invents first scale."""
+        with self._lock:
+            return self._online_enabled
+
+    def set_online(self, enabled: bool) -> CalibrationSnapshot:
+        """Enable or disable session online-recal.
+
+        Enabling while unapplied raises ``ValueError("online_requires_applied")``
+        and leaves applied/draft/kind unchanged. Disabling does not clear
+        applied params (disable ≠ Clear).
+        """
+        with self._lock:
+            if enabled and self._applied_params is None:
+                raise ValueError("online_requires_applied")
+            self._online_enabled = bool(enabled)
+            return self._snapshot_unlocked()
+
     def clear_applied(self) -> CalibrationSnapshot:
         """Clear applied calibration; restores base kind/unit promotion."""
         with self._lock:
             self._applied_params = None
             self._persist_status = "none"
             self._persist_reason = None
+            self._online_enabled = False
             return self._snapshot_unlocked()
 
     def is_applied(self) -> bool:
