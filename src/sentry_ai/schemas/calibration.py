@@ -79,6 +79,7 @@ class CalibrationSnapshot(BaseModel):
     fingerprint: CalibrationFingerprint | None = None
     persist_status: Literal["none", "applied", "ignored_mismatch", "error"] = "none"
     persist_reason: str | None = None
+    online: bool = False
 
 
 def is_valid_calibration_params(params: CalibrationParams) -> tuple[bool, str | None]:

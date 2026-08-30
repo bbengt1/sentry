@@ -202,6 +202,7 @@ def test_snapshot_defaults() -> None:
     assert snap.valid is False
     assert snap.draft_sample_count == 0
     assert snap.has_draft_params is False
+    assert snap.online is False
 
 
 def test_snapshot_rejects_extra_fields() -> None:
@@ -606,3 +607,109 @@ def test_snapshot_persist_defaults() -> None:
     snap = CalibrationSnapshot()
     assert snap.persist_status == "none"
     assert snap.persist_reason is None
+
+
+# --- online consent flag (ONL-01 / ONL-02) ----------------------------------
+
+
+def test_online_defaults_off() -> None:
+    state = CalibrationState()
+    assert state.is_online() is False
+    assert state.snapshot().online is False
+    assert state.is_applied() is False
+    snap = CalibrationSnapshot()
+    assert snap.online is False
+
+
+def test_set_online_true_unapplied_raises() -> None:
+    state = CalibrationState()
+    with pytest.raises(ValueError, match="online_requires_applied"):
+        state.set_online(True)
+    assert state.is_online() is False
+    assert state.is_applied() is False
+    kind, unit = state.promote_kind_unit(DepthKind.RELATIVE, None)
+    assert kind == DepthKind.RELATIVE
+    assert unit is None
+
+
+def test_set_online_false_unapplied_is_idempotent() -> None:
+    state = CalibrationState()
+    snap = state.set_online(False)
+    assert snap.online is False
+    assert state.is_online() is False
+    assert state.is_applied() is False
+
+
+def test_apply_does_not_enable_online() -> None:
+    state = CalibrationState()
+    state.set_draft_params(_params(scale=2.0, sample_count=4))
+    snap = state.apply()
+    assert snap.applied is True
+    assert snap.valid is True
+    assert state.is_online() is False
+    assert snap.online is False
+    kind, unit = state.promote_kind_unit(DepthKind.RELATIVE, None)
+    assert kind == DepthKind.METRIC_CALIBRATED
+    assert unit == "m"
+
+
+def test_set_online_true_after_apply() -> None:
+    state = CalibrationState()
+    state.set_draft_params(_params(scale=2.0, sample_count=4))
+    state.apply()
+    snap = state.set_online(True)
+    assert snap.online is True
+    assert snap.applied is True
+    assert state.is_online() is True
+    applied = state.get_applied_params()
+    assert applied is not None
+    assert applied.scale == 2.0
+    kind, unit = state.promote_kind_unit(DepthKind.RELATIVE, None)
+    assert kind == DepthKind.METRIC_CALIBRATED
+    assert unit == "m"
+    snap2 = state.set_online(True)
+    assert snap2.online is True
+    assert snap2.applied is True
+
+
+def test_apply_params_does_not_enable_online() -> None:
+    state = CalibrationState()
+    snap = state.apply_params(_params(scale=2.25, sample_count=2))
+    assert snap.applied is True
+    assert state.is_online() is False
+    assert snap.online is False
+    snap2 = state.set_online(True)
+    assert snap2.online is True
+    assert snap2.applied is True
+
+
+def test_set_online_true_never_creates_applied() -> None:
+    state = CalibrationState()
+    with pytest.raises(ValueError, match="online_requires_applied"):
+        state.set_online(True)
+    assert state.get_applied_params() is None
+    assert state.is_applied() is False
+
+
+def test_clear_applied_forces_online_off() -> None:
+    state = CalibrationState()
+    state.apply_params(_params())
+    state.set_online(True)
+    assert state.is_online() is True
+    snap = state.clear_applied()
+    assert snap.online is False
+    assert state.is_online() is False
+    assert state.is_applied() is False
+
+
+def test_disable_online_does_not_clear_applied() -> None:
+    state = CalibrationState()
+    state.apply_params(_params(scale=1.75, sample_count=2))
+    state.set_online(True)
+    snap = state.set_online(False)
+    assert snap.online is False
+    assert state.is_online() is False
+    assert state.is_applied() is True
+    applied = state.get_applied_params()
+    assert applied is not None
+    assert applied.scale == 1.75
