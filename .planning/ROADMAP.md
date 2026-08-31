@@ -63,7 +63,7 @@ Audit: [milestones/v0.3-MILESTONE-AUDIT.md](milestones/v0.3-MILESTONE-AUDIT.md)
 
 **Constraints:** Online default off; first `metric_calibrated` still Apply or persist `try_reapply`; draft ≠ meters (WIZ-04); same fit/reject (`ok=False` never applied); auto-commit only if online on AND already applied AND fit ok AND residual gate AND `fingerprints_match` via `apply_params`; DepthLoop sole `apply_map`; smoother reset on auto-commit; sticky scale (throttle / N-sample, no per-frame unguarded refit); Cancel = draft only; Clear = applied + YAML; disable-online ≠ Clear; auto-commit session-only (YAML only on explicit save / persist:true / documented opt-in); status `online_off` / `online_draft` / `auto_committed` / `rejected` separate from `depth.kind` and persist; zero new deps; freeze DetectionLoop / FrameBus / ORT-TRT / `kind_for_mode`; synthetic CI; no FSD.
 
-- [ ] **Phase 19: Online consent & honesty state** - Opt-in default off; first scale still Apply / persist re-apply; Cancel/Clear/disable-online semantics — **plans written (19-01, 19-02)**
+- [x] **Phase 19: Online consent & honesty state** - Opt-in default off; first scale still Apply / persist re-apply; Cancel/Clear/disable-online semantics — **complete (19-01, 19-02)**
 - [ ] **Phase 20: Online sample + fit/reject** - Throttled draft-only sampler; reuse v0.3 fit/reject
 - [ ] **Phase 21: Gated auto-commit + DepthLoop/status** - Five-conjunct `apply_params`; sole `apply_map`; smoother reset; online status
 - [ ] **Phase 22: Persist policy + docs/CI** - Session-only auto-commit; operator docs; synthetic honesty matrix
@@ -80,7 +80,7 @@ Audit: [milestones/v0.3-MILESTONE-AUDIT.md](milestones/v0.3-MILESTONE-AUDIT.md)
   3. Cancel still clears draft only; Clear still clears applied + YAML
   4. Disable-online does not clear applied params or delete the YAML file
   5. Status can represent `online_off` (and is distinct from `depth.kind` and persist status)
-**Plans**: [19-01](phases/19-online-consent-honesty-state/19-01-PLAN.md), [19-02](phases/19-online-consent-honesty-state/19-02-PLAN.md) — written, not executed
+**Plans**: [19-01](phases/19-online-consent-honesty-state/19-01-PLAN.md), [19-02](phases/19-online-consent-honesty-state/19-02-PLAN.md) — complete
 
 ### Phase 20: Online sample + fit/reject
 **Goal**: An online sampler can collect a throttled N-sample window into draft only and run the same v0.3 fit/reject without promoting meters
@@ -129,7 +129,7 @@ Audit: [milestones/v0.3-MILESTONE-AUDIT.md](milestones/v0.3-MILESTONE-AUDIT.md)
 | 11. Sticky Fallback & Dual-Model Guardrails | v0.2 | 2/2 | Complete | 2026-08-10 |
 | 12. Docs, CI & Packaging Polish | v0.2 | 2/2 | Complete | 2026-08-10 |
 | 13–18 | v0.3 | 12/12 | Complete | 2026-08-14 |
-| 19. Online consent & honesty state | v0.4 | 2/2 | Plans written | - |
+| 19. Online consent & honesty state | v0.4 | 2/2 | Complete | 2026-08-30 |
 | 20. Online sample + fit/reject | v0.4 | 0/? | Not started | - |
 | 21. Gated auto-commit + DepthLoop/status | v0.4 | 0/? | Not started | - |
 | 22. Persist policy + docs/CI | v0.4 | 0/? | Not started | - |

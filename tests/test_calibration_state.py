@@ -713,3 +713,88 @@ def test_disable_online_does_not_clear_applied() -> None:
     applied = state.get_applied_params()
     assert applied is not None
     assert applied.scale == 1.75
+
+
+# --- online_status plane (ONL-01 / ONL-06) ----------------------------------
+
+
+def test_snapshot_online_status_defaults() -> None:
+    snap = CalibrationSnapshot()
+    assert snap.online_status == "online_off"
+
+
+def test_snapshot_online_status_enum_constructs() -> None:
+    committed = CalibrationSnapshot(online_status="auto_committed")
+    assert committed.online_status == "auto_committed"
+    rejected = CalibrationSnapshot(online_status="rejected")
+    assert rejected.online_status == "rejected"
+    with pytest.raises(ValidationError):
+        CalibrationSnapshot(online_status="not_a_status")  # type: ignore[arg-type]
+    with pytest.raises(ValidationError):
+        CalibrationSnapshot(
+            online_status="online_off",
+            extra_field=1,  # type: ignore[call-arg]
+        )
+
+
+def test_set_online_true_sets_online_draft() -> None:
+    state = CalibrationState()
+    state.apply_params(_params())
+    snap = state.set_online(True)
+    assert snap.online is True
+    assert snap.online_status == "online_draft"
+    assert state.is_online() is True
+
+
+def test_clear_draft_leaves_online_on() -> None:
+    state = CalibrationState()
+    state.apply_params(_params())
+    state.set_online(True)
+    state.set_draft_params(_params(scale=3.0, sample_count=2))
+    snap = state.clear_draft()
+    assert snap.has_draft_params is False
+    assert state.is_applied() is True
+    assert state.is_online() is True
+    assert snap.online is True
+    assert snap.online_status == "online_draft"
+
+
+def test_clear_applied_forces_online_off_status() -> None:
+    state = CalibrationState()
+    state.apply_params(_params())
+    state.set_online(True)
+    snap = state.clear_applied()
+    assert state.is_applied() is False
+    assert state.is_online() is False
+    assert snap.online_status == "online_off"
+    assert snap.persist_status == "none"
+
+
+def test_set_online_false_leaves_applied() -> None:
+    state = CalibrationState()
+    state.apply_params(_params(scale=1.75, sample_count=2))
+    state.set_online(True)
+    snap = state.set_online(False)
+    assert state.is_applied() is True
+    applied = state.get_applied_params()
+    assert applied is not None
+    assert applied.scale == 1.75
+    assert snap.online is False
+    assert snap.online_status == "online_off"
+
+
+def test_production_paths_never_leave_phase21_online_status() -> None:
+    """set_online / clear_applied / clear_draft never yield auto_committed."""
+    forbidden = {"auto_committed", "rejected"}
+    state = CalibrationState()
+    assert state.snapshot().online_status not in forbidden
+    state.apply_params(_params())
+    snap = state.set_online(True)
+    assert snap.online_status not in forbidden
+    snap = state.clear_draft()
+    assert snap.online_status not in forbidden
+    snap = state.set_online(False)
+    assert snap.online_status not in forbidden
+    state.set_online(True)
+    snap = state.clear_applied()
+    assert snap.online_status not in forbidden
