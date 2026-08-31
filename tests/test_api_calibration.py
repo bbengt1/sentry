@@ -232,3 +232,27 @@ def test_get_snapshot_includes_fields_and_frozen() -> None:
             assert worker.process_calls == 0
     finally:
         loop.stop()
+
+
+def test_freeze_pins_frame_for_later_sample() -> None:
+    store = PerceptionStore()
+    _seed_depth(store, value=2.0, frame_id=11)
+    app, loop, _state, store, worker = _app(store=store)
+    try:
+        with TestClient(app) as client:
+            freeze = client.post("/api/depth/calibration/freeze")
+            assert freeze.status_code == 200
+            assert freeze.json()["frozen"] is True
+            _seed_depth(store, value=9.0, frame_id=12)
+            resp = client.post(
+                "/api/depth/calibration/sample",
+                json=_sample_body(known_meters=4.0),
+            )
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["draft_sample_count"] == 1
+            observed = data["sample"]["observed_raw"]
+            assert observed == pytest.approx(2.0)
+            assert worker.process_calls == 0
+    finally:
+        loop.stop()
