@@ -8,15 +8,15 @@ from typing import Any
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
+
 from sentry_ai.api.app import create_app
 from sentry_ai.bus.frame_bus import FrameBus
 from sentry_ai.capture.loop import CaptureLoop
+from sentry_ai.control.calibration_state import CalibrationState
 from sentry_ai.models.depth.worker import DepthResult
 from sentry_ai.schemas.enums import DepthKind
 from sentry_ai.sources.synthetic import SyntheticSource
 from sentry_ai.state.perception_store import PerceptionStore
-
-from sentry_ai.control.calibration_state import CalibrationState
 
 
 class FakeDepthWorker:
