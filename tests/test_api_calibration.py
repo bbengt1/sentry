@@ -256,3 +256,121 @@ def test_freeze_pins_frame_for_later_sample() -> None:
             assert worker.process_calls == 0
     finally:
         loop.stop()
+
+
+def test_freeze_missing_depth_422() -> None:
+    store = PerceptionStore()
+    app, loop, _state, _store, worker = _app(store=store)
+    try:
+        with TestClient(app) as client:
+            resp = client.post("/api/depth/calibration/freeze")
+            assert resp.status_code == 422
+            assert worker.process_calls == 0
+    finally:
+        loop.stop()
+
+
+def test_sample_point_fills_observed_raw() -> None:
+    store = PerceptionStore()
+    _seed_depth(store, value=2.0)
+    app, loop, _state, _store, worker = _app(store=store)
+    try:
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/depth/calibration/sample",
+                json=_sample_body(known_meters=4.0, point_uv=(8.0, 6.0)),
+            )
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["draft_sample_count"] == 1
+            assert data["applied"] is False
+            assert data["sample"]["observed_raw"] == pytest.approx(2.0)
+            assert data["samples"][0]["known_meters"] == 4.0
+            assert "depth_map" not in resp.text
+            snap = client.get("/api/snapshot")
+            assert snap.status_code == 200
+            assert snap.json()["depth"]["kind"] == "relative"
+            assert worker.process_calls == 0
+    finally:
+        loop.stop()
+
+
+def test_sample_bbox_fills_observed_raw() -> None:
+    store = PerceptionStore()
+    _seed_depth(store, value=2.0)
+    app, loop, _state, _store, worker = _app(store=store)
+    try:
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/depth/calibration/sample",
+                json={
+                    "bbox_xyxy": [2.0, 2.0, 10.0, 10.0],
+                    "known_meters": 4.0,
+                },
+            )
+            assert resp.status_code == 200
+            assert resp.json()["sample"]["observed_raw"] == pytest.approx(2.0)
+            assert worker.process_calls == 0
+    finally:
+        loop.stop()
+
+
+def test_sample_neither_point_nor_bbox_422() -> None:
+    store = PerceptionStore()
+    _seed_depth(store)
+    app, loop, _state, _store, worker = _app(store=store)
+    try:
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/depth/calibration/sample",
+                json={"known_meters": 4.0},
+            )
+            assert resp.status_code == 422
+            extra = client.post(
+                "/api/depth/calibration/sample",
+                json={
+                    "point_uv": [8.0, 6.0],
+                    "known_meters": 4.0,
+                    "motor": 1,
+                },
+            )
+            assert extra.status_code == 422
+            assert worker.process_calls == 0
+    finally:
+        loop.stop()
+
+
+def test_sample_while_applied_409() -> None:
+    store = PerceptionStore()
+    _seed_depth(store, value=2.0)
+    app, loop, state, _store, worker = _app(store=store)
+    try:
+        with TestClient(app) as client:
+            assert (
+                client.post(
+                    "/api/depth/calibration/sample",
+                    json=_sample_body(known_meters=4.0),
+                ).status_code
+                == 200
+            )
+            compute = _compute(client)
+            assert compute.status_code == 200
+            apply = client.post("/api/depth/calibration/apply")
+            assert apply.status_code == 200
+            assert apply.json()["applied"] is True
+            before = client.get("/api/depth/calibration").json()
+            count = before["draft_sample_count"]
+            resp = client.post(
+                "/api/depth/calibration/sample",
+                json=_sample_body(known_meters=4.0),
+            )
+            assert resp.status_code == 409
+            detail = resp.json().get("detail", "")
+            assert "calibration_already_applied" in str(detail)
+            after = client.get("/api/depth/calibration").json()
+            assert after["draft_sample_count"] == count
+            assert after["applied"] is True
+            assert state.is_applied() is True
+            assert worker.process_calls == 0
+    finally:
+        loop.stop()
