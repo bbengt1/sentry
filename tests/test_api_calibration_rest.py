@@ -149,3 +149,124 @@ def test_apply_commits_status_but_store_kind_stays_relative() -> None:
             assert worker.process_calls == 0
     finally:
         loop.stop()
+
+
+def test_apply_then_depth_loop_product_is_metric_calibrated() -> None:
+    store = PerceptionStore()
+    _seed_depth(store, value=2.0)
+    state = CalibrationState()
+    app, loop, state, store, worker = _app(
+        store=store, calibration_state=state
+    )
+    try:
+        with TestClient(app) as client:
+            client.post(
+                "/api/depth/calibration/sample",
+                json=_sample_body(known_meters=4.0),
+            )
+            assert _compute(client).status_code == 200
+            assert client.post("/api/depth/calibration/apply").status_code == 200
+            seeded = store.snapshot_depth()
+            assert seeded is not None
+            assert seeded.kind == DepthKind.RELATIVE
+
+        loop_worker = _LoopDepthWorker(value=2.0)
+        bus = FrameBus()
+        depth_loop = DepthLoop(bus, loop_worker, store, calibration=state)
+        depth_loop.start()
+        try:
+            meta = Frame(
+                frame_id=99,
+                camera_id="cam0",
+                t_capture=time.time(),
+                t_ingest=time.time(),
+                width=32,
+                height=24,
+            )
+            image = np.zeros((24, 32, 3), dtype=np.uint8)
+            bus.publish(ImageFrame(meta=meta, image_bgr=image))
+            deadline = time.monotonic() + 2.0
+            product = None
+            while time.monotonic() < deadline:
+                product = store.snapshot_depth()
+                if product is not None and product.frame_id == 99:
+                    break
+                time.sleep(0.01)
+            assert product is not None
+            assert product.frame_id == 99
+            assert product.kind == DepthKind.METRIC_CALIBRATED
+            assert product.unit == "m"
+        finally:
+            depth_loop.stop()
+        assert worker.process_calls == 0
+    finally:
+        loop.stop()
+
+
+def test_cancel_after_compute_drops_draft_not_applied() -> None:
+    store = PerceptionStore()
+    _seed_depth(store, value=2.0)
+    app, loop, _state, _store, worker = _app(store=store)
+    try:
+        with TestClient(app) as client:
+            client.post(
+                "/api/depth/calibration/sample",
+                json=_sample_body(known_meters=4.0),
+            )
+            assert _compute(client).status_code == 200
+            resp = client.post("/api/depth/calibration/cancel")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["has_draft_params"] is False
+            assert data["applied"] is False
+            assert data["draft_sample_count"] == 0
+            assert worker.process_calls == 0
+    finally:
+        loop.stop()
+
+
+def test_cancel_after_apply_leaves_applied() -> None:
+    store = PerceptionStore()
+    _seed_depth(store, value=2.0)
+    app, loop, _state, _store, worker = _app(store=store)
+    try:
+        with TestClient(app) as client:
+            client.post(
+                "/api/depth/calibration/sample",
+                json=_sample_body(known_meters=4.0),
+            )
+            assert _compute(client).status_code == 200
+            assert client.post("/api/depth/calibration/apply").status_code == 200
+            resp = client.post("/api/depth/calibration/cancel")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["applied"] is True
+            status = client.get("/api/status").json()
+            assert status["calibration_active"] is True
+            assert worker.process_calls == 0
+    finally:
+        loop.stop()
+
+
+def test_clear_after_apply_drops_applied() -> None:
+    store = PerceptionStore()
+    _seed_depth(store, value=2.0)
+    app, loop, _state, _store, worker = _app(store=store)
+    try:
+        with TestClient(app) as client:
+            client.post(
+                "/api/depth/calibration/sample",
+                json=_sample_body(known_meters=4.0),
+            )
+            assert _compute(client).status_code == 200
+            assert client.post("/api/depth/calibration/apply").status_code == 200
+            resp = client.post("/api/depth/calibration/clear")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["applied"] is False
+            status = client.get("/api/status").json()
+            assert status["calibration_active"] is False
+            assert "calibration_scale" not in status
+            assert worker.process_calls == 0
+    finally:
+        loop.stop()
