@@ -34,6 +34,9 @@ from sentry_ai.schemas.validators import promote_kind_unit as _promote_kind_unit
 __all__ = ["CalibrationState"]
 
 _PERSIST_STATUSES = frozenset({"none", "applied", "ignored_mismatch", "error"})
+_ONLINE_STATUSES = frozenset(
+    {"online_off", "online_draft", "auto_committed", "rejected"}
+)
 
 
 @dataclass
@@ -47,6 +50,7 @@ class CalibrationState:
     _persist_status: str = field(default="none", repr=False)
     _persist_reason: str | None = field(default=None, repr=False)
     _online_enabled: bool = field(default=False, repr=False)
+    _online_status: str = field(default="online_off", repr=False)
 
     def snapshot(self) -> CalibrationSnapshot:
         """Return an isolated status-safe view of current calibration state."""
@@ -76,6 +80,7 @@ class CalibrationState:
             persist_status=self._persist_status,  # type: ignore[arg-type]
             persist_reason=self._persist_reason,
             online=self._online_enabled,
+            online_status=self._online_status,  # type: ignore[arg-type]
         )
 
     def add_draft_sample(self, sample: Any) -> CalibrationSnapshot:
@@ -167,17 +172,36 @@ class CalibrationState:
         with self._lock:
             return self._online_enabled
 
+    def set_online_status(
+        self,
+        status: Literal[
+            "online_off", "online_draft", "auto_committed", "rejected"
+        ],
+    ) -> None:
+        """Set four-way online_status. Rejects unknown tokens.
+
+        Phase 19 production routes must not assign auto_committed or rejected.
+        """
+        if status not in _ONLINE_STATUSES:
+            raise ValueError(f"invalid online status: {status}")
+        with self._lock:
+            self._online_status = status
+
     def set_online(self, enabled: bool) -> CalibrationSnapshot:
         """Enable or disable session online-recal.
 
         Enabling while unapplied raises ``ValueError("online_requires_applied")``
         and leaves applied/draft/kind unchanged. Disabling does not clear
-        applied params (disable ≠ Clear).
+        applied params (disable ≠ Clear) and does not touch YAML.
         """
         with self._lock:
             if enabled and self._applied_params is None:
                 raise ValueError("online_requires_applied")
             self._online_enabled = bool(enabled)
+            if enabled:
+                self._online_status = "online_draft"
+            else:
+                self._online_status = "online_off"
             return self._snapshot_unlocked()
 
     def clear_applied(self) -> CalibrationSnapshot:
@@ -187,6 +211,7 @@ class CalibrationState:
             self._persist_status = "none"
             self._persist_reason = None
             self._online_enabled = False
+            self._online_status = "online_off"
             return self._snapshot_unlocked()
 
     def is_applied(self) -> bool:
