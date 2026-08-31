@@ -202,3 +202,30 @@ def test_try_reapply_match_does_not_enable_online(tmp_path: Path) -> None:
     assert state.is_applied() is True
     assert state.is_online() is False
     assert state.snapshot().online is False
+
+
+def test_disable_online_leaves_yaml(tmp_path: Path) -> None:
+    path = tmp_path / "usb0.yaml"
+    state = CalibrationState()
+    state.apply_params(_params())
+    persist_applied(state, path)
+    state.set_online(True)
+    state.set_online(False)
+    assert path.exists()
+    loaded = load_params(path)
+    assert loaded.status == "ok"
+    assert loaded.params is not None
+    assert state.is_applied() is True
+    assert state.is_online() is False
+
+
+def test_clear_persisted_forces_online_off(tmp_path: Path) -> None:
+    path = tmp_path / "usb0.yaml"
+    state = CalibrationState()
+    state.apply_params(_params())
+    persist_applied(state, path)
+    state.set_online(True)
+    clear_persisted(state, path)
+    assert not path.exists()
+    assert state.is_online() is False
+    assert state.snapshot().online_status == "online_off"
