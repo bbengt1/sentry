@@ -5,17 +5,17 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from tests.test_api_calibration import (
+    _app,
+    _apply_draft,
+    _seed_depth,
+)
 
 from sentry_ai.schemas.calibration import (
     CalibrationFingerprint,
     CalibrationParams,
 )
 from sentry_ai.state.perception_store import PerceptionStore
-from tests.test_api_calibration import (
-    _app,
-    _apply_draft,
-    _seed_depth,
-)
 
 
 def test_online_post_unapplied_is_409() -> None:
