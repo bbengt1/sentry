@@ -118,7 +118,9 @@ Depth mode: `PATCH /api/depth/config`.
 | Setting | Default |
 |---------|---------|
 | Bind host | `127.0.0.1` |
+| Allowed `Host` | Loopback, plus the bind address. Wildcard binds also allow IP literals. Extra names: `--allowed-host` |
+| Allowed browser `Origin` | This server's own origin. Extra origins: `--allowed-origin` |
 | `allow_cloud` | `false` |
-| Auth on LAN | **None** — never expose `--host 0.0.0.0` without understanding risk |
+| Auth on LAN | **None** — never expose `--host 0.0.0.0` without understanding risk. Host/Origin checks are not a login |
 
 Details: [safety-and-privacy.md](safety-and-privacy.md).

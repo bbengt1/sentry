@@ -63,6 +63,8 @@ uv run sentry serve [OPTIONS]
 | `--camera-id` | derived | Override `camera_id` on frames |
 | `--no-ui` | off | Headless: perception APIs without Live Preview HTML |
 | `--calibration-file` | — | Explicit calibration YAML (overrides `SENTRY_CALIBRATION_DIR` / camera stem) |
+| `--allowed-host` | loopback + bind address | Extra `Host` name (repeat the flag). Needed for a DNS name such as `robot.local` |
+| `--allowed-origin` | Live Preview's own origin | Extra browser `Origin` for state changes and `/v1/stream` (repeat the flag) |
 
 `SENTRY_CALIBRATION_DIR` selects the persist directory when
 `--calibration-file` is omitted. See [calibration.md](calibration.md).
@@ -87,6 +89,12 @@ uv run sentry serve --calibration-file /tmp/cam0.yaml --source synthetic
 
 # Explicit LAN bind (NO AUTH — privacy risk)
 uv run sentry serve --host 0.0.0.0 --source usb --device 0
+
+# Open the preview by DNS name (Host must be listed; the name is not a wildcard)
+uv run sentry serve --host 0.0.0.0 --allowed-host robot.local
+
+# Let another local page change calibration / open the perception socket
+uv run sentry serve --allowed-origin http://127.0.0.1:3000
 ```
 
 ### Serve behavior notes
@@ -98,6 +106,16 @@ uv run sentry serve --host 0.0.0.0 --source usb --device 0
 5. Re-applies matching YAML (`try_reapply`); banner `calibration: {status}`
    where status is `none` / `applied` / `ignored_mismatch` / `error`.  
 6. Ctrl+C / SIGINT shuts down workers and Uvicorn cleanly.
+7. Rejects a `Host` that is not loopback, the bind address, or `--allowed-host`
+   (**403** `host_not_allowed`). A wildcard bind (`0.0.0.0` / `::`) also
+   accepts IP literals so `http://<lan-ip>:<port>/` still loads. DNS names
+   do not match unless listed.
+8. State-changing methods and `WS /v1/stream` reject a foreign `Origin`
+   (**403** `origin_not_allowed`), `Sec-Fetch-Site: cross-site`
+   (`cross_site_request`), and form / `text/plain` bodies
+   (`content_type_not_allowed`). Clients that send no `Origin` (curl,
+   scripts, robots) keep working. See
+   [safety-and-privacy.md](safety-and-privacy.md).
 
 ## Module form
 

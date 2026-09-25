@@ -54,6 +54,41 @@ LAN exposure of camera-derived products.
 Do not put Sentry on a public interface without your own reverse-proxy auth,
 TLS, and access control.
 
+## Browser requests (CSRF, WebSocket, DNS rebinding)
+
+The server has no login. It does check who a **browser** claims to be:
+
+| Check | What is allowed by default |
+|-------|----------------------------|
+| `Host` | `localhost`, `127.0.0.1`, `::1`, and the address you passed to `--host` |
+| `Host` when `--host` is `0.0.0.0` or `::` | Those loopback names **plus IP literals** (so the Live Preview works at the LAN address you opened) |
+| State-changing `POST` / `PUT` / `PATCH` / `DELETE` | No `Origin` header (curl, scripts, robots), or an `Origin` whose host and port are this server |
+| `WS /v1/stream` | Same origin rule. A foreign `Origin` is refused before the socket is accepted |
+| Body content type on those methods | Absent, or `application/json`. Form posts and `text/plain` are refused |
+
+A page on another site cannot submit a form that clears calibration, and it
+cannot read the perception WebSocket. `Sec-Fetch-Site: cross-site` is refused
+when a browser sends it. `GET /` is sent with `X-Frame-Options: DENY` and
+`Content-Security-Policy: frame-ancestors 'none'`.
+
+Refusals are **403** with a fixed `detail` token: `host_not_allowed`,
+`origin_not_allowed`, `cross_site_request`, or `content_type_not_allowed`.
+The token does not echo the header. WebSocket upgrades that cannot carry an
+HTTP body are closed with code **1008** and the same token.
+
+```bash
+# Preview via a DNS name you chose (exact name, not every name that resolves here)
+uv run sentry serve --host 0.0.0.0 --allowed-host robot.local
+
+# A different local origin that may change state and open /v1/stream
+uv run sentry serve --allowed-origin http://127.0.0.1:3000
+```
+
+This is not authentication. Anything that can open a TCP connection to the
+bind address and omit `Origin` can still call the API. `--host 0.0.0.0`
+remains an unauthenticated LAN exposure. Listing a host or origin widens
+the browser trust set on purpose.
+
 ## Local OSS model policy
 
 - Core path is **local open-source models** with offline cache after first

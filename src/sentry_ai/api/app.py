@@ -10,6 +10,7 @@ from typing import Any
 
 from fastapi import FastAPI
 
+from sentry_ai.api.browser_guard import BrowserGuardMiddleware, resolve_guard
 from sentry_ai.api.deps import AppState
 from sentry_ai.api.routes_calibration import router as calibration_router
 from sentry_ai.api.routes_depth import router as depth_router
@@ -43,6 +44,8 @@ def create_app(
     calibration_state: Any | None = None,
     calibration_path: Path | str | None = None,
     serve_ui: bool = True,
+    allowed_hosts: list[str] | None = None,
+    allowed_origins: list[str] | None = None,
 ) -> FastAPI:
     """Build FastAPI app with preview + detection + depth + pipeline + OV + /v1.
 
@@ -55,6 +58,11 @@ def create_app(
 
     Sets ``app.state.shutdown_flag`` (threading.Event) on lifespan exit so
     long-lived MJPEG / WebSocket streams can stop during ``sentry serve`` Ctrl+C.
+
+    ``allowed_hosts`` / ``allowed_origins`` widen the browser guard. The
+    guard runs for every route, so a later ``POST /api/depth/calibration/online``
+    is covered without a per-handler check. Defaults allow loopback and the
+    bind host only.
     """
     shutdown_flag = threading.Event()
 
@@ -123,4 +131,12 @@ def create_app(
     app.include_router(pipeline_router)
     app.include_router(open_vocab_router)
     app.include_router(v1_router)
+    guard = resolve_guard(
+        bind=bind,
+        extra_hosts=allowed_hosts,
+        extra_origins=allowed_origins,
+    )
+    app.state.browser_guard = guard
+    # Outermost: reject before any route, including routes added later.
+    app.add_middleware(BrowserGuardMiddleware, config=guard)
     return app
