@@ -292,6 +292,39 @@ def test_depth_config_missing_worker_503() -> None:
         loop2.stop()
 
 
+def test_patch_depth_config_409_when_checkpoint_cannot_load(
+    monkeypatch: Any,
+) -> None:
+    """CR-003: PATCH must not relabel when the new checkpoint cannot load."""
+    from sentry_ai.models.depth.mapping import MODE_TO_MODEL
+    from sentry_ai.models.depth.worker import DepthAnythingWorker
+
+    worker = DepthAnythingWorker(depth_mode="relative")
+
+    def fail_load(model_id: str) -> Any:
+        raise ImportError(f"refusing to load {model_id}")
+
+    if hasattr(worker, "_load_checkpoint"):
+        monkeypatch.setattr(worker, "_load_checkpoint", fail_load)
+    app, loop = _app(depth_worker=worker)
+    try:
+        with TestClient(app) as client:
+            resp = client.patch(
+                "/api/depth/config",
+                json={"depth_mode": "metric_outdoor"},
+            )
+            assert resp.status_code == 409
+            detail = str(resp.json().get("detail", ""))
+            assert "could not be loaded" in detail
+            assert worker.get_depth_mode() == "relative"
+            assert worker.model_id == MODE_TO_MODEL["relative"]
+            current = client.get("/api/depth/config")
+            assert current.status_code == 200
+            assert current.json()["depth_mode"] == "relative"
+    finally:
+        loop.stop()
+
+
 def test_create_app_without_depth_worker_still_serves() -> None:
     source = SyntheticSource(camera_id="synthetic0", fps=0.0)
     bus = FrameBus()

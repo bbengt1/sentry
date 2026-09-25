@@ -24,9 +24,18 @@ logger = logging.getLogger(__name__)
 
 __all__ = [
     "DepthAnythingWorker",
+    "DepthCheckpointError",
     "DepthResult",
     "resolve_device",
 ]
+
+
+class DepthCheckpointError(RuntimeError):
+    """Matching depth checkpoint could not be loaded for a mode change.
+
+    The previous mode, model id, and loaded module are left unchanged.
+    ``PATCH /api/depth/config`` maps this to HTTP 409.
+    """
 
 
 @dataclass
@@ -77,17 +86,66 @@ class DepthAnythingWorker:
             return self._depth_mode
 
     def set_depth_mode(self, mode: str) -> None:
-        """Update depth_mode for next process (kind/unit from mode only)."""
+        """Switch ``depth_mode`` only after that mode's checkpoint is loaded.
+
+        Kind and unit follow the weights in memory. A failed load leaves the
+        previous mode, model id, and module unchanged and raises
+        ``DepthCheckpointError``. The same mode is a no-op when a module is
+        already loaded (injected fakes included) and does not download.
+        """
         if mode not in MODE_TO_MODEL:
             raise ValueError(
                 f"unknown depth_mode: {mode!r}; "
                 f"expected one of {sorted(MODE_TO_MODEL)}"
             )
-        with self._depth_mode_lock:
-            self._depth_mode = mode
-            # Keep model_id aligned when caller did not pin a custom id path.
-            # Always update to mapped Small id for the new mode.
-            self._model_id = MODE_TO_MODEL[mode]
+        model_id = MODE_TO_MODEL[mode]
+        with self._load_lock:
+            with self._depth_mode_lock:
+                loaded = self._model is not None and self._processor is not None
+                if mode == self._depth_mode:
+                    # Same mode: keep the loaded module. Do not relabel and
+                    # do not force a download when nothing is loaded yet.
+                    if loaded:
+                        self._model_id = model_id
+                    return
+            try:
+                model, processor, device = self._load_checkpoint(model_id)
+            except Exception as exc:  # noqa: BLE001 — load failure must not relabel
+                raise DepthCheckpointError(
+                    f"depth checkpoint for {mode!r} ({model_id}) "
+                    f"could not be loaded: {exc}"
+                ) from exc
+            with self._depth_mode_lock:
+                self._depth_mode = mode
+                self._model_id = model_id
+                self._model = model
+                self._processor = processor
+                self._device = device
+
+    def _load_checkpoint(self, model_id: str) -> tuple[Any, Any, str]:
+        """Load ``model_id`` without publishing it as the active module."""
+        configure_model_cache()
+        try:
+            from transformers import (  # type: ignore[import-untyped]
+                AutoImageProcessor,
+                AutoModelForDepthEstimation,
+            )
+        except ImportError as exc:
+            raise ImportError(
+                "transformers is required for DepthAnythingWorker. "
+                "Install the depth extra: uv sync --extra depth"
+            ) from exc
+
+        device = resolve_device(self._device_arg)
+        logger.info(
+            "Loading depth model_id=%s device=%s",
+            model_id,
+            device,
+        )
+        processor = AutoImageProcessor.from_pretrained(model_id)
+        model = AutoModelForDepthEstimation.from_pretrained(model_id)
+        model.to(device).eval()
+        return model, processor, device
 
     def _ensure_model(self) -> tuple[Any, Any]:
         if self._model is not None and self._processor is not None:
@@ -95,27 +153,8 @@ class DepthAnythingWorker:
         with self._load_lock:
             if self._model is not None and self._processor is not None:
                 return self._model, self._processor
-            configure_model_cache()
-            try:
-                from transformers import (  # type: ignore[import-untyped]
-                    AutoImageProcessor,
-                    AutoModelForDepthEstimation,
-                )
-            except ImportError as exc:
-                raise ImportError(
-                    "transformers is required for DepthAnythingWorker. "
-                    "Install the depth extra: uv sync --extra depth"
-                ) from exc
-
-            self._device = resolve_device(self._device_arg)
-            logger.info(
-                "Loading depth model_id=%s device=%s",
-                self._model_id,
-                self._device,
-            )
-            processor = AutoImageProcessor.from_pretrained(self._model_id)
-            model = AutoModelForDepthEstimation.from_pretrained(self._model_id)
-            model.to(self._device).eval()
+            model, processor, device = self._load_checkpoint(self._model_id)
+            self._device = device
             self._processor = processor
             self._model = model
             return self._model, self._processor
@@ -142,9 +181,11 @@ class DepthAnythingWorker:
         rgb = bgr_to_rgb_uint8(image_bgr)
 
         try:
-            model, processor = self._ensure_model()
+            self._ensure_model()
         except ImportError as exc:
             # Soft fail: return error product instead of raising every frame.
+            # Kind/unit stay on the mode whose checkpoint was actually loaded.
+            kind, unit = kind_for_mode(self.get_depth_mode())
             return DepthResult(
                 depth_map=None,
                 kind=kind,
@@ -152,6 +193,21 @@ class DepthAnythingWorker:
                 width=w,
                 height=h,
                 error=str(exc),
+            )
+
+        # Re-read under the mode lock so kind/unit match the module we run.
+        with self._depth_mode_lock:
+            model = self._model
+            processor = self._processor
+            kind, unit = kind_for_mode(self._depth_mode)
+        if model is None or processor is None:
+            return DepthResult(
+                depth_map=None,
+                kind=kind,
+                unit=unit,
+                width=w,
+                height=h,
+                error="depth model not loaded",
             )
 
         device = self._device if self._device is not None else resolve_device(

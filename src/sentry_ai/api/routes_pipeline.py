@@ -88,6 +88,12 @@ async def patch_pipeline_config(
         depth_loop = _depth_loop(request)
         if depth_loop is not None:
             depth_loop.set_enabled(bool(partial["depth_enabled"]))
+        # Depth loss must not leave the occupancy EMA primed for the next map.
+        if not bool(partial["depth_enabled"]):
+            free_loop = _free_space_loop(request)
+            reset = getattr(free_loop, "reset_smoother", None)
+            if callable(reset):
+                reset()
     if "free_space_enabled" in partial:
         free_loop = _free_space_loop(request)
         if free_loop is not None:

@@ -66,7 +66,8 @@ class DepthLoop:
         """Enable or pause processing without stopping the thread.
 
         On disable, clears the depth product once so completeness/overlays
-        drop honestly. Does not call stop()/start().
+        drop honestly. The store also drops derived free-space in that same
+        call. Does not call stop()/start().
         """
         if enabled:
             self._enabled.set()
