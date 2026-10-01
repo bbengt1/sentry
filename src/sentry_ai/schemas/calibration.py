@@ -80,6 +80,9 @@ class CalibrationSnapshot(BaseModel):
     persist_status: Literal["none", "applied", "ignored_mismatch", "error"] = "none"
     persist_reason: str | None = None
     online: bool = False
+    online_status: Literal[
+        "online_off", "online_draft", "auto_committed", "rejected"
+    ] = "online_off"
 
 
 def is_valid_calibration_params(params: CalibrationParams) -> tuple[bool, str | None]:

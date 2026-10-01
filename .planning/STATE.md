@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Online Re-calibration
 status: executing
-last_updated: "2026-08-17"
-last_activity: 2026-08-17
+last_updated: "2026-08-30"
+last_activity: 2026-08-30
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
-  percent: 12
+  completed_plans: 2
+  percent: 25
 ---
 
 # Project State
@@ -20,28 +20,28 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-15)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots — without proprietary sensors or cloud AI.  
-**Current focus:** v0.4 Phase 19 — 19-01 shipped (online flag + first-scale lock). Ready to execute 19-02.
+**Current focus:** v0.4 Phase 19 complete (online consent + honesty state). Next: plan Phase 20.
 
 ## Current Position
 
-Phase: 19 of 22 (Online consent & honesty state) — v0.4 phases 19–22  
-Plan: 19-02  
-Status: Ready to execute  
-Last activity: 2026-08-17 — 19-01 implemented (session online flag default off; enable refused until Apply / try_reapply)
+Phase: 19 of 22 complete (Online consent & honesty state) — v0.4 phases 19–22  
+Plan: 19-02 done  
+Status: Phase 19 complete; next is plan Phase 20  
+Last activity: 2026-08-30 — 19-02 implemented (Cancel/Clear/disable-online + four-way online_status + thin REST POST)
 
-Progress: [█░░░░░░░░░] 12%
+Progress: [██░░░░░░░░] 25%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed (v0.4): 1
+- Total plans completed (v0.4): 2
 - v1.0 + v0.2 + v0.3 history: 40 plans shipped prior milestones
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 19. Online consent & honesty state | 1/2 | 2 | - |
+| 19. Online consent & honesty state | 2/2 | 2 | - |
 
 *Updated after each plan completion*
 
@@ -78,15 +78,22 @@ Phase 19 plan locks (2026-08-15):
 - `apply` / `apply_params` / matching `try_reapply` do not enable online
 - `clear_applied` forces online off; `set_online(False)` does not clear applied
 
+19-02 shipped (2026-08-30):
+- `CalibrationSnapshot.online_status` four-way enum (default `online_off`)
+- Cancel = `clear_draft` only (online unchanged); Clear forces `online_off` via `clear_applied`
+- `set_online(False)` / POST enabled=false does not clear applied or delete YAML
+- `POST /api/depth/calibration/online` extra=forbid; unapplied enable → 409
+- `GET /api/status` additive `calibration_online` + `calibration_online_status`
+- Phase 19 never assigns `auto_committed` or `rejected`
+
 ### Pending Todos
 
-- Execute 19-02 (Cancel/Clear/disable-online + four-way status + thin REST POST)
-- Then plan Phase 20 (online sample + fit/reject)
+- Plan Phase 20 (online sample + fit/reject). Do not start 20 execution yet.
 
 ### Blockers/Concerns
 
 - Phase 20 needs plan-phase lock for N-sample / throttle defaults (reuse fit as-is)
-- Do not start Phase 20 until 19-01 and 19-02 merge
+- Do not start Phase 20 plans until 19-02 merges
 
 ## Deferred Items
 
@@ -104,7 +111,7 @@ See also: `milestones/v1.0-MILESTONE-AUDIT.md`, `milestones/v0.2-MILESTONE-AUDIT
 
 ## Session Continuity
 
-Last session: 2026-08-17 — 19-01 implemented (online flag + first-scale lock)  
-Stopped at: `feat/19-01-online-consent-flag`  
-Resume file: `.planning/phases/19-online-consent-honesty-state/19-02-PLAN.md`  
-Next: execute 19-02
+Last session: 2026-08-30 — 19-02 implemented (Cancel/Clear/disable + online_status REST)  
+Stopped at: `feat/19-02-online-status-rest`  
+Resume file: `.planning/ROADMAP.md` (Phase 20 not planned yet)  
+Next: plan Phase 20

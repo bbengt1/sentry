@@ -202,6 +202,8 @@ async def api_status(request: Request) -> dict[str, Any]:
             data["calibration_persist"] = snap.persist_status
             if snap.persist_reason:
                 data["calibration_persist_reason"] = snap.persist_reason
+            data["calibration_online"] = bool(snap.online)
+            data["calibration_online_status"] = snap.online_status
             if snap.applied:
                 data["calibration_scale"] = snap.scale
                 data["calibration_method"] = snap.method

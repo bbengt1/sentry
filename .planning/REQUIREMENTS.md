@@ -10,9 +10,9 @@ Requirements for this milestone. Each maps to roadmap phases (19+).
 
 ### Online consent & honesty
 
-- [ ] **ONL-01**: Online re-calibration is opt-in and **default off** (v0.3 Apply-only behavior until the maker enables online)
+- [x] **ONL-01**: Online re-calibration is opt-in and **default off** (v0.3 Apply-only behavior until the maker enables online)
 - [x] **ONL-02**: First `metric_calibrated` still requires explicit wizard Apply or matching persist `try_reapply` — online must not invent the first scale
-- [ ] **ONL-06**: Cancel still clears draft only; Clear still clears applied + YAML; disable-online is not Clear (applied scale and YAML remain)
+- [x] **ONL-06**: Cancel still clears draft only; Clear still clears applied + YAML; disable-online is not Clear (applied scale and YAML remain)
 
 ### Online sample + fit
 
@@ -66,12 +66,12 @@ Which phases cover which requirements. Filled during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ONL-01 | Phase 19 | Pending |
+| ONL-01 | Phase 19 | Complete (19-02) |
 | ONL-02 | Phase 19 | Complete (19-01) |
 | ONL-03 | Phase 20 | Pending |
 | ONL-04 | Phase 20 | Pending |
 | ONL-05 | Phase 21 | Pending |
-| ONL-06 | Phase 19 | Pending |
+| ONL-06 | Phase 19 | Complete (19-02) |
 | ONL-07 | Phase 21 | Pending |
 | ONL-08 | Phase 22 | Pending |
 
@@ -89,4 +89,4 @@ Which phases cover which requirements. Filled during roadmap creation.
 
 ---
 *Requirements defined: 2026-08-15*  
-*Last updated: 2026-08-17 after 19-01 (ONL-02 complete; ONL-01 flag half shipped)*
+*Last updated: 2026-08-30 after 19-02 (ONL-01 + ONL-06 complete; Phase 19 done)*

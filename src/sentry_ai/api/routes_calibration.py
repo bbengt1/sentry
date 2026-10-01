@@ -69,6 +69,14 @@ class CalibrationSaveBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class CalibrationOnlineBody(BaseModel):
+    """Online opt-in body. Extra fields rejected; enabled is required."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool
+
+
 def _require_calibration_state(request: Request) -> Any:
     state = getattr(request.app.state, "calibration_state", None)
     if state is None:
@@ -493,6 +501,25 @@ async def save_calibration(request: Request) -> dict[str, Any]:
     setter = getattr(state, "set_persist_status", None)
     if callable(setter):
         setter("applied")
+    return _snapshot_payload(request, state)
+
+
+@router.post("/api/depth/calibration/online")
+async def set_calibration_online(
+    body: CalibrationOnlineBody,
+    request: Request,
+) -> dict[str, Any]:
+    """Enable or disable session online-recal. Never YAML I/O or apply."""
+    state = _require_calibration_state(request)
+    try:
+        state.set_online(body.enabled)
+    except ValueError as exc:
+        if "online_requires_applied" in str(exc):
+            raise HTTPException(
+                status_code=409,
+                detail="online_requires_applied",
+            ) from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return _snapshot_payload(request, state)
 
 
