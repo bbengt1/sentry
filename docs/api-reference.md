@@ -110,6 +110,8 @@ Example:
 
 Validation: cuts in `[0, 1]`; require `near_cut > mid_cut` or **422**.  
 Disable semantics: skip worker compute and clear that stage’s product once.
+Disabling depth also clears the derived free-space product, so it is not left
+complete on `/api/snapshot`, `/v1/snapshot`, `/v1/stream`, or the MJPEG overlay.
 
 ## Detection (fixed-class)
 
@@ -127,7 +129,10 @@ Requires `detect` extra for a live worker.
 | `GET` | `/api/depth/config` | `depth_mode`, model id |
 | `PATCH` | `/api/depth/config` | `{"depth_mode":"relative"|"metric_indoor"|"metric_outdoor"}` |
 
-Requires `depth` extra. Relative mode never claims meters.
+Requires `depth` extra. Relative mode never claims meters. `metric_indoor` /
+`metric_outdoor` label outputs as meters only after that mode’s Small
+checkpoint loads. If the load fails, the previous mode is unchanged and
+`PATCH` returns **409**.
 
 ## Calibration
 

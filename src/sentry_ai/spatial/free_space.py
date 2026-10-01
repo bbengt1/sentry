@@ -259,6 +259,23 @@ def compute_free_space(
                 height=h,
             )
 
+        # No finite sample in the ROI is missing data, not a clear path.
+        # Do not fill free_mask or report far_frac=1 / units="m".
+        finite_roi = int((np.isfinite(arr) & roi).sum())
+        if finite_roi == 0:
+            return FreeSpaceResult(
+                obstacles=[],
+                bands={},
+                free_mask=None,
+                occupied_mask=None,
+                method="near_field_bands",
+                depth_kind=kind,
+                units="ordinal",
+                width=w,
+                height=h,
+                error="no finite depth in roi",
+            )
+
         if calibrated:
             # Pin farther-is-higher. Do not call depth_to_nearness (no min–max).
             nearness = _meters_to_nearness(arr)

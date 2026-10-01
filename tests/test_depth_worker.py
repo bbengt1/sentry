@@ -163,21 +163,47 @@ def test_normalize_model_inputs_unpacks_mapping() -> None:
 
 def test_set_get_depth_mode(
     image_frame_factory: Callable[..., ImageFrame],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    model = FakeModel()
+    """CR-003: a mode switch must not relabel the loaded network as meters."""
+    from sentry_ai.models.depth.mapping import MODE_TO_MODEL
+
+    try:
+        from sentry_ai.models.depth.worker import DepthCheckpointError
+    except ImportError:  # pragma: no cover - main before the fix
+        class DepthCheckpointError(Exception):  # type: ignore[no-redef]
+            pass
+
+    model = FakeModel(value=2.5)
     worker = DepthAnythingWorker(
         model=model,
         processor=FakeProcessor(),
         depth_mode="relative",
     )
     assert worker.get_depth_mode() == "relative"
-    worker.set_depth_mode("metric_outdoor")
-    assert worker.get_depth_mode() == "metric_outdoor"
     frame = image_frame_factory(frame_id=3, width=8, height=8)
     model.set_hw(8, 8)
-    result = worker.process(frame)
-    assert result.kind == DepthKind.METRIC_ESTIMATED
-    assert result.unit == "m"
+    before = worker.process(frame)
+    assert before.kind == DepthKind.RELATIVE
+    assert before.unit is None
+    assert before.depth_map is not None
+    assert float(before.depth_map.mean()) == pytest.approx(2.5)
+
+    def fail_load(model_id: str) -> tuple[Any, Any, str]:
+        raise ImportError(f"refusing to load {model_id}")
+
+    if hasattr(worker, "_load_checkpoint"):
+        monkeypatch.setattr(worker, "_load_checkpoint", fail_load)
+    with pytest.raises(DepthCheckpointError, match="could not be loaded"):
+        worker.set_depth_mode("metric_outdoor")
+    assert worker.get_depth_mode() == "relative"
+    assert worker.model_id == MODE_TO_MODEL["relative"]
+    assert worker._model is model
+    after = worker.process(frame)
+    assert after.kind == DepthKind.RELATIVE
+    assert after.unit is None
+    assert after.depth_map is not None
+    assert float(after.depth_map.mean()) == pytest.approx(2.5)
 
 
 def test_default_model_id_is_small_relative() -> None:
@@ -214,6 +240,44 @@ def test_import_error_message_mentions_extra_depth(
     monkeypatch.setattr(builtins, "__import__", fake_import)
     with pytest.raises(ImportError, match="extra depth|--extra depth"):
         worker._ensure_model()
+
+
+def test_set_depth_mode_metric_unit_only_after_new_module(
+    image_frame_factory: Callable[..., ImageFrame],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """CR-003: unit='m' only after a different module was constructed."""
+    sentinel = FakeModel(value=2.5)
+    worker = DepthAnythingWorker(
+        model=sentinel,
+        processor=FakeProcessor(),
+        depth_mode="relative",
+    )
+    new_model = FakeModel(value=9.0)
+    new_proc = FakeProcessor()
+    seen: list[str] = []
+
+    def ok_load(model_id: str) -> tuple[Any, Any, str]:
+        seen.append(model_id)
+        return new_model, new_proc, "cpu"
+
+    if hasattr(worker, "_load_checkpoint"):
+        monkeypatch.setattr(worker, "_load_checkpoint", ok_load)
+    worker.set_depth_mode("metric_indoor")
+    assert seen
+    assert "Metric-Indoor" in seen[0]
+    assert worker._model is new_model
+    assert worker._model is not sentinel
+    assert worker.get_depth_mode() == "metric_indoor"
+    frame = image_frame_factory(frame_id=4, width=8, height=8)
+    new_model.set_hw(8, 8)
+    result = worker.process(frame)
+    assert result.kind == DepthKind.METRIC_ESTIMATED
+    assert result.unit == "m"
+    assert result.depth_map is not None
+    assert float(result.depth_map.mean()) == pytest.approx(9.0)
+    assert len(new_proc.calls) == 1
+    assert len(sentinel.calls) == 0
 
 
 def test_process_soft_fails_when_transformers_missing(
