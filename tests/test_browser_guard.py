@@ -197,20 +197,27 @@ def test_cr004_root_is_not_frameable() -> None:
         loop.stop()
 
 
-def test_cr004_future_online_post_is_covered() -> None:
-    """POST /api/depth/calibration/online is not on this tree; the guard still runs."""
-    app, loop, _state = _app()
+def test_cr004_online_post_is_covered() -> None:
+    """Foreign Origin is refused; a no-Origin JSON body reaches the online handler.
+
+    This app has calibration state and nothing applied, so ``{"enabled": true}``
+    is the handler's 409 ``online_requires_applied``, not a routing miss.
+    """
+    app, loop, state = _app()
     try:
         with _client(app) as client:
             blocked = client.post(
                 _ONLINE,
-                json={"online": True},
+                json={"enabled": True},
                 headers={"Origin": "https://evil.example"},
             )
             assert blocked.status_code == 403
             assert blocked.json()["detail"] == "origin_not_allowed"
-            missing = client.post(_ONLINE, json={"online": True})
-            assert missing.status_code == 404
+            assert state.is_online() is False
+            reached = client.post(_ONLINE, json={"enabled": True})
+            assert reached.status_code == 409
+            assert reached.json()["detail"] == "online_requires_applied"
+            assert state.is_online() is False
     finally:
         loop.stop()
 
