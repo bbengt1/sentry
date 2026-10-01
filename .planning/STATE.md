@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Online Re-calibration
-status: executing
-last_updated: "2026-08-30"
-last_activity: 2026-08-30
+status: plans_ready
+last_updated: "2026-10-01"
+last_activity: 2026-10-01
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 2
+  total_plans: 4
   completed_plans: 2
   percent: 25
 ---
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-15)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots — without proprietary sensors or cloud AI.  
-**Current focus:** v0.4 Phase 19 complete (online consent + honesty state). Next: plan Phase 20.
+**Current focus:** v0.4 Phase 20 plans written — ready to execute 20-01 (throttled draft window) after the anchor question in 20-RESEARCH is confirmed.
 
 ## Current Position
 
-Phase: 19 of 22 complete (Online consent & honesty state) — v0.4 phases 19–22  
-Plan: 19-02 done  
-Status: Phase 19 complete; next is plan Phase 20  
-Last activity: 2026-08-30 — 19-02 implemented (Cancel/Clear/disable-online + four-way online_status + thin REST POST)
+Phase: 20 of 22 planned (Online sample + fit/reject) — v0.4 phases 19–22  
+Plan: 20-01 next  
+Status: Plans written; not executed  
+Last activity: 2026-10-01 — Phase 20 research + plans written (20-01, 20-02)
 
 Progress: [██░░░░░░░░] 25%
 
@@ -42,6 +42,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 19. Online consent & honesty state | 2/2 | 2 | - |
+| 20. Online sample + fit/reject | 0/2 | 2 | - |
 
 *Updated after each plan completion*
 
@@ -86,14 +87,27 @@ Phase 19 plan locks (2026-08-15):
 - `GET /api/status` additive `calibration_online` + `calibration_online_status`
 - Phase 19 never assigns `auto_committed` or `rejected`
 
+Phase 20 plan locks (2026-10-01):
+- Sampler is `OnlineSampler` over `CalibrationState` (not a second state object, not a DepthLoop hook)
+- Consent anchors captured only on successful wizard `apply()`; session-only; `try_reapply` does not invent them
+- Window `ONLINE_WINDOW_N=8`, `ONLINE_MIN_INTERVAL_S=1.0`, strictly increasing `frame_id`
+- Map default `raw` (pre-`apply_map`); `map_space="applied"` inverts `(map - offset) / scale`
+- Fit is `fit_scale_median` only; `ok=True` → `set_draft_params`; `ok=False` → `clear_draft_params`; never `apply` / `apply_params` / `apply_map`
+- Phase 20 never assigns `auto_committed` or `rejected`
+- Cancel drops the draft window, not anchors; Clear drops anchors with applied; disable-online drops neither
+- CR-007 folded only as sampler locks (N, pre-apply raw, absurd scale does not stage). YAML / `manual_scale` / boot null width not in this phase
+- 20-01 window; 20-02 fit/reject. No route, no UI, no YAML key
+
 ### Pending Todos
 
-- Plan Phase 20 (online sample + fit/reject). Do not start 20 execution yet.
+- Confirm the anchor question in `20-RESEARCH.md` (idle after `try_reapply` with no tape points)
+- Execute 20-01, then 20-02. Do not start Phase 21 until both merge
 
 ### Blockers/Concerns
 
-- Phase 20 needs plan-phase lock for N-sample / throttle defaults (reuse fit as-is)
-- Do not start Phase 20 plans until 19-02 merges
+- Headless refine across restart needs a persist design if Brent rejects the idle-without-anchors lock. Do not invent anchors inside 20-01
+- CR-007 in-range scale (legal under v0.3 gates, still empties the 3 m horizon once applied) is a Phase 21 decision, not a Phase 20 apply path
+- Do not execute Phase 20 from the planning PR; plans are not implementation
 
 ## Deferred Items
 
