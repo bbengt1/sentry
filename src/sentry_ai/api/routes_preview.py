@@ -216,6 +216,22 @@ async def api_status(request: Request) -> dict[str, Any]:
     return data
 
 
+def _overlay_within_ttl(product: Any, ttl_ms: float) -> bool:
+    """True when a store product is present, error-free, and inside its TTL.
+
+    MJPEG has no stale flag. An overlay older than the TTL is not drawn, so a
+    live camera frame is not painted with occupancy or depth that status would
+    already call stale.
+    """
+    if product is None or getattr(product, "error", None) is not None:
+        return False
+    t_capture = getattr(product, "t_capture", None)
+    if t_capture is None:
+        return False
+    age_ms = max(0.0, (time.time() - float(t_capture)) * 1000.0)
+    return age_ms <= float(ttl_ms)
+
+
 async def _mjpeg_generator(
     bus: Any,
     store: Any | None = None,
@@ -229,6 +245,8 @@ async def _mjpeg_generator(
     Draw order (UI-02 / UI-06): depth blend → free-space → detection boxes.
     Free-space is drawn only from store free-space product (never computed
     from raw depth_map here). Temporal skew across products is accepted.
+    Depth and free-space overlays past their TTL are omitted. A depth product
+    that is present but not current also suppresses the free-space overlay.
     Never runs inference or Spatial Post.
 
     Stops when:
@@ -267,18 +285,31 @@ async def _mjpeg_generator(
                 image = item.image_bgr
                 if store is not None:
                     depth_product = store.snapshot_depth()
-                    if (
+                    depth_live = (
                         depth_product is not None
-                        and depth_product.error is None
                         and depth_product.depth_map is not None
-                    ):
+                        and _overlay_within_ttl(
+                            depth_product, DEFAULT_TTL_MS["depth"]
+                        )
+                    )
+                    if depth_live and depth_product is not None:
                         image = blend_depth(
                             image,
                             depth_product.depth_map,
                             alpha=DEPTH_BLEND_ALPHA,
                         )
                     free_product = store.snapshot_free_space()
-                    if free_product is not None and free_product.error is None:
+                    free_live = _overlay_within_ttl(
+                        free_product, DEFAULT_TTL_MS["free_space"]
+                    )
+                    # Depth present but not live: do not paint derived occupancy.
+                    # Depth absent: a free-space-only product may still be drawn
+                    # when it is itself inside the TTL.
+                    if (
+                        free_product is not None
+                        and free_live
+                        and (depth_product is None or depth_live)
+                    ):
                         image = draw_free_space(
                             image,
                             free_mask=free_product.free_mask,

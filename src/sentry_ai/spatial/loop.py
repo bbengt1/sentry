@@ -71,6 +71,7 @@ class FreeSpaceLoop:
         self._near_cut = DEFAULT_NEAR_CUT
         self._mid_cut = DEFAULT_MID_CUT
         self._last_kind: DepthKind | None = None
+        self._seen_depth_revision = 0
 
     @property
     def store(self) -> PerceptionStore:
@@ -176,18 +177,44 @@ class FreeSpaceLoop:
         with self._lock:
             self._thread = None
 
+    def _invalidate_for_missing_depth(self) -> None:
+        """Drop derived occupancy when depth is missing, errored, or mapless.
+
+        The published product is cleared by the store on ``clear_depth`` /
+        unavailable ``set_depth``. This also resets the EMA so the next live
+        map does not blend with occupancy from the dead source.
+        """
+        if self._store.snapshot_free_space() is not None:
+            self._store.clear_free_space()
+        self.reset_smoother()
+        self._last_frame_id = None
+        self._last_kind = None
+
     def _run(self) -> None:
         while not self._stop.is_set():
             if not self._enabled.is_set():
                 self._stop.wait(0.01)
                 continue
+            revision = self._store.depth_revision()
             depth = self._store.snapshot_depth()
-            if (
+            unavailable = (
                 depth is None
                 or depth.error is not None
                 or depth.depth_map is None
-                or depth.frame_id == self._last_frame_id
-            ):
+            )
+            if unavailable:
+                self._invalidate_for_missing_depth()
+                self._seen_depth_revision = revision
+                self._stop.wait(0.005)
+                continue
+            if revision != self._seen_depth_revision:
+                # Depth was cleared or failed between frames. Do not smooth
+                # across that gap, and do not keep the previous frame id.
+                self.reset_smoother()
+                self._last_frame_id = None
+                self._last_kind = None
+                self._seen_depth_revision = revision
+            if depth.frame_id == self._last_frame_id:
                 self._stop.wait(0.005)
                 continue
 
@@ -230,6 +257,7 @@ class FreeSpaceLoop:
                         method="near_field_bands",
                         error=result.error,
                         units=result.units or "ordinal",
+                        depth_revision=revision,
                     )
                 else:
                     self._store.set_free_space(
@@ -246,6 +274,7 @@ class FreeSpaceLoop:
                         method=result.method,
                         error=None,
                         units=result.units,
+                        depth_revision=revision,
                     )
             except Exception as exc:  # noqa: BLE001 — keep thread alive (T-05-03)
                 latency_ms = (time.perf_counter() - t0) * 1000.0
@@ -270,4 +299,5 @@ class FreeSpaceLoop:
                     method="near_field_bands",
                     error=str(exc),
                     units="ordinal",
+                    depth_revision=revision,
                 )

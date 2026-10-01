@@ -2,6 +2,39 @@
 
 Default base URL: **`http://127.0.0.1:8000`** (localhost only).
 
+## Browser guard
+
+Every route, including ones added later, passes one guard before the handler:
+
+- **`Host` must be allowed.** Default allowlist is loopback plus the bind
+  address. `--host 0.0.0.0` (and `::`) also allows IP literals. Other DNS
+  names need `--allowed-host`. A rebinding `Host: evil.example` is **403**
+  `host_not_allowed`.
+- **Unsafe methods** (`POST`, `PUT`, `PATCH`, `DELETE`) and **`WS /v1/stream`**
+  accept a missing `Origin` (non-browser clients) or an `Origin` that matches
+  this server's host and port. `--allowed-origin` adds more. A foreign
+  `Origin` is **403** `origin_not_allowed`. `Sec-Fetch-Site: cross-site` is
+  **403** `cross_site_request`.
+- **Those methods reject** `application/x-www-form-urlencoded`,
+  `multipart/form-data`, and `text/plain` (**403** `content_type_not_allowed`).
+  Send `Content-Type: application/json`, or omit the header for an empty body.
+- **`GET /`** includes `X-Frame-Options: DENY` and
+  `Content-Security-Policy: frame-ancestors 'none'`.
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/api/depth/calibration/cancel
+curl -s -X POST http://127.0.0.1:8000/api/depth/calibration/compute \
+  -H 'Content-Type: application/json' -d '{"fit":"median"}'
+```
+
+WebSocket clients that send no `Origin` are accepted. The Python `websockets`
+client sends an `Origin` derived from the URL; `ws://127.0.0.1:8000/v1/stream`
+matches the default allowlist. A foreign `Origin` fails the upgrade with
+**403** and `{"detail":"origin_not_allowed"}` (or close code **1008** with
+that reason when the server cannot write an HTTP denial body).
+
+CORS stays off. A cross-origin page still cannot read `GET` JSON.
+
 All JSON perception bodies are built by `assemble_perception_frame` from a
 single `PerceptionStore`. Full schema: [perception-frame.md](perception-frame.md).
 
@@ -77,6 +110,8 @@ Example:
 
 Validation: cuts in `[0, 1]`; require `near_cut > mid_cut` or **422**.  
 Disable semantics: skip worker compute and clear that stage’s product once.
+Disabling depth also clears the derived free-space product, so it is not left
+complete on `/api/snapshot`, `/v1/snapshot`, `/v1/stream`, or the MJPEG overlay.
 
 ## Detection (fixed-class)
 
@@ -94,7 +129,10 @@ Requires `detect` extra for a live worker.
 | `GET` | `/api/depth/config` | `depth_mode`, model id |
 | `PATCH` | `/api/depth/config` | `{"depth_mode":"relative"|"metric_indoor"|"metric_outdoor"}` |
 
-Requires `depth` extra. Relative mode never claims meters.
+Requires `depth` extra. Relative mode never claims meters. `metric_indoor` /
+`metric_outdoor` label outputs as meters only after that mode’s Small
+checkpoint loads. If the load fails, the previous mode is unchanged and
+`PATCH` returns **409**.
 
 ## Calibration
 

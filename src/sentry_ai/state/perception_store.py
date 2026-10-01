@@ -158,6 +158,9 @@ class PerceptionStore:
         self._free_space_fps_count = 0
         self._ov_fps_window_t0 = time.monotonic()
         self._ov_fps_count = 0
+        # Bumped when depth is cleared or stored unavailable so an in-flight
+        # free-space write cannot resurrect a product for dead depth.
+        self._depth_revision = 0
 
     def set_detections(
         self,
@@ -276,6 +279,10 @@ class PerceptionStore:
         )
         with self._lock:
             self._latest_depth = product
+            # Error or missing map: derived free-space is not a live clearance.
+            if error is not None or depth_map is None:
+                self._latest_free_space = None
+                self._depth_revision += 1
             self._metrics.depth_frames += 1
             self._metrics.last_depth_latency_ms = latency_ms
             self._depth_fps_count += 1
@@ -318,10 +325,26 @@ class PerceptionStore:
                 error=p.error,
             )
 
+    def depth_revision(self) -> int:
+        """Token bumped whenever depth is cleared or stored unavailable.
+
+        FreeSpaceLoop passes the value it observed into ``set_free_space`` so
+        a compute that started on a live map cannot publish after that map
+        is gone.
+        """
+        with self._lock:
+            return self._depth_revision
+
     def clear_depth(self) -> None:
-        """Clear latest depth product (stage disable). Does not reset FPS."""
+        """Clear latest depth and the free-space product derived from it.
+
+        Does not reset FPS. Free-space must not stay complete once its depth
+        source is gone.
+        """
         with self._lock:
             self._latest_depth = None
+            self._latest_free_space = None
+            self._depth_revision += 1
 
     def set_free_space(
         self,
@@ -339,8 +362,15 @@ class PerceptionStore:
         error: str | None = None,
         t_compute: float | None = None,
         units: str = "ordinal",
+        depth_revision: int | None = None,
     ) -> None:
-        """Store latest free-space product (keep-latest)."""
+        """Store latest free-space product (keep-latest).
+
+        When ``depth_revision`` is set and no longer matches, the write is
+        dropped. That is the in-flight guard for depth clear / depth error.
+        Callers that publish a product without a live depth observation omit
+        the token and write as before.
+        """
         product = FreeSpaceProduct(
             frame_id=frame_id,
             camera_id=camera_id,
@@ -358,6 +388,11 @@ class PerceptionStore:
             error=error,
         )
         with self._lock:
+            if (
+                depth_revision is not None
+                and depth_revision != self._depth_revision
+            ):
+                return
             self._latest_free_space = product
             self._metrics.free_space_frames += 1
             self._metrics.last_free_space_latency_ms = latency_ms

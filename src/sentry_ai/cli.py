@@ -12,7 +12,7 @@ Continuity Camera on macOS).
 from __future__ import annotations
 
 import sys
-from typing import Any
+from typing import Annotated, Any
 
 import typer
 from pydantic import ValidationError
@@ -418,6 +418,28 @@ def serve(
             "camera_id stem). Honors SENTRY_CALIBRATION_DIR when omitted."
         ),
     ),
+    allowed_host: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--allowed-host",
+            help=(
+                "Extra Host name to accept besides loopback and the bind "
+                "address. Repeat for more than one. Required for a DNS name "
+                "such as robot.local. Names are exact."
+            ),
+        ),
+    ] = None,
+    allowed_origin: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--allowed-origin",
+            help=(
+                "Extra browser Origin allowed to change state and open "
+                "/v1/stream. Repeat for more than one. The Live Preview's "
+                "own origin is allowed without this flag."
+            ),
+        ),
+    ] = None,
 ) -> None:
     """Start capture + localhost Live Preview (MJPEG + status).
 
@@ -438,6 +460,19 @@ def serve(
             err=True,
         )
         raise typer.Exit(code=1)
+
+    bind = f"{host}:{port}"
+    from sentry_ai.api.browser_guard import resolve_guard
+
+    try:
+        resolve_guard(
+            bind=bind,
+            extra_hosts=allowed_host,
+            extra_origins=allowed_origin,
+        )
+    except ValueError as exc:
+        typer.echo(f"serve failed: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
 
     from sentry_ai.api.app import create_app
     from sentry_ai.backend.protocols import probe_device
@@ -463,7 +498,6 @@ def serve(
     bus = FrameBus()
     loop = CaptureLoop(src, bus)
     store = PerceptionStore()
-    bind = f"{host}:{port}"
 
     # Start capture *before* loading YOLO/depth weights so Continuity stays
     # warm during the multi-second model import (and so preview frames exist
@@ -661,6 +695,8 @@ def serve(
         calibration_state=calibration_state,
         calibration_path=persist_path,
         serve_ui=not no_ui,
+        allowed_hosts=list(allowed_host or []),
+        allowed_origins=list(allowed_origin or []),
     )
 
     device_display = rt.device if rt.device is not None else "auto"
@@ -688,6 +724,10 @@ def serve(
         typer.echo(f"bind: http://{bind}/  (headless API)")
     else:
         typer.echo(f"bind: http://{bind}/  (Live Preview)")
+    if allowed_host:
+        typer.echo("allowed-host: " + ", ".join(allowed_host))
+    if allowed_origin:
+        typer.echo("allowed-origin: " + ", ".join(allowed_origin))
     if det_loop is not None:
         typer.echo("detection: enabled (fixed-class YOLO)")
     else:

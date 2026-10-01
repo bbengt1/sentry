@@ -70,6 +70,19 @@ Default bind is **localhost only** (`127.0.0.1`). Binding a remote interface is 
 uv run sentry serve --source synthetic --host 0.0.0.0
 ```
 
+Browsers are not treated as local clients. State-changing requests and the
+perception WebSocket must come from this server's own origin (or send no
+`Origin`, which is what curl and robot scripts do). A foreign `Host` is
+rejected, so a DNS-rebinding page does not become same-origin with the
+camera. Open the preview by a DNS name only after listing it:
+
+```bash
+uv run sentry serve --host 0.0.0.0 --allowed-host robot.local
+uv run sentry serve --allowed-origin http://127.0.0.1:3000
+```
+
+Details: [`docs/safety-and-privacy.md`](docs/safety-and-privacy.md).
+
 ### Runtime profiles
 
 | Profile | Typical use | Select |

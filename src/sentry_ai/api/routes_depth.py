@@ -11,6 +11,8 @@ from typing import Any, Literal
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict
 
+from sentry_ai.models.depth.worker import DepthCheckpointError
+
 router = APIRouter()
 
 
@@ -62,7 +64,14 @@ async def patch_depth_config(
     body: DepthConfigUpdate,
     request: Request,
 ) -> dict[str, Any]:
-    """Update worker depth_mode without process restart (DEPTH-04)."""
+    """Update worker depth_mode without process restart (DEPTH-04).
+
+    Metric modes are accepted only after the matching checkpoint loads.
+    A failed load leaves the previous mode in place and returns 409.
+    """
     worker = _require_worker(request)
-    worker.set_depth_mode(body.depth_mode)
+    try:
+        worker.set_depth_mode(body.depth_mode)
+    except DepthCheckpointError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     return {"depth_mode": str(worker.get_depth_mode())}

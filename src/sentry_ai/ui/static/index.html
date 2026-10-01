@@ -1063,11 +1063,12 @@
       }
 
       function postCalib(path, body) {
-        var opts = { method: "POST", headers: {} };
-        if (body !== undefined) {
-          opts.headers["Content-Type"] = "application/json";
-          opts.body = JSON.stringify(body);
-        }
+        var payload = body === undefined ? {} : body;
+        var opts = {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        };
         return fetch(path, opts).then(function (resp) {
           return resp.json().then(
             function (data) { return { resp: resp, data: data }; },
