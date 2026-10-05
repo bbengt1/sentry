@@ -798,3 +798,91 @@ def test_production_paths_never_leave_phase21_online_status() -> None:
     state.set_online(True)
     snap = state.clear_applied()
     assert snap.online_status not in forbidden
+
+
+def _anchor_samples() -> list[CalibrationSample]:
+    return [
+        CalibrationSample(point_uv=(1.0, 2.0), known_meters=1.5, observed_raw=0.5),
+        CalibrationSample(point_uv=(3.0, 4.0), known_meters=2.5, observed_raw=0.8),
+        # Both geometries, or non-positive known_meters, are not consent.
+        CalibrationSample(
+            point_uv=(0.0, 0.0),
+            bbox_xyxy=(0.0, 0.0, 1.0, 1.0),
+            known_meters=1.0,
+        ),
+        CalibrationSample(point_uv=(1.0, 1.0), known_meters=0.0),
+    ]
+
+
+def test_apply_captures_consent_anchors_and_stays_offline() -> None:
+    state = CalibrationState()
+    for sample in _anchor_samples():
+        state.add_draft_sample(sample)
+    state.set_draft_params(_params())
+    state.apply()
+    anchors = state.get_consent_anchors()
+    assert len(anchors) == 2
+    assert anchors[0].point_uv == (1.0, 2.0)
+    assert anchors[0].bbox_xyxy is None
+    assert anchors[0].known_meters == 1.5
+    assert anchors[1].point_uv == (3.0, 4.0)
+    assert anchors[1].known_meters == 2.5
+    assert state.is_online() is False
+    assert state.get_draft_samples() == []
+
+
+def test_apply_without_samples_yields_empty_anchors() -> None:
+    state = CalibrationState()
+    state.set_draft_params(_params())
+    state.apply()
+    assert state.get_consent_anchors() == ()
+    assert state.is_online() is False
+
+
+def test_failed_apply_keeps_previous_anchors() -> None:
+    state = CalibrationState()
+    state.add_draft_sample(
+        CalibrationSample(point_uv=(1.0, 1.0), known_meters=2.0, observed_raw=1.0)
+    )
+    state.set_draft_params(_params())
+    state.apply()
+    before = state.get_consent_anchors()
+    assert len(before) == 1
+    with pytest.raises(ValueError, match="no draft"):
+        state.apply()
+    assert state.get_consent_anchors() == before
+    assert state.is_applied() is True
+    assert state.is_online() is False
+
+
+def test_apply_params_does_not_change_anchors_or_enable_online() -> None:
+    state = CalibrationState()
+    state.add_draft_sample(
+        CalibrationSample(point_uv=(2.0, 3.0), known_meters=4.0, observed_raw=1.0)
+    )
+    state.set_draft_params(_params(scale=2.0))
+    state.apply()
+    before = state.get_consent_anchors()
+    state.apply_params(_params(scale=9.0))
+    assert state.get_consent_anchors() == before
+    assert state.is_online() is False
+    applied = state.get_applied_params()
+    assert applied is not None
+    assert applied.scale == 9.0
+
+
+def test_clear_applied_clears_consent_anchors() -> None:
+    state = CalibrationState()
+    state.add_draft_sample(
+        CalibrationSample(point_uv=(1.0, 1.0), known_meters=2.0, observed_raw=1.0)
+    )
+    state.set_draft_params(_params())
+    state.apply()
+    state.set_online(True)
+    assert state.get_consent_anchors()
+    snap = state.clear_applied()
+    assert state.get_consent_anchors() == ()
+    assert state.is_applied() is False
+    assert state.is_online() is False
+    assert snap.online_status == "online_off"
+    assert snap.scale is None
