@@ -154,7 +154,7 @@ Source: `code-review-2026-09-25-full-repo.md` (PR #21), re-read against main aft
 
 ## Open questions (Brent)
 
-1. **Before 20-01 execution:** Anchors exist only after a wizard `apply()` in this process. A matching `try_reapply` restores scale and leaves the sampler idle (`no_anchors`). Phase 20 will not invent tape points and will not store them in YAML. Confirm that headless refine across restart is out of this phase. If it is in, stop and re-plan — that is a persist-schema change, not a sampler tweak.
+1. **Before 20-01 execution:** Anchors exist only after a wizard `apply()` in this process. A matching `try_reapply` restores scale and leaves the sampler idle (`no_anchors`). Phase 20 will not invent tape points and will not store them in YAML. Confirm that headless refine across restart is out of this phase. If it is in, stop and re-plan — that is a persist-schema change, not a sampler tweak. **Answered 2026-10-05 (Brent):** accepted. Restart support is out of scope for Phase 20. 20-01 shipped that lock.
 2. **Before Phase 21, not before Phase 20:** CR-007's in-range scale (just under `1e4`, or a large finite offset on the wizard/YAML path) can still empty metric free-space once something **applies** it. Phase 20 only stages draft. Should auto-commit grow a horizon/offset refuse that the wizard gates do not have? This plan does not add that refuse.
 
 ---

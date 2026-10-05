@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Online Re-calibration
-status: plans_ready
-last_updated: "2026-10-01"
-last_activity: 2026-10-01
+status: executing
+last_updated: "2026-10-05"
+last_activity: 2026-10-05
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 4
-  completed_plans: 2
+  completed_plans: 3
   percent: 25
 ---
 
@@ -20,21 +20,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-15)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots — without proprietary sensors or cloud AI.  
-**Current focus:** v0.4 Phase 20 plans written — ready to execute 20-01 (throttled draft window) after the anchor question in 20-RESEARCH is confirmed.
+**Current focus:** v0.4 Phase 20-01 complete (throttled draft window). Next: execute 20-02 (fit/reject into draft only).
 
 ## Current Position
 
 Phase: 20 of 22 planned (Online sample + fit/reject) — v0.4 phases 19–22  
-Plan: 20-01 next  
-Status: Plans written; not executed  
-Last activity: 2026-10-01 — Phase 20 research + plans written (20-01, 20-02)
+Plan: 20-01 done; 20-02 next  
+Status: Executing Phase 20  
+Last activity: 2026-10-05 — 20-01 implemented (consent anchors + throttled draft window)
 
 Progress: [██░░░░░░░░] 25%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed (v0.4): 2
+- Total plans completed (v0.4): 3
 - v1.0 + v0.2 + v0.3 history: 40 plans shipped prior milestones
 
 **By Phase:**
@@ -42,7 +42,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 19. Online consent & honesty state | 2/2 | 2 | - |
-| 20. Online sample + fit/reject | 0/2 | 2 | - |
+| 20. Online sample + fit/reject | 1/2 | 2 | - |
 
 *Updated after each plan completion*
 
@@ -98,16 +98,24 @@ Phase 20 plan locks (2026-10-01):
 - CR-007 folded only as sampler locks (N, pre-apply raw, absurd scale does not stage). YAML / `manual_scale` / boot null width not in this phase
 - 20-01 window; 20-02 fit/reject. No route, no UI, no YAML key
 
+Brent 2026-10-05: anchors only after a wizard `apply()` in the same process. The sampler stays idle after restart (`no_anchors`). Restart support is out of scope for Phase 20.
+
+20-01 shipped (2026-10-05):
+- `ConsentAnchor` captured only on successful `apply()`, before draft samples are cleared
+- `apply_params` does not invent anchors; `clear_applied` clears them and forces online off
+- `OnlineSampler.consider` writes draft samples only (`N=8`, 1.0 s, strictly increasing `frame_id`)
+- Full window returns `window_short` with `fit_ok is None` (no fit in this plan)
+- Default `map_space="raw"`; `applied` inverts `(map - offset) / scale`
+- Cancel drops the draft window; disable-online drops neither applied, anchors, nor existing draft
+- No route, YAML key, snapshot field, DepthLoop hook, or dependency
+
 ### Pending Todos
 
-- Confirm the anchor question in `20-RESEARCH.md` (idle after `try_reapply` with no tape points)
-- Execute 20-01, then 20-02. Do not start Phase 21 until both merge
+- Execute 20-02 (fit/reject into draft only). Do not start Phase 21 until 20-01 and 20-02 both merge
 
 ### Blockers/Concerns
 
-- Headless refine across restart needs a persist design if Brent rejects the idle-without-anchors lock. Do not invent anchors inside 20-01
 - CR-007 in-range scale (legal under v0.3 gates, still empties the 3 m horizon once applied) is a Phase 21 decision, not a Phase 20 apply path
-- Do not execute Phase 20 from the planning PR; plans are not implementation
 
 ## Deferred Items
 
@@ -125,7 +133,7 @@ See also: `milestones/v1.0-MILESTONE-AUDIT.md`, `milestones/v0.2-MILESTONE-AUDIT
 
 ## Session Continuity
 
-Last session: 2026-08-30 — 19-02 implemented (Cancel/Clear/disable + online_status REST)  
-Stopped at: `feat/19-02-online-status-rest`  
-Resume file: `.planning/ROADMAP.md` (Phase 20 not planned yet)  
-Next: plan Phase 20
+Last session: 2026-10-05 — 20-01 implemented (consent anchors + throttled draft window)  
+Stopped at: `cursor/phase-20-01-online-sampler-b90b`  
+Resume file: `.planning/phases/20-online-sample-fit-reject/20-02-PLAN.md`  
+Next: execute 20-02

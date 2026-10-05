@@ -17,6 +17,7 @@ DepthLoop (Phase 14):
 
 from __future__ import annotations
 
+import math
 import threading
 from dataclasses import dataclass, field
 from typing import Any, Literal
@@ -31,7 +32,69 @@ from sentry_ai.schemas.calibration import (
 from sentry_ai.schemas.enums import DepthKind
 from sentry_ai.schemas.validators import promote_kind_unit as _promote_kind_unit
 
-__all__ = ["CalibrationState"]
+__all__ = ["CalibrationState", "ConsentAnchor"]
+
+
+@dataclass(frozen=True)
+class ConsentAnchor:
+    """Session geometry captured from a successful wizard apply().
+
+    Not persisted. apply_params / try_reapply must not invent these.
+    """
+
+    known_meters: float
+    point_uv: tuple[float, float] | None = None
+    bbox_xyxy: tuple[float, float, float, float] | None = None
+
+
+def _sample_field(sample: Any, name: str) -> Any:
+    if isinstance(sample, dict):
+        return sample.get(name)
+    return getattr(sample, name, None)
+
+
+def _positive_known(value: Any) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    known = float(value)
+    if not math.isfinite(known) or known <= 0.0:
+        return None
+    return known
+
+
+def _anchors_from_samples(samples: list[Any]) -> tuple[ConsentAnchor, ...]:
+    """Keep samples with known_meters > 0 and exactly one of point or bbox."""
+    anchors: list[ConsentAnchor] = []
+    for sample in samples:
+        known = _positive_known(_sample_field(sample, "known_meters"))
+        if known is None:
+            continue
+        point = _sample_field(sample, "point_uv")
+        bbox = _sample_field(sample, "bbox_xyxy")
+        has_point = point is not None
+        has_bbox = bbox is not None
+        if has_point == has_bbox:
+            continue
+        if has_point:
+            anchors.append(
+                ConsentAnchor(
+                    known_meters=known,
+                    point_uv=(float(point[0]), float(point[1])),
+                )
+            )
+        else:
+            anchors.append(
+                ConsentAnchor(
+                    known_meters=known,
+                    bbox_xyxy=(
+                        float(bbox[0]),
+                        float(bbox[1]),
+                        float(bbox[2]),
+                        float(bbox[3]),
+                    ),
+                )
+            )
+    return tuple(anchors)
 
 _PERSIST_STATUSES = frozenset({"none", "applied", "ignored_mismatch", "error"})
 _ONLINE_STATUSES = frozenset(
@@ -47,6 +110,9 @@ class CalibrationState:
     _draft_params: CalibrationParams | None = field(default=None, repr=False)
     _applied_params: CalibrationParams | None = field(default=None, repr=False)
     _draft_samples: list[Any] = field(default_factory=list, repr=False)
+    _consent_anchors: tuple[ConsentAnchor, ...] = field(
+        default_factory=tuple, repr=False
+    )
     _persist_status: str = field(default="none", repr=False)
     _persist_reason: str | None = field(default=None, repr=False)
     _online_enabled: bool = field(default=False, repr=False)
@@ -94,6 +160,17 @@ class CalibrationState:
         with self._lock:
             return list(self._draft_samples)
 
+    def replace_draft_samples(self, samples: list[Any]) -> CalibrationSnapshot:
+        """Replace draft samples only. Does not touch params, applied, or online."""
+        with self._lock:
+            self._draft_samples = list(samples)
+            return self._snapshot_unlocked()
+
+    def get_consent_anchors(self) -> tuple[ConsentAnchor, ...]:
+        """Return a copy of session consent anchors. Not a snapshot field."""
+        with self._lock:
+            return tuple(self._consent_anchors)
+
     def clear_draft_samples(self) -> CalibrationSnapshot:
         """Clear samples only (keep draft params unless caller also clear_draft)."""
         with self._lock:
@@ -130,6 +207,7 @@ class CalibrationState:
                 raise ValueError(
                     f"invalid draft calibration params: {reason or 'unknown'}"
                 )
+            self._consent_anchors = _anchors_from_samples(self._draft_samples)
             self._applied_params = self._draft_params
             self._draft_params = None
             self._draft_samples.clear()
@@ -212,6 +290,7 @@ class CalibrationState:
             self._persist_reason = None
             self._online_enabled = False
             self._online_status = "online_off"
+            self._consent_anchors = ()
             return self._snapshot_unlocked()
 
     def is_applied(self) -> bool:
