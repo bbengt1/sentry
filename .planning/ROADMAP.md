@@ -64,7 +64,7 @@ Audit: [milestones/v0.3-MILESTONE-AUDIT.md](milestones/v0.3-MILESTONE-AUDIT.md)
 **Constraints:** Online default off; first `metric_calibrated` still Apply or persist `try_reapply`; draft ≠ meters (WIZ-04); same fit/reject (`ok=False` never applied); auto-commit only if online on AND already applied AND fit ok AND residual gate AND `fingerprints_match` via `apply_params`; DepthLoop sole `apply_map`; smoother reset on auto-commit; sticky scale (throttle / N-sample, no per-frame unguarded refit); Cancel = draft only; Clear = applied + YAML; disable-online ≠ Clear; auto-commit session-only (YAML only on explicit save / persist:true / documented opt-in); status `online_off` / `online_draft` / `auto_committed` / `rejected` separate from `depth.kind` and persist; zero new deps; freeze DetectionLoop / FrameBus / ORT-TRT / `kind_for_mode`; synthetic CI; no FSD.
 
 - [x] **Phase 19: Online consent & honesty state** - Opt-in default off; first scale still Apply / persist re-apply; Cancel/Clear/disable-online semantics — **complete (19-01, 19-02)**
-- [ ] **Phase 20: Online sample + fit/reject** - Throttled draft-only sampler; reuse v0.3 fit/reject — **plans written (20-01, 20-02)**
+- [ ] **Phase 20: Online sample + fit/reject** - Throttled draft-only sampler; reuse v0.3 fit/reject — **20-01 complete; 20-02 not started**
 - [ ] **Phase 21: Gated auto-commit + DepthLoop/status** - Five-conjunct `apply_params`; sole `apply_map`; smoother reset; online status
 - [ ] **Phase 22: Persist policy + docs/CI** - Session-only auto-commit; operator docs; synthetic honesty matrix
 
@@ -91,7 +91,7 @@ Audit: [milestones/v0.3-MILESTONE-AUDIT.md](milestones/v0.3-MILESTONE-AUDIT.md)
   2. Fit/reject is the same v0.3 gates; `ok=False` never becomes applied
   3. No per-frame unguarded refit on the DepthLoop hot path — sticky last applied scale; throttle / N-sample window
   4. Synthetic unit tests cover draft-only sampling and reject-stays-applied without a physical room
-**Plans**: [20-01](phases/20-online-sample-fit-reject/20-01-PLAN.md), [20-02](phases/20-online-sample-fit-reject/20-02-PLAN.md) — written, not executed
+**Plans**: [20-01](phases/20-online-sample-fit-reject/20-01-PLAN.md) complete, [20-02](phases/20-online-sample-fit-reject/20-02-PLAN.md) written, not executed
 **Research flag**: Resolved — `ONLINE_WINDOW_N=8`, `ONLINE_MIN_INTERVAL_S=1.0`, strictly increasing `frame_id` ([20-RESEARCH](phases/20-online-sample-fit-reject/20-RESEARCH.md))
 
 ### Phase 21: Gated auto-commit + DepthLoop/status
@@ -130,7 +130,7 @@ Audit: [milestones/v0.3-MILESTONE-AUDIT.md](milestones/v0.3-MILESTONE-AUDIT.md)
 | 12. Docs, CI & Packaging Polish | v0.2 | 2/2 | Complete | 2026-08-10 |
 | 13–18 | v0.3 | 12/12 | Complete | 2026-08-14 |
 | 19. Online consent & honesty state | v0.4 | 2/2 | Complete | 2026-08-30 |
-| 20. Online sample + fit/reject | v0.4 | 0/2 | Plans written | - |
+| 20. Online sample + fit/reject | v0.4 | 1/2 | In progress | - |
 | 21. Gated auto-commit + DepthLoop/status | v0.4 | 0/? | Not started | - |
 | 22. Persist policy + docs/CI | v0.4 | 0/? | Not started | - |
 
