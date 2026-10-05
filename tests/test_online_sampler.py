@@ -1,4 +1,4 @@
-"""ONL-03: throttled draft-only online sampler (Phase 20-01). No fit."""
+"""ONL-03 / ONL-04: throttled draft window and draft-only fit/reject."""
 
 from __future__ import annotations
 
@@ -53,6 +53,24 @@ def _ready(
     if online:
         state.set_online(True)
     return state
+
+
+def _fill(
+    sampler: OnlineSampler,
+    depth: np.ndarray,
+    *,
+    count: int = 8,
+    frame_start: int = 1,
+    now_start: float = 0.0,
+) -> object:
+    last = None
+    for index in range(count):
+        last = sampler.consider(
+            depth,
+            frame_id=frame_start + index,
+            now_s=now_start + float(index),
+        )
+    return last
 
 
 def test_sampler_defaults() -> None:
@@ -327,6 +345,213 @@ def test_consider_does_not_touch_yaml(tmp_path) -> None:
     path.write_bytes(payload)
     state = _ready()
     OnlineSampler(state).consider(_map(2.0), frame_id=1, now_s=0.0)
+    assert path.read_bytes() == payload
+    assert list(tmp_path.iterdir()) == [path]
+
+
+def test_draft_staged_consistent_window() -> None:
+    state = _ready(
+        scale=2.0,
+        samples=[
+            CalibrationSample(point_uv=(1.0, 1.0), known_meters=4.0, observed_raw=1.0)
+        ],
+    )
+    sampler = OnlineSampler(state)
+    seventh = _fill(sampler, _map(2.0), count=7)
+    assert seventh is not None
+    assert seventh.reason == "window_short"
+    assert seventh.fit_ok is None
+    assert state.snapshot().has_draft_params is False
+    last = sampler.consider(_map(2.0), frame_id=8, now_s=7.0)
+    assert last is not None
+    assert last.accepted is True
+    assert last.reason == "draft_staged"
+    assert last.fit_ok is True
+    snap = state.snapshot()
+    assert snap.has_draft_params is True
+    assert snap.scale == 2.0
+    assert snap.online_status == "online_draft"
+    assert snap.online_status not in {"auto_committed", "rejected"}
+    assert state.is_online() is True
+    applied = state.get_applied_params()
+    assert applied is not None
+    assert applied.scale == 2.0
+    kind, unit = state.promote_kind_unit(DepthKind.RELATIVE, None)
+    assert kind == DepthKind.METRIC_CALIBRATED
+    assert unit == "m"
+    kind_again, unit_again = state.promote_kind_unit(DepthKind.RELATIVE, None)
+    assert kind_again == kind
+    assert unit_again == unit
+    draft = state._draft_params  # noqa: SLF001
+    assert draft is not None
+    assert draft.scale == pytest.approx(2.0)
+    assert draft.offset == pytest.approx(0.0)
+    assert draft.method == "known_distance"
+    assert draft.fingerprint.camera_id == applied.fingerprint.camera_id
+    assert len(state.get_draft_samples()) == 8
+
+
+def test_fit_rejected_residual_leaves_applied_scale() -> None:
+    state = _ready(
+        scale=3.0,
+        samples=[
+            CalibrationSample(point_uv=(0.0, 0.0), known_meters=1.0, observed_raw=1.0),
+            CalibrationSample(point_uv=(1.0, 0.0), known_meters=10.0, observed_raw=1.0),
+        ],
+    )
+    last = _fill(OnlineSampler(state), _map(2.0))
+    assert last is not None
+    assert last.accepted is True
+    assert last.reason == "fit_rejected"
+    assert last.fit_ok is False
+    snap = state.snapshot()
+    assert snap.has_draft_params is False
+    assert snap.draft_sample_count > 0
+    assert snap.scale == 3.0
+    assert snap.online_status == "online_draft"
+    applied = state.get_applied_params()
+    assert applied is not None
+    assert applied.scale == 3.0
+    assert state.is_online() is True
+    assert state.get_consent_anchors()
+
+
+def test_fit_rejected_absurd_scale() -> None:
+    state = _ready(
+        scale=2.0,
+        samples=[
+            CalibrationSample(
+                point_uv=(1.0, 1.0), known_meters=1.0e4, observed_raw=1.0
+            )
+        ],
+    )
+    last = _fill(OnlineSampler(state), _map(1.0))
+    assert last is not None
+    assert last.reason == "fit_rejected"
+    assert last.fit_ok is False
+    assert state.snapshot().has_draft_params is False
+    assert state.snapshot().scale == 2.0
+    applied = state.get_applied_params()
+    assert applied is not None
+    assert applied.scale == 2.0
+    assert state.snapshot().online_status == "online_draft"
+    assert len(state.get_draft_samples()) == 8
+
+
+def test_in_range_large_scale_does_not_replace_applied() -> None:
+    state = _ready(
+        scale=2.0,
+        samples=[
+            CalibrationSample(
+                point_uv=(1.0, 1.0), known_meters=1000.0, observed_raw=1.0
+            )
+        ],
+    )
+    last = _fill(OnlineSampler(state), _map(1.0))
+    assert last is not None
+    assert last.reason == "draft_staged"
+    assert last.fit_ok is True
+    snap = state.snapshot()
+    assert snap.has_draft_params is True
+    assert snap.scale == 2.0
+    applied = state.get_applied_params()
+    assert applied is not None
+    assert applied.scale == 2.0
+    draft = state._draft_params  # noqa: SLF001
+    assert draft is not None
+    assert draft.scale == pytest.approx(1000.0)
+    assert snap.online_status == "online_draft"
+
+
+def test_fit_rejected_clears_stale_draft_staged() -> None:
+    state = _ready(
+        scale=2.0,
+        samples=[
+            CalibrationSample(point_uv=(1.0, 1.0), known_meters=4.0, observed_raw=1.0)
+        ],
+    )
+    sampler = OnlineSampler(state)
+    staged = _fill(sampler, _map(2.0))
+    assert staged is not None
+    assert staged.reason == "draft_staged"
+    assert state.snapshot().has_draft_params is True
+    last = None
+    for index in range(8):
+        value = 1.0 if index % 2 == 0 else 50.0
+        last = sampler.consider(
+            _map(value),
+            frame_id=9 + index,
+            now_s=8.0 + float(index),
+        )
+    assert last is not None
+    assert last.reason == "fit_rejected"
+    assert last.fit_ok is False
+    assert state.snapshot().has_draft_params is False
+    assert state.snapshot().draft_sample_count == 8
+    assert state.snapshot().scale == 2.0
+    assert state.get_applied_params() is not None
+    assert state.get_applied_params().scale == 2.0  # type: ignore[union-attr]
+    assert state.snapshot().online_status == "online_draft"
+    assert state.is_online() is True
+
+
+def test_slide_ninth_frame_stays_draft_staged() -> None:
+    state = _ready(
+        scale=2.0,
+        samples=[
+            CalibrationSample(point_uv=(1.0, 1.0), known_meters=4.0, observed_raw=1.0)
+        ],
+    )
+    sampler = OnlineSampler(state)
+    _fill(sampler, _map(2.0))
+    ninth = sampler.consider(_map(2.0), frame_id=9, now_s=8.0)
+    assert ninth.accepted is True
+    assert ninth.reason == "draft_staged"
+    assert ninth.fit_ok is True
+    assert state.snapshot().scale == 2.0
+    assert state.get_applied_params() is not None
+    assert state.get_applied_params().scale == 2.0  # type: ignore[union-attr]
+    assert len(state.get_draft_samples()) == 8
+    assert state.get_draft_samples()[0].frame_id == 2
+    assert state.get_draft_samples()[-1].frame_id == 9
+    assert state.snapshot().online_status == "online_draft"
+
+
+def test_draft_staged_does_not_call_apply_paths(monkeypatch: pytest.MonkeyPatch) -> None:
+    state = _ready(
+        scale=2.0,
+        samples=[
+            CalibrationSample(point_uv=(1.0, 1.0), known_meters=4.0, observed_raw=1.0)
+        ],
+    )
+    sampler = OnlineSampler(state)
+
+    def _boom(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("sampler must not commit or map-apply")
+
+    monkeypatch.setattr(state, "apply", _boom)
+    monkeypatch.setattr(state, "apply_params", _boom)
+    monkeypatch.setattr(state, "apply_map", _boom)
+    last = _fill(sampler, _map(2.0))
+    assert last is not None
+    assert last.reason == "draft_staged"
+    assert state.snapshot().scale == 2.0
+    assert state.is_applied() is True
+
+
+def test_draft_staged_yaml_unchanged(tmp_path) -> None:
+    path = tmp_path / "calibration.yaml"
+    payload = b"scale: 1\n"
+    path.write_bytes(payload)
+    state = _ready(
+        scale=2.0,
+        samples=[
+            CalibrationSample(point_uv=(1.0, 1.0), known_meters=4.0, observed_raw=1.0)
+        ],
+    )
+    last = _fill(OnlineSampler(state), _map(2.0))
+    assert last is not None
+    assert last.reason == "draft_staged"
     assert path.read_bytes() == payload
     assert list(tmp_path.iterdir()) == [path]
 
