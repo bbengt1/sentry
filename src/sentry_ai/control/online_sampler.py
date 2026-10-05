@@ -1,13 +1,15 @@
-"""Throttled draft-only online sampler (ONL-03).
+"""Throttled draft-only online sampler (ONL-03, ONL-04).
 
-Control plane over CalibrationState. Does not fit, commit meters, or read
-PerceptionStore. The depth loop stays the only map-transform site.
+Control plane over CalibrationState. A full window may stage draft fit
+params. It does not commit meters or read PerceptionStore. The depth loop
+stays the only map-transform site.
 """
 
 from __future__ import annotations
 
 import math
 import threading
+import time
 from collections import deque
 from dataclasses import dataclass
 from typing import Literal
@@ -15,7 +17,8 @@ from typing import Literal
 import numpy as np
 
 from sentry_ai.control.calibration_state import CalibrationState, ConsentAnchor
-from sentry_ai.schemas.calibration import CalibrationSample
+from sentry_ai.schemas.calibration import CalibrationParams, CalibrationSample
+from sentry_ai.spatial.calibration import fit_scale_median
 
 __all__ = [
     "ONLINE_MIN_INTERVAL_S",
@@ -121,10 +124,41 @@ class OnlineSampler:
             self._state.replace_draft_samples(flat)
             self._last_accept_s = float(now_s)
             self._last_frame_id = frame_id
-            # 20-02 fits once len(self._window) >= self.window_n.
+            if len(self._window) < self.window_n:
+                return OnlineSampleResult(
+                    accepted=True, reason="window_short", fit_ok=None
+                )
+            return self._fit_window()
+
+    def _fit_window(self) -> OnlineSampleResult:
+        """Stage a passed scale fit. A failed fit clears draft params only."""
+        applied = self._state.get_applied_params()
+        if applied is None:
+            return OnlineSampleResult(accepted=False, reason="not_applied")
+        samples = [sample for frame in self._window for sample in frame]
+        observed = [float(sample.observed_raw) for sample in samples]
+        known = [float(sample.known_meters) for sample in samples]
+        result = fit_scale_median(observed, known, method="known_distance")
+        if not result.ok:
+            self._state.clear_draft_params()
             return OnlineSampleResult(
-                accepted=True, reason="window_short", fit_ok=None
+                accepted=True, reason="fit_rejected", fit_ok=False
             )
+        applied = self._state.get_applied_params()
+        if applied is None:
+            return OnlineSampleResult(accepted=False, reason="not_applied")
+        self._state.set_draft_params(
+            CalibrationParams(
+                scale=result.scale,
+                offset=result.offset,
+                method=result.method,
+                sample_count=result.sample_count,
+                residual_rms=result.residual_rms,
+                fingerprint=applied.fingerprint.model_copy(),
+                created_at=time.time(),
+            )
+        )
+        return OnlineSampleResult(accepted=True, reason="draft_staged", fit_ok=True)
 
     def _raw_map(
         self,

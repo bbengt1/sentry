@@ -185,7 +185,8 @@ def test_partial_window_is_draft_samples_only() -> None:
     assert all(sample.observed_raw == 2.0 for sample in samples)
 
 
-def test_eighth_accept_stays_window_short_without_fit() -> None:
+def test_eighth_accept_stages_draft_and_keeps_applied_scale() -> None:
+    """Full window fits. 20-01 stopped at window_short; 20-02 stages draft."""
     state = _ready(scale=4.0)
     sampler = OnlineSampler(state)
     last = None
@@ -195,13 +196,16 @@ def test_eighth_accept_stays_window_short_without_fit() -> None:
         )
     assert last is not None
     assert last.accepted is True
-    assert last.reason == "window_short"
-    assert last.fit_ok is None
+    assert last.reason == "draft_staged"
+    assert last.fit_ok is True
     snap = state.snapshot()
-    assert snap.has_draft_params is False
+    assert snap.has_draft_params is True
     assert snap.scale == 4.0
     assert snap.online_status == "online_draft"
     assert len(state.get_draft_samples()) == 8
+    draft = state._draft_params  # noqa: SLF001
+    assert draft is not None
+    assert draft.scale == pytest.approx(1.0)
 
 
 def test_map_space_applied_stores_pre_apply_raw() -> None:
@@ -517,7 +521,9 @@ def test_slide_ninth_frame_stays_draft_staged() -> None:
     assert state.snapshot().online_status == "online_draft"
 
 
-def test_draft_staged_does_not_call_apply_paths(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_draft_staged_does_not_call_apply_paths(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     state = _ready(
         scale=2.0,
         samples=[
