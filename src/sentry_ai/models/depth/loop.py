@@ -12,6 +12,9 @@ Online (ONL-07): an optional online sampler sees the pre-apply raw map, the
 live fingerprint, and ``time.monotonic()`` after refuse_if_mismatch and
 before promote/apply, so a commit on frame N is used by frame N. Sampler
 errors are contained; the frame still publishes with the last applied scale.
+A new capture session (``ImageFrame.session``, bumped by CaptureLoop on each
+reopen) calls the sampler's ``reset_session()`` first, so frame_id restarting
+at 0 after a reconnect resumes sampling instead of stalling.
 """
 
 from __future__ import annotations
@@ -52,12 +55,14 @@ class DepthLoop:
         self._calibration = calibration
         self._online_sampler = online_sampler
         self._online_error_seen: set[str] = set()
+        self._online_session: int | None = None
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._enabled = threading.Event()
         self._enabled.set()  # stages on by default
         self._thread: threading.Thread | None = None
         self._last_frame_id: int | None = None
+        self._last_session: int | None = None
         self._dep_failed = False  # sticky: missing transformers/torch etc.
 
     @property
@@ -80,6 +85,13 @@ class DepthLoop:
         if sampler is None:
             return
         try:
+            session = getattr(frame, "session", 0)
+            if self._online_session is not None and session != self._online_session:
+                # Reconnect: drop the old window; never mix camera sessions.
+                reset = getattr(sampler, "reset_session", None)
+                if callable(reset):
+                    reset()
+            self._online_session = session
             sampler.consider(
                 depth_map,
                 frame_id=frame.frame_id,
@@ -235,14 +247,19 @@ class DepthLoop:
                 self._stop.wait(0.01)
                 continue
             frame = self._bus.get_latest()
-            if frame is None or frame.frame_id == self._last_frame_id:
+            session = getattr(frame, "session", 0)
+            if frame is None or (
+                frame.frame_id == self._last_frame_id
+                and session == self._last_session
+            ):
                 self._stop.wait(0.005)
                 continue
 
-            if self._last_frame_id is not None:
+            if self._last_frame_id is not None and session == self._last_session:
                 gap = frame.frame_id - self._last_frame_id - 1
                 if gap > 0:
                     self._store.record_depth_drop(gap)
+            self._last_session = session
 
             t0 = time.perf_counter()
             model_name = str(getattr(self._worker, "name", "unknown"))

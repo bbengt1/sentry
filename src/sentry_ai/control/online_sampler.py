@@ -115,6 +115,23 @@ class OnlineSampler:
         self._last_accept_s: float | None = None
         self._last_frame_id: int | None = None
 
+    def reset_session(self) -> None:
+        """Start over for a new camera session (reconnect; frame_id restarts).
+
+        Drops the partial window and the draft samples/params staged from it,
+        and clears the frame_id high-water mark and throttle. Applied params,
+        consent anchors, online on/off, and online status are untouched.
+        Within a session frame_id must still strictly increase.
+        """
+        with self._lock:
+            if self._window:
+                # Window non-empty: the draft samples/params are ours.
+                self._state.clear_draft_samples()
+                self._state.clear_draft_params()
+            self._window.clear()
+            self._last_frame_id = None
+            self._last_accept_s = None
+
     def consider(
         self,
         depth_map: np.ndarray | None,

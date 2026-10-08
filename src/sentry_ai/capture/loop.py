@@ -5,6 +5,8 @@ Reconnect policy (defaults):
   On read failure: status RECONNECTING, close, sleep, re-open.
   On open failure before first success: status ERROR; after first success: RECONNECTING.
   Stale last frame remains on the bus while reconnecting.
+  Each successful open starts a new capture session; frames are stamped with
+  ``ImageFrame.session`` so consumers can tell a reconnect from a stall.
 
 FastAPI / UI never call source.read — only bus.get_latest and loop status.
 """
@@ -51,6 +53,7 @@ class CaptureLoop:
         self._status = SourceStatus.STOPPED
         self._status_detail: str | None = None
         self._ever_opened = False
+        self._session = 0
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
 
@@ -152,12 +155,15 @@ class CaptureLoop:
         self._source.open()
         with self._lock:
             self._ever_opened = True
+            self._session += 1
 
     def _stamp_ingest(self, frame: ImageFrame) -> ImageFrame:
-        if frame.meta.t_ingest is not None:
-            return frame
-        meta = frame.meta.model_copy(update={"t_ingest": time.time()})
-        return ImageFrame(meta=meta, image_bgr=frame.image_bgr)
+        with self._lock:
+            session = self._session
+        meta = frame.meta
+        if meta.t_ingest is None:
+            meta = meta.model_copy(update={"t_ingest": time.time()})
+        return ImageFrame(meta=meta, image_bgr=frame.image_bgr, session=session)
 
     def _interruptible_sleep(self, seconds: float) -> None:
         """Sleep up to ``seconds`` but wake early on stop."""

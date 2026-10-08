@@ -19,6 +19,9 @@ class ImageFrame:
 
     meta: Frame
     image_bgr: np.ndarray  # HxWx3 uint8, contiguous preferred
+    # Process-local capture session (CaptureLoop bumps it on every successful
+    # open). frame_id restarts at 0 per session. Not on the wire.
+    session: int = 0
 
     @property
     def frame_id(self) -> int:

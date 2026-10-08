@@ -93,6 +93,11 @@ completed: 2026-10-08
 ## Issues Encountered
 
 - **Follow-up, not fixed here:** sources reset `frame_id` to 0 on reopen (`opencv_source.open`, AVFoundation warm-up). The sampler's Phase 20 strictly-increasing-`frame_id` rule then returns `frame_not_advanced` after a capture reconnect, until the new ids pass the old high-water mark. That fails closed (no commit), but online refine can stall after a reconnect. Changing it would reopen a Phase 20 lock, so it is raised for Brent.
+- **Resolved by a post-plan follow-up (Brent-approved 2026-10-08):** this amends the Phase 20 frame_id lock, for reconnects only.
+  - CaptureLoop stamps `ImageFrame.session` on each successful open.
+  - When the session changes, DepthLoop calls `OnlineSampler.reset_session()`, which drops the window, its draft, and the frame_id high-water mark.
+  - Within a session, frame_id still has to strictly increase.
+  - See `tests/test_camera_reconnect.py`.
 
 ## User Setup Required
 
