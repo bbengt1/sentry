@@ -146,10 +146,14 @@ Phase 21 plan locks (2026-10-08):
 - `serve` → `cli._attach_online_sampler`: `OnlineSampler(auto_commit=True, on_auto_commit=free_space_loop.reset_smoother)`
 - Status on existing `/api/status` `calibration_online_status`; no route / field / YAML / dep
 
+Post-plan follow-up, Brent-approved 2026-10-08 (camera reconnect; amends the Phase 20 frame_id lock for reconnects only):
+- CaptureLoop bumps a capture session on every successful open and stamps the process-local `ImageFrame.session` (default 0; not on the wire; no snapshot field)
+- DepthLoop calls `OnlineSampler.reset_session()` when the session changes: drops the partial window and the draft it staged, clears the frame_id high-water mark and throttle. Applied params, anchors, online on/off and online status are untouched
+- Same-session frame_id must still strictly increase (`frame_not_advanced`); the fingerprint/mismatch checks still block a different camera or resolution
+
 ### Pending Todos
 
 - Plan Phase 22 when asked
-- Brent: sources reset `frame_id` to 0 on reopen; the strictly-increasing `frame_id` lock can stall online refine after a capture reconnect (fails closed). Keep, or reset the sampler's frame high-water mark on reconnect?
 
 ### Blockers/Concerns
 
@@ -171,7 +175,7 @@ See also: `milestones/v1.0-MILESTONE-AUDIT.md`, `milestones/v0.2-MILESTONE-AUDIT
 
 ## Session Continuity
 
-Last session: 2026-10-08 — 21-02 implemented; Phase 21 complete  
-Stopped at: `feat/21-02-depthloop-wiring`  
+Last session: 2026-10-08 — 21-02 implemented; Phase 21 complete; camera-reconnect follow-up  
+Stopped at: `fix/21-sampler-camera-reconnect`  
 Resume file: `.planning/ROADMAP.md` (Phase 22 not planned yet)  
 Next: plan Phase 22
