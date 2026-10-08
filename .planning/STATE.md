@@ -7,10 +7,10 @@ last_updated: "2026-10-08"
 last_activity: 2026-10-08
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 6
-  completed_plans: 5
-  percent: 50
+  completed_plans: 6
+  percent: 75
 ---
 
 # Project State
@@ -20,21 +20,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-15)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots — without proprietary sensors or cloud AI.  
-**Current focus:** v0.4 Phase 21 in progress. 21-01 done (gated auto-commit, strict horizon, deadband on the control plane). Next: 21-02 DepthLoop hook.
+**Current focus:** v0.4 Phase 21 complete (gated auto-commit wired into DepthLoop). Next: Phase 22 persist policy + docs/CI, not started.
 
 ## Current Position
 
-Phase: 21 of 22 planned (Gated auto-commit + DepthLoop/status) — v0.4 phases 19–22  
-Plan: 21-01 done; 21-02 next (wave 2)  
-Status: Phase 21 in progress (1/2)  
-Last activity: 2026-10-08 — 21-01 implemented (gated auto-commit, strict horizon, deadband)
+Phase: 21 of 22 complete (Gated auto-commit + DepthLoop/status) — v0.4 phases 19–22  
+Plan: 21-02 done  
+Status: Phase 21 complete; Phase 22 not started  
+Last activity: 2026-10-08 — 21-02 implemented (DepthLoop hook, serve wiring)
 
-Progress: [█████░░░░░] 50%
+Progress: [███████▌░░] 75%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed (v0.4): 5
+- Total plans completed (v0.4): 6
 - v1.0 + v0.2 + v0.3 history: 40 plans shipped prior milestones
 
 **By Phase:**
@@ -43,7 +43,7 @@ Progress: [█████░░░░░] 50%
 |-------|-------|-------|----------|
 | 19. Online consent & honesty state | 2/2 | 2 | - |
 | 20. Online sample + fit/reject | 2/2 | 2 | - |
-| 21. Gated auto-commit + DepthLoop/status | 1/2 | 2 | - |
+| 21. Gated auto-commit + DepthLoop/status | 2/2 | 2 | - |
 
 *Updated after each plan completion*
 
@@ -141,9 +141,15 @@ Phase 21 plan locks (2026-10-08):
 - Gate order: online, applied, residual, fingerprint, scale-only, strict horizon (`horizon_median_m` vs imported `DEFAULT_METRIC_MID_CUT_M`); then `within_deadband` (`ONLINE_COMMIT_DEADBAND = 0.01`); then commit
 - Not yet wired to live frames: no DepthLoop hook, no serve wiring (21-02)
 
+21-02 shipped (2026-10-08):
+- `DepthLoop(online_sampler=)` / `set_online_sampler`; `_consider_online` after `refuse_if_mismatch`, before unchanged promote/apply; raw map, live fingerprint, `time.monotonic()`; exceptions contained (log once per distinct message, capped at 32)
+- `serve` → `cli._attach_online_sampler`: `OnlineSampler(auto_commit=True, on_auto_commit=free_space_loop.reset_smoother)`
+- Status on existing `/api/status` `calibration_online_status`; no route / field / YAML / dep
+
 ### Pending Todos
 
-- Execute 21-02 when asked. Do not start Phase 22
+- Plan Phase 22 when asked
+- Brent: sources reset `frame_id` to 0 on reopen; the strictly-increasing `frame_id` lock can stall online refine after a capture reconnect (fails closed). Keep, or reset the sampler's frame high-water mark on reconnect?
 
 ### Blockers/Concerns
 
@@ -165,7 +171,7 @@ See also: `milestones/v1.0-MILESTONE-AUDIT.md`, `milestones/v0.2-MILESTONE-AUDIT
 
 ## Session Continuity
 
-Last session: 2026-10-08 — 21-01 implemented  
-Stopped at: `feat/21-01-gated-auto-commit`  
-Resume file: `.planning/phases/21-gated-auto-commit-depthloop-status/21-02-PLAN.md`  
-Next: execute 21-02
+Last session: 2026-10-08 — 21-02 implemented; Phase 21 complete  
+Stopped at: `feat/21-02-depthloop-wiring`  
+Resume file: `.planning/ROADMAP.md` (Phase 22 not planned yet)  
+Next: plan Phase 22

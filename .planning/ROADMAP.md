@@ -65,7 +65,7 @@ Audit: [milestones/v0.3-MILESTONE-AUDIT.md](milestones/v0.3-MILESTONE-AUDIT.md)
 
 - [x] **Phase 19: Online consent & honesty state** - Opt-in default off; first scale still Apply / persist re-apply; Cancel/Clear/disable-online semantics — **complete (19-01, 19-02)**
 - [x] **Phase 20: Online sample + fit/reject** - Throttled draft-only sampler; reuse v0.3 fit/reject — **complete (20-01, 20-02)**
-- [ ] **Phase 21: Gated auto-commit + DepthLoop/status** - Five-conjunct `apply_params`; horizon refuse (ONL-09); sole `apply_map`; smoother reset; online status — **in progress (21-01 done; 21-02 next)**
+- [x] **Phase 21: Gated auto-commit + DepthLoop/status** - Five-conjunct `apply_params`; horizon refuse (ONL-09); sole `apply_map`; smoother reset; online status — **complete (21-01, 21-02)**
 - [ ] **Phase 22: Persist policy + docs/CI** - Session-only auto-commit; operator docs; synthetic honesty matrix
 
 ## Phase Details
@@ -107,7 +107,7 @@ Audit: [milestones/v0.3-MILESTONE-AUDIT.md](milestones/v0.3-MILESTONE-AUDIT.md)
   6. Status distinguishes `online_draft` / `auto_committed` / `rejected` from `depth.kind` and persist status
   7. Auto-commit refuses a candidate whose `scale * median(finite raw > 0) + offset >= 3.0 m` (`DEFAULT_METRIC_MID_CUT_M`), strictly (even when the consented scale already puts the median there); the last consented calibration stays applied; wizard Apply has no such gate
   8. A candidate that passes every gate but is within 1% of the applied scale (`abs(c - a) < 0.01 * a`) is skipped: no `apply_params`, no smoother reset, not `rejected`
-**Plans**: [21-01](phases/21-gated-auto-commit-depthloop-status/21-01-PLAN.md), [21-02](phases/21-gated-auto-commit-depthloop-status/21-02-PLAN.md)
+**Plans**: [21-01](phases/21-gated-auto-commit-depthloop-status/21-01-PLAN.md), [21-02](phases/21-gated-auto-commit-depthloop-status/21-02-PLAN.md) — complete
 **Research flag**: Resolved — CR-007 strict horizon refuse and 1% commit deadband locked by Brent 2026-10-08; rule in [21-RESEARCH](phases/21-gated-auto-commit-depthloop-status/21-RESEARCH.md)
 
 ### Phase 22: Persist policy + docs/CI
@@ -134,7 +134,7 @@ Audit: [milestones/v0.3-MILESTONE-AUDIT.md](milestones/v0.3-MILESTONE-AUDIT.md)
 | 13–18 | v0.3 | 12/12 | Complete | 2026-08-14 |
 | 19. Online consent & honesty state | v0.4 | 2/2 | Complete | 2026-08-30 |
 | 20. Online sample + fit/reject | v0.4 | 2/2 | Complete | 2026-10-05 |
-| 21. Gated auto-commit + DepthLoop/status | v0.4 | 1/2 | In progress | - |
+| 21. Gated auto-commit + DepthLoop/status | v0.4 | 2/2 | Complete | 2026-10-08 |
 | 22. Persist policy + docs/CI | v0.4 | 0/? | Not started | - |
 
 **Coverage:** v0.4 9/9 requirements mapped ✓
