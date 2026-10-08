@@ -183,6 +183,12 @@ class CalibrationState:
             self._draft_params = params
             return self._snapshot_unlocked()
 
+    def clear_draft_params(self) -> CalibrationSnapshot:
+        """Drop staged params only. Samples, applied, anchors, and online stay."""
+        with self._lock:
+            self._draft_params = None
+            return self._snapshot_unlocked()
+
     def clear_draft(self) -> CalibrationSnapshot:
         """Discard draft params/samples; does not clear applied."""
         with self._lock:

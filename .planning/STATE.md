@@ -7,10 +7,10 @@ last_updated: "2026-10-05"
 last_activity: 2026-10-05
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
-  percent: 25
+  completed_plans: 4
+  percent: 50
 ---
 
 # Project State
@@ -20,21 +20,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-15)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots — without proprietary sensors or cloud AI.  
-**Current focus:** v0.4 Phase 20-01 complete (throttled draft window). Next: execute 20-02 (fit/reject into draft only).
+**Current focus:** v0.4 Phase 20 complete (draft window + fit/reject). Next: Phase 21 gated auto-commit, not started.
 
 ## Current Position
 
-Phase: 20 of 22 planned (Online sample + fit/reject) — v0.4 phases 19–22  
-Plan: 20-01 done; 20-02 next  
-Status: Executing Phase 20  
-Last activity: 2026-10-05 — 20-01 implemented (consent anchors + throttled draft window)
+Phase: 20 of 22 complete (Online sample + fit/reject) — v0.4 phases 19–22  
+Plan: 20-02 done  
+Status: Phase 20 complete; Phase 21 not started  
+Last activity: 2026-10-05 — 20-02 implemented (draft fit / reject)
 
-Progress: [██░░░░░░░░] 25%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed (v0.4): 3
+- Total plans completed (v0.4): 4
 - v1.0 + v0.2 + v0.3 history: 40 plans shipped prior milestones
 
 **By Phase:**
@@ -42,7 +42,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 19. Online consent & honesty state | 2/2 | 2 | - |
-| 20. Online sample + fit/reject | 1/2 | 2 | - |
+| 20. Online sample + fit/reject | 2/2 | 2 | - |
 
 *Updated after each plan completion*
 
@@ -104,18 +104,25 @@ Brent 2026-10-05: anchors only after a wizard `apply()` in the same process. The
 - `ConsentAnchor` captured only on successful `apply()`, before draft samples are cleared
 - `apply_params` does not invent anchors; `clear_applied` clears them and forces online off
 - `OnlineSampler.consider` writes draft samples only (`N=8`, 1.0 s, strictly increasing `frame_id`)
-- Full window returns `window_short` with `fit_ok is None` (no fit in this plan)
+- 20-01 stopped at `window_short`. 20-02 fits once the window is full
 - Default `map_space="raw"`; `applied` inverts `(map - offset) / scale`
 - Cancel drops the draft window; disable-online drops neither applied, anchors, nor existing draft
 - No route, YAML key, snapshot field, DepthLoop hook, or dependency
 
+20-02 shipped (2026-10-05):
+- Full window calls `fit_scale_median` (`method="known_distance"`). Gates in `spatial/calibration.py` are unchanged
+- `ok=True` → `set_draft_params` with the applied fingerprint. `snapshot.scale` stays applied
+- `ok=False` → `clear_draft_params` only. Samples and applied scale stay. A later reject clears an earlier staged draft
+- `online_status` stays `online_draft`. This phase does not assign `auto_committed` or `rejected`
+- In-range scale 1000 may stage draft and does not replace the applied scale. Horizon refuse is still a Phase 21 question
+
 ### Pending Todos
 
-- Execute 20-02 (fit/reject into draft only). Do not start Phase 21 until 20-01 and 20-02 both merge
+- Plan Phase 21 when asked. Do not auto-commit from the sampler
 
 ### Blockers/Concerns
 
-- CR-007 in-range scale (legal under v0.3 gates, still empties the 3 m horizon once applied) is a Phase 21 decision, not a Phase 20 apply path
+- CR-007 in-range scale (legal under v0.3 gates, still empties the 3 m horizon once applied) is a Phase 21 decision. 20-02 stages that draft and does not apply it
 
 ## Deferred Items
 
@@ -133,7 +140,7 @@ See also: `milestones/v1.0-MILESTONE-AUDIT.md`, `milestones/v0.2-MILESTONE-AUDIT
 
 ## Session Continuity
 
-Last session: 2026-10-05 — 20-01 implemented (consent anchors + throttled draft window)  
-Stopped at: `cursor/phase-20-01-online-sampler-b90b`  
-Resume file: `.planning/phases/20-online-sample-fit-reject/20-02-PLAN.md`  
-Next: execute 20-02
+Last session: 2026-10-05 — 20-02 implemented (draft fit / reject)  
+Stopped at: `cursor/phase-20-02-fit-reject-b90b`  
+Resume file: `.planning/ROADMAP.md` (Phase 21 not planned yet)  
+Next: plan Phase 21

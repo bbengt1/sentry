@@ -16,8 +16,8 @@ Requirements for this milestone. Each maps to roadmap phases (19+).
 
 ### Online sample + fit
 
-- [ ] **ONL-03**: Online sampler writes **draft only** — WIZ-04 holds until `apply()` / `apply_params` of a passed fit (draft never claims meters)
-- [ ] **ONL-04**: Online refine reuses the same v0.3 fit/reject gates; `ok=False` never becomes applied
+- [x] **ONL-03**: Online sampler writes **draft only** — WIZ-04 holds until `apply()` / `apply_params` of a passed fit (draft never claims meters)
+- [x] **ONL-04**: Online refine reuses the same v0.3 fit/reject gates; `ok=False` never becomes applied
 
 ### Gated auto-commit
 
@@ -68,8 +68,8 @@ Which phases cover which requirements. Filled during roadmap creation.
 |-------------|-------|--------|
 | ONL-01 | Phase 19 | Complete (19-02) |
 | ONL-02 | Phase 19 | Complete (19-01) |
-| ONL-03 | Phase 20 | Pending |
-| ONL-04 | Phase 20 | Pending |
+| ONL-03 | Phase 20 | Complete (20-02) |
+| ONL-04 | Phase 20 | Complete (20-02) |
 | ONL-05 | Phase 21 | Pending |
 | ONL-06 | Phase 19 | Complete (19-02) |
 | ONL-07 | Phase 21 | Pending |
@@ -89,4 +89,4 @@ Which phases cover which requirements. Filled during roadmap creation.
 
 ---
 *Requirements defined: 2026-08-15*  
-*Last updated: 2026-08-30 after 19-02 (ONL-01 + ONL-06 complete; Phase 19 done)*
+*Last updated: 2026-10-05 after 20-02 (ONL-03 + ONL-04 complete; Phase 20 done)*
