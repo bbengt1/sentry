@@ -9,7 +9,7 @@ progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 6
-  completed_plans: 4
+  completed_plans: 5
   percent: 50
 ---
 
@@ -20,21 +20,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-15)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots — without proprietary sensors or cloud AI.  
-**Current focus:** v0.4 Phase 21 planned (gated auto-commit + horizon refuse + DepthLoop hook). Next: execute 21-01.
+**Current focus:** v0.4 Phase 21 in progress. 21-01 done (gated auto-commit, strict horizon, deadband on the control plane). Next: 21-02 DepthLoop hook.
 
 ## Current Position
 
 Phase: 21 of 22 planned (Gated auto-commit + DepthLoop/status) — v0.4 phases 19–22  
-Plan: 21-01 next (wave 1), 21-02 (wave 2)  
-Status: Phase 20 complete; Phase 21 planned, not executed  
-Last activity: 2026-10-08 — Phase 21 research + plans (CR-007 horizon refuse locked)
+Plan: 21-01 done; 21-02 next (wave 2)  
+Status: Phase 21 in progress (1/2)  
+Last activity: 2026-10-08 — 21-01 implemented (gated auto-commit, strict horizon, deadband)
 
 Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed (v0.4): 4
+- Total plans completed (v0.4): 5
 - v1.0 + v0.2 + v0.3 history: 40 plans shipped prior milestones
 
 **By Phase:**
@@ -43,7 +43,7 @@ Progress: [█████░░░░░] 50%
 |-------|-------|-------|----------|
 | 19. Online consent & honesty state | 2/2 | 2 | - |
 | 20. Online sample + fit/reject | 2/2 | 2 | - |
-| 21. Gated auto-commit + DepthLoop/status | 0/2 | 2 | - |
+| 21. Gated auto-commit + DepthLoop/status | 1/2 | 2 | - |
 
 *Updated after each plan completion*
 
@@ -134,9 +134,16 @@ Phase 21 plan locks (2026-10-08):
 - No YAML on auto-commit; no route / snapshot field / YAML key / dep; version 0.1.0; restart out of scope; fit gates untouched
 - 21-01 (wave 1): ONL-05 + ONL-09 control plane. 21-02 (wave 2): ONL-07 DepthLoop hook + serve wiring + status
 
+21-01 shipped (2026-10-08):
+- `apply_params(params, *, expect_applied=None)`: guarded commit (online + same applied object under the lock, else `auto_commit_stale`); sets `auto_committed`. Default path unchanged
+- `mark_online_rejected()` sets `rejected` only while online
+- `OnlineSampler(auto_commit=False, on_auto_commit=None)`, `consider(..., live_fingerprint=None)`; default stays Phase 20 draft-only
+- Gate order: online, applied, residual, fingerprint, scale-only, strict horizon (`horizon_median_m` vs imported `DEFAULT_METRIC_MID_CUT_M`); then `within_deadband` (`ONLINE_COMMIT_DEADBAND = 0.01`); then commit
+- Not yet wired to live frames: no DepthLoop hook, no serve wiring (21-02)
+
 ### Pending Todos
 
-- Execute 21-01 when asked, then 21-02. Do not start Phase 22
+- Execute 21-02 when asked. Do not start Phase 22
 
 ### Blockers/Concerns
 
@@ -158,7 +165,7 @@ See also: `milestones/v1.0-MILESTONE-AUDIT.md`, `milestones/v0.2-MILESTONE-AUDIT
 
 ## Session Continuity
 
-Last session: 2026-10-08 — Phase 21 planned  
-Stopped at: `docs/phase-21-plan`  
-Resume file: `.planning/phases/21-gated-auto-commit-depthloop-status/21-01-PLAN.md`  
-Next: execute 21-01
+Last session: 2026-10-08 — 21-01 implemented  
+Stopped at: `feat/21-01-gated-auto-commit`  
+Resume file: `.planning/phases/21-gated-auto-commit-depthloop-status/21-02-PLAN.md`  
+Next: execute 21-02
