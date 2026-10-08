@@ -119,13 +119,16 @@ Brent 2026-10-05: anchors only after a wizard `apply()` in the same process. The
 
 Brent 2026-10-08 (CR-007, LOCKED): auto-commit refuses any scale that passes the v0.3 gates but would push the raw map past the 3 m free-space horizon (`DEFAULT_METRIC_MID_CUT_M`) once applied. On refuse, keep the last consented calibration applied. Wizard Apply is the override and does not get this gate.
 
+Brent 2026-10-08 (LOCKED): horizon rule stays strict, so deep scenes are refused even when the consented scale already puts the median at or past 3 m. Commit deadband: a safe candidate within 1% of applied is skipped (no apply, no smoother reset, not rejected).
+
 Phase 21 plan locks (2026-10-08):
 - Commit only via `apply_params(candidate, expect_applied=applied)`; atomic online+identity check under the state lock; sets `auto_committed` there
 - Six conjuncts: online, applied, fit ok, residual, `fingerprints_match` (live frame), horizon
-- Horizon (ONL-09): `scale * median(finite > 0 raw of the window-closing frame) + offset >= 3.0` → `horizon_refused`; no valid pixel → `horizon_unknown`
+- Horizon (ONL-09, strict): `scale * median(finite > 0 raw of the window-closing frame) + offset >= 3.0` → `horizon_refused`; no valid pixel → `horizon_unknown`; never consults the applied scale
+- Deadband (after all safety gates): `abs(candidate - applied) < ONLINE_COMMIT_DEADBAND * applied`, `ONLINE_COMMIT_DEADBAND = 0.01` in `online_sampler.py`; exactly 1% commits. Skip → `within_deadband`: no `apply_params`, no smoother reset, `clear_draft_params`, `online_status` unchanged, window kept
 - Online candidates scale-only (`offset_not_zero` refuse); commit the sampler's own fit, never `_draft_params`
 - Every refuse: applied unchanged, `clear_draft_params`, `mark_online_rejected` (only while online)
-- `online_status` = last online decision; Cancel / wizard `apply()` do not change it
+- `online_status` = last commit-or-refuse decision; deadband skip / Cancel / wizard `apply()` do not change it
 - `OnlineSampler(auto_commit=False)` default keeps Phase 20 contract; `serve` wires `auto_commit=True` + `on_auto_commit=free_space_loop.reset_smoother`
 - DepthLoop hook after `refuse_if_mismatch`, before unchanged `promote_kind_unit` / `apply_map`; raw map; `time.monotonic()`
 - No YAML on auto-commit; no route / snapshot field / YAML key / dep; version 0.1.0; restart out of scope; fit gates untouched
@@ -134,7 +137,6 @@ Phase 21 plan locks (2026-10-08):
 ### Pending Todos
 
 - Execute 21-01 when asked, then 21-02. Do not start Phase 22
-- Brent (non-blocking): large-scene strict horizon vs relative rule; commit deadband (21-RESEARCH open questions)
 
 ### Blockers/Concerns
 

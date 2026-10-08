@@ -62,7 +62,18 @@ def horizon_median_m(raw_map: np.ndarray, scale: float, offset: float) -> float 
     """scale * median(finite > 0 raw) + offset, or None when no valid pixel."""
 ```
 
-Refuse when `None` (`horizon_unknown`) or `>= DEFAULT_METRIC_MID_CUT_M` (`horizon_refused`). Import the constant; do not copy `3.0`.
+Refuse when `None` (`horizon_unknown`) or `>= DEFAULT_METRIC_MID_CUT_M` (`horizon_refused`). Import the constant; do not copy `3.0`. Strict: never consult the applied scale.
+
+### Deadband helper — NEW (21-01)
+
+```python
+ONLINE_COMMIT_DEADBAND = 0.01  # the only place the 1% lives
+
+def within_deadband(candidate_scale: float, applied_scale: float) -> bool:
+    """True when abs(candidate - applied) < ONLINE_COMMIT_DEADBAND * applied."""
+```
+
+Runs **after** `_commit_gate` returns `None` (all safety gates passed) and before `apply_params`. Exactly 1% → `False` (commits).
 
 ---
 
@@ -74,6 +85,7 @@ Refuse when `None` (`horizon_unknown`) or `>= DEFAULT_METRIC_MID_CUT_M` (`horizo
 - `auto_commit=False`: Phase 20 branch unchanged.
 - `auto_commit=True`: order and tokens per 21-RESEARCH contract. Build the candidate `CalibrationParams` exactly as 20-02 does (applied fingerprint copy), but do **not** `set_draft_params`. Commit that object with `apply_params(candidate, expect_applied=applied)`.
 - Any refuse: `clear_draft_params()` then `mark_online_rejected()`.
+- Deadband skip (after all gates pass): `clear_draft_params()` only; no `mark_online_rejected`, no `apply_params`, no `on_auto_commit`; window kept; reason `within_deadband`.
 - Success: `self._window.clear()`, then `on_auto_commit()` in `try/except Exception` (log, keep commit).
 - `OnlineSampleResult` gains no fields; `reason` carries the token.
 
@@ -117,8 +129,11 @@ Called in `serve` right after `free_space_loop = FreeSpaceLoop(store)`. Testable
 
 **21-01** (`tests/test_online_auto_commit.py`, extend `tests/test_calibration_state.py`):
 
-- Success fixture: anchor known 2.0, raw map 1.0, applied scale 2.0 → candidate 2.0, `d_med = 2.0 m`. Eighth accept with matching `live_fingerprint` → `committed`; `online_status == "auto_committed"`; `get_applied_params()` is the new object (scale ≈ 2.0); draft params and window empty; callback called once; `is_online()` still True
-- Re-scale success: applied 1.5, raw 1.0, known 2.0 → applied becomes ≈ 2.0
+- Success fixture: anchor known 2.0, raw map 1.0, applied scale 1.5 → candidate 2.0 (+33%), `d_med = 2.0 m`. Eighth accept with matching `live_fingerprint` → `committed`; `online_status == "auto_committed"`; `get_applied_params()` is the new object (scale ≈ 2.0); draft params and window empty; callback called once; `is_online()` still True
+- Deadband 0.5%: applied 2.0, raw 1.0, known 2.01 → `within_deadband`; applied object `is` unchanged; `apply_params` not called (spy); callback not called; `has_draft_params` False; `online_status` unchanged (assert both from `online_draft` and from a prior `rejected`); window kept (ninth accept refits)
+- Deadband 1.5%: applied 2.0, raw 1.0, known 2.03 → `committed`; callback once
+- Deadband boundary (helper): `within_deadband(100.5, 100.0)` and `within_deadband(99.5, 100.0)` True; `within_deadband(101.0, 100.0)` and `within_deadband(99.0, 100.0)` False (exactly 1% commits); `ONLINE_COMMIT_DEADBAND == 0.01`
+- Strict deep scene: applied 2.0, raw map 2.0, anchor known 4.0 → candidate 2.0 (equal to applied, `d_med` 4.0 m, consented scale already past 3 m) → `horizon_refused`, status `rejected`, not `within_deadband`
 - `fit_rejected` (two anchors 1 m / 10 m) → `rejected`; applied object identical; callback not called
 - `horizon_refused`: known 1000 on raw 1.0 (the Phase 20 in-range case) → applied unchanged, `has_draft_params` False, status `rejected`
 - Boundary: `d_med` exactly 3.0 → refused; 2.99 → committed

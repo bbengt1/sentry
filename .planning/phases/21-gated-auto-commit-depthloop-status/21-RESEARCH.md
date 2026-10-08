@@ -3,7 +3,7 @@
 **Researched:** 2026-10-08
 **Domain:** Promote a passed online fit to applied via `apply_params` only when every gate holds; DepthLoop hook; smoother reset; `auto_committed` / `rejected` status
 **Confidence:** HIGH for plug-in boundaries (code-verified on main `8ba5b34`); HIGH for the locked horizon rule below
-**Research flag:** Resolved here. CR-007 horizon refuse decided by Brent 2026-10-08 (LOCKED). Do not reopen during execute.
+**Research flag:** Resolved here. CR-007 horizon refuse decided by Brent 2026-10-08 (LOCKED, strict). Commit deadband decided by Brent 2026-10-08 (LOCKED). No open questions. Do not reopen during execute.
 
 ## Summary
 
@@ -16,7 +16,7 @@ Phase 20 shipped `OnlineSampler`: a throttled 8-frame window over consent anchor
 5. `fingerprints_match(applied.fingerprint, live)` for the frame that closed the window
 6. **horizon refuse (new, ONL-09):** the candidate does not push the raw map to or past the 3 m free-space horizon (rule below)
 
-Any failure keeps the last consented calibration applied, clears staged draft params, and sets `online_status="rejected"`. A pass calls `apply_params`, sets `online_status="auto_committed"`, clears the window, and resets the free-space smoother like wizard Apply. `DepthLoop` gets one optional hook that passes the **pre-apply raw** map, the live fingerprint, and a monotonic clock to the sampler before the unchanged `promote_kind_unit` → `apply_map` lines. `DepthLoop` stays the only `apply_map` call site. Auto-commit writes no YAML.
+Any failure keeps the last consented calibration applied, clears staged draft params, and sets `online_status="rejected"`. A candidate that passes every safety gate but is within 1% of the applied scale is **skipped** (deadband): no `apply_params`, no smoother reset, not a refusal. A pass outside the deadband calls `apply_params`, sets `online_status="auto_committed"`, clears the window, and resets the free-space smoother like wizard Apply. `DepthLoop` gets one optional hook that passes the **pre-apply raw** map, the live fingerprint, and a monotonic clock to the sampler before the unchanged `promote_kind_unit` → `apply_map` lines. `DepthLoop` stays the only `apply_map` call site. Auto-commit writes no YAML.
 
 The wizard (`/sample` → `/compute` → `/apply`) and persist `try_reapply` are **unchanged** and do not get the horizon gate. Manual wizard Apply stays the maker's override.
 
@@ -31,11 +31,12 @@ The wizard (`/sample` → `/compute` → `/apply`) and persist `try_reapply` are
 | 3 | Fit and gates | `fit_scale_median(..., method="known_distance")` unchanged. **No edit** to `MIN_SCALE`, `MAX_SCALE`, `_RESIDUAL_FRAC`, `_RESIDUAL_FLOOR_M`, or `spatial/calibration.py`. No `fit_affine_lstsq`. |
 | 4 | Horizon refuse (Brent 2026-10-08) | Online auto-commit refuses a scale that passes the v0.3 gates but would push the raw map past `DEFAULT_METRIC_MID_CUT_M` (3.0 m) once applied. Rule in "Horizon rule". Wizard Apply and `try_reapply` do **not** get this gate. |
 | 5 | Refuse outcome | Last consented (applied) params stay. `clear_draft_params()` so a refused scale is not left staged for a stray wizard Apply click. Window samples stay (sliding). `online_status="rejected"` only if online is still on. |
-| 6 | Pass outcome | `apply_params(candidate, expect_applied=applied)`; status `auto_committed` set under the same state lock; sampler clears its window; `on_auto_commit()` callback (wired to `FreeSpaceLoop.reset_smoother`). |
+| 5b | Deadband (Brent 2026-10-08) | After **all** safety gates pass, skip the commit when `abs(candidate.scale - applied.scale) < ONLINE_COMMIT_DEADBAND * applied.scale` with `ONLINE_COMMIT_DEADBAND = 0.01` defined once in `online_sampler.py` (equivalent to `abs(candidate/applied - 1) < 0.01` for `applied > 0`; exactly 1% is outside and commits). Skip outcome: no `apply_params`, no `on_auto_commit` (no smoother reset), `clear_draft_params()`, `online_status` **unchanged** (not `rejected`, not `auto_committed`), window kept (sliding, like a refuse), reason `within_deadband`, `fit_ok=True`. |
+| 6 | Pass outcome | Outside the deadband: `apply_params(candidate, expect_applied=applied)`; status `auto_committed` set under the same state lock; sampler clears its window; `on_auto_commit()` callback (wired to `FreeSpaceLoop.reset_smoother`). |
 | 7 | Opt-in in code | `OnlineSampler(state, *, auto_commit=False, on_auto_commit=None)`. Default `False` keeps the Phase 20 draft-only contract and its tests byte-for-byte. `serve` wiring passes `auto_commit=True`. The maker's consent is still the session online flag (Phase 19). |
 | 8 | Atomic commit | `apply_params(params, *, expect_applied=None)`. With `expect_applied` set, under the state lock: require online on AND `self._applied_params is expect_applied`, else `ValueError("auto_commit_stale")`; on success also set `_online_status="auto_committed"`. With the default `None`, behavior is unchanged for wizard/persist callers. A Clear or disable that races the commit wins. |
 | 9 | Reject status write | New `mark_online_rejected() -> bool`: under the lock, sets `rejected` only if online is on. Never resurrects status after Clear / disable. |
-| 10 | Status meaning | `online_status` is the **last online decision**: `online_draft` until the first full-window decision after enable; then `auto_committed` or `rejected` until the next decision, disable (`online_off`), or Clear (`online_off`). Cancel (`clear_draft`) and wizard `apply()` do not change it (Phase 19 lock). |
+| 10 | Status meaning | `online_status` is the **last commit-or-refuse decision**: `online_draft` until the first such decision after enable; then `auto_committed` or `rejected` until the next commit/refuse, disable (`online_off`), or Clear (`online_off`). A deadband skip, Cancel (`clear_draft`), and wizard `apply()` do not change it (Phase 19 lock). |
 | 11 | DepthLoop hook | Optional `online_sampler` (ctor kwarg + `set_online_sampler`). Called only when `calibration` and `depth_map` are present, **after** `refuse_if_mismatch` and **before** the unchanged `promote_kind_unit` / `apply_map`. Raw map is the worker output (pre-apply). `now_s=time.monotonic()`. Exceptions are caught and logged; the frame proceeds with the last applied scale. |
 | 12 | Smoother reset | Auto-commit resets the free-space EMA through the same `FreeSpaceLoop.reset_smoother` that `/apply` uses. Reject does not reset. |
 | 13 | YAML policy | Auto-commit is session-only: no `persist_applied`, no YAML write/delete, `persist_status` unchanged. Explicit `/save` or `/apply` `persist:true` remain the only writers (Phase 22 documents this). |
@@ -45,7 +46,7 @@ The wizard (`/sample` → `/compute` → `/apply`) and persist `try_reapply` are
 
 ---
 
-## Horizon rule (ONL-09)
+## Horizon rule (ONL-09) — STRICT (Brent 2026-10-08, locked)
 
 **Definition.** Let `raw` be the pre-apply raw depth map of the frame that completed the window (the map `consider` accepted, after the Phase 20 `map_space="applied"` inversion if used). Let `V = raw[isfinite(raw) & (raw > 0)]`. For a candidate with `scale` and `offset`:
 
@@ -66,9 +67,9 @@ Because `scale > 0`, `d_med` equals the median of the candidate-applied map over
 - **Testable and cheap.** It is a scalar on an array the sampler already holds. It runs at most once per full-window accept (at most 1 Hz at the default throttle). It needs no ROI, no smoother state, and no PerceptionStore read.
 - **Honesty-consistent.** It can only refuse. A refuse keeps the consented scale, never changes `depth.kind`, and never touches YAML.
 
-**Fixture note:** the Phase 20 "consistent" fixture (raw 2.0, scale 2.0) gives `d_med = 4.0 m` and would be **refused**. Phase 21 success fixtures must keep `scale * median(raw) < 3.0` (for example, raw 1.0, known 2.0, scale 2.0, giving 2.0 m).
+**Fixture note:** the Phase 20 "consistent" fixture (raw 2.0, scale 2.0) gives `d_med = 4.0 m` and would be **refused**. Phase 21 success fixtures must keep `scale * median(raw) < 3.0` **and** move the scale by at least 1% from applied (for example, applied 1.5, raw 1.0, known 2.0 → candidate 2.0, `d_med` 2.0 m).
 
-**Known cost:** in a scene whose true median depth is at least 3 m (a large hall, or a camera looking down a corridor), every online candidate is refused. Status reads `rejected`, the consented scale stays, and wizard Apply still works. This is conservative by design. See open question 1.
+**Strict, absolute (locked):** the rule does not look at the currently applied scale. In a genuinely deep scene where the consented scale already puts the median at or past 3 m, every online candidate is still refused, including one equal to the applied scale. Status reads `rejected`, the consented scale stays, and wizard Apply still works. Brent confirmed this trade-off on 2026-10-08. Because the horizon gate runs before the deadband, this case is `horizon_refused`, not `within_deadband`.
 
 **Scale-down direction** (`d_med` shrinks) is not refused. It adds near/mid obstacles, which is the safe-side error, and it is still bounded by `MIN_SCALE` and the residual gate.
 
@@ -118,7 +119,11 @@ full window -> fit_scale_median (unchanged)
     offset != 0 or method != known_distance -> offset_not_zero
     V empty                        -> horizon_unknown
     d_med >= 3.0 m                 -> horizon_refused
-  all pass -> apply_params(candidate, expect_applied=applied)
+  all safety gates pass, then deadband:
+    abs(cand - applied) < ONLINE_COMMIT_DEADBAND * applied
+                                   -> clear_draft_params; status unchanged; no apply_params; no on_auto_commit;
+                                      window kept; reason within_deadband, fit_ok True
+  outside deadband -> apply_params(candidate, expect_applied=applied)
       ValueError                   -> mark_online_rejected; reason commit_stale
       success                      -> status auto_committed (inside the lock); clear window;
                                       on_auto_commit() (exceptions logged, commit stands);
@@ -149,7 +154,11 @@ With `auto_commit=False` the Phase 20 contract is unchanged (`draft_staged`, `on
 | Horizon check on anchor predictions | A passed fit already matches anchors to `known_meters`; it tests tape distance, not the scene |
 | "All pixels ≥ 3 m" | Too weak: a few near pixels let a scale that blanks most of the image through |
 | Free-space ROI-only median | ROI fraction is runtime-configurable on `FreeSpaceLoop`; it couples the sampler to spatial config for little gain |
-| Relative rule (refuse only if applied median < 3 m and candidate ≥ 3 m) | Lets an already-far scene go to arbitrary scale (applied 3.5 m → candidate 1000×). Kept as open question 1, not the default |
+| Relative rule (refuse only if applied median < 3 m and candidate ≥ 3 m) | Lets an already-far scene go to arbitrary scale (applied 3.5 m → candidate 1000×). Brent 2026-10-08: strict stays |
+| Deadband before safety gates | A tiny change could skip a horizon/fingerprint refuse and hide `rejected`. Deadband runs last |
+| Deadband skip sets `rejected` | It is not a refusal; the candidate was safe and the applied scale is already right (Brent) |
+| Deadband skip clears the window | Would delay the next real change by 8 more frames; sliding window refits at ≤1 Hz cheaply |
+| `abs(c/a - 1) < 0.01` as code | Same rule; the multiply form avoids a division and makes the 1% boundary exact in float tests (applied 100.0, delta 1.0) |
 | Gate wizard Apply too | Brent: wizard stays the override and is unchanged |
 | Tighten `MAX_SCALE` | Changes the wizard and ONL-04's "same gates" |
 | Commit `_draft_params` from state | A wizard `/compute` can overwrite it with affine params from the online window; commit the sampler's own fit |
@@ -173,8 +182,10 @@ With `auto_commit=False` the Phase 20 contract is unchanged (`draft_staged`, `on
 
 ## Open questions (Brent)
 
-1. **Large scenes (before 21-01 execute, non-blocking):** the locked absolute rule refuses every online candidate when the scene's median depth really is at least 3 m, even if the consented scale already puts it there. The plan ships strict-absolute. If you want "refuse only when the candidate crosses 3 m and the applied scale did not, or moves the median by more than X×", say so before 21-01 starts.
-2. **Deadband (non-blocking):** every full-window pass commits, even when the new scale equals the applied one. With the default N=8 / 1.0 s that can reset the free-space smoother about every 8 s. The plan ships no deadband. Optional: skip the commit when `|new/applied − 1| < 1%`.
+None. Both questions from the first draft were answered on 2026-10-08:
+
+1. **Large scenes:** horizon rule stays **strict** (lock #4, "Horizon rule"). A deep scene is refused even when the consented scale already puts the median at or past 3 m.
+2. **Deadband:** **locked** at 1% (lock #5b). A safe candidate within 1% of applied is skipped: no apply, no smoother reset, not `rejected`.
 
 ---
 
@@ -183,6 +194,6 @@ With `auto_commit=False` the Phase 20 contract is unchanged (`draft_staged`, `on
 **Phase:** 21 — Gated auto-commit + DepthLoop/status
 **Confidence:** HIGH
 
-Key findings: commit through `apply_params(expect_applied=)` only; six conjuncts including the locked horizon refuse (`scale * median(raw) + offset >= 3.0 m` → refuse); the offset variant is locked out on the online path; DepthLoop passes the raw map and live fingerprint before the unchanged `apply_map`; smoother reset via callback; status is the last online decision; no YAML.
+Key findings: commit through `apply_params(expect_applied=)` only; six conjuncts including the locked strict horizon refuse (`scale * median(raw) + offset >= 3.0 m` → refuse); 1% commit deadband after the safety gates (skip, not reject); the offset variant is locked out on the online path; DepthLoop passes the raw map and live fingerprint before the unchanged `apply_map`; smoother reset via callback; status is the last online decision; no YAML.
 
 Ready for planning.

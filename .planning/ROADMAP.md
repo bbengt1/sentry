@@ -105,9 +105,10 @@ Audit: [milestones/v0.3-MILESTONE-AUDIT.md](milestones/v0.3-MILESTONE-AUDIT.md)
   4. Free-space smoother resets on auto-commit like wizard Apply
   5. Persist fingerprint refuse is unchanged (mismatch cannot auto-commit)
   6. Status distinguishes `online_draft` / `auto_committed` / `rejected` from `depth.kind` and persist status
-  7. Auto-commit refuses a candidate whose `scale * median(finite raw > 0) + offset >= 3.0 m` (`DEFAULT_METRIC_MID_CUT_M`); the last consented calibration stays applied; wizard Apply has no such gate
+  7. Auto-commit refuses a candidate whose `scale * median(finite raw > 0) + offset >= 3.0 m` (`DEFAULT_METRIC_MID_CUT_M`), strictly (even when the consented scale already puts the median there); the last consented calibration stays applied; wizard Apply has no such gate
+  8. A candidate that passes every gate but is within 1% of the applied scale (`abs(c - a) < 0.01 * a`) is skipped: no `apply_params`, no smoother reset, not `rejected`
 **Plans**: [21-01](phases/21-gated-auto-commit-depthloop-status/21-01-PLAN.md), [21-02](phases/21-gated-auto-commit-depthloop-status/21-02-PLAN.md)
-**Research flag**: Resolved — CR-007 horizon refuse locked by Brent 2026-10-08; rule in [21-RESEARCH](phases/21-gated-auto-commit-depthloop-status/21-RESEARCH.md)
+**Research flag**: Resolved — CR-007 strict horizon refuse and 1% commit deadband locked by Brent 2026-10-08; rule in [21-RESEARCH](phases/21-gated-auto-commit-depthloop-status/21-RESEARCH.md)
 
 ### Phase 22: Persist policy + docs/CI
 **Goal**: Auto-commit stays session-only unless the maker explicitly persists; operators have non-FSD docs; CI covers the online gate matrix with synthetic data only

@@ -31,6 +31,8 @@ created: 2026-10-08
 - [ ] Commit only when online, applied, fit ok, residual, `fingerprints_match`, horizon all pass (21-01)
 - [ ] Horizon: `scale * median(finite>0 raw) + offset >= 3.0` refuses; exactly 3.0 refuses; empty valid set refuses (21-01)
 - [ ] Scale 1000 on raw 1.0 (the Phase 20 in-range case) is refused and the consented scale stays (21-01)
+- [ ] Strict: deep scene whose consented scale already gives median >= 3 m is still refused (21-01)
+- [ ] Deadband: 0.5% skipped (no apply, no smoother reset, status unchanged); 1.5% commits; exactly 1% commits (21-01; reset spy re-checked in 21-02)
 - [ ] Offset ≠ 0 candidate refused (21-01)
 - [ ] Every refuse: applied object identical, draft params cleared, status `rejected` only while online (21-01)
 - [ ] Clear/disable racing a commit wins (`auto_commit_stale`) (21-01)
@@ -49,6 +51,8 @@ created: 2026-10-08
 | ONL-05 | Five conjuncts gate `apply_params` | `test_online_auto_commit.py` | 21-01 |
 | ONL-05 | Failed gates leave applied unchanged | `test_online_auto_commit.py` | 21-01 |
 | ONL-09 | Horizon refuse incl. boundary and scale 1000 | `test_online_auto_commit.py` | 21-01 |
+| ONL-05 | 1% deadband skip vs commit, boundary | `test_online_auto_commit.py` | 21-01 |
+| ONL-09 | Strict deep-scene refuse | `test_online_auto_commit.py` | 21-01 |
 | ONL-09 | Wizard Apply has no horizon gate | `test_online_auto_commit.py` / `test_calibration_state.py` | 21-01 |
 | ONL-07 | Sole `apply_map`; raw map to sampler | `test_depth_loop_online.py` | 21-02 |
 | ONL-07 | Smoother reset on auto-commit | `test_depth_loop_online.py` | 21-02 |

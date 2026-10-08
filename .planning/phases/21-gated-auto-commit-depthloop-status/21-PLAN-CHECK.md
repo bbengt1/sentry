@@ -4,7 +4,7 @@
 **Plans:** `21-01-PLAN.md`, `21-02-PLAN.md`
 **Checker:** plan-check (goal-backward) against main `8ba5b34`
 **Artifacts read:** ROADMAP Phase 21, REQUIREMENTS ONL-05/ONL-07 (+ new ONL-09), STATE Phase 19/20 locks, 20-02-SUMMARY, 21-RESEARCH/PATTERNS/VALIDATION, both PLAN.md files, `online_sampler.py`, `calibration_state.py`, `calibration_persist.py`, `calibration_store.py` (`fingerprints_match`), `models/depth/loop.py`, `spatial/free_space.py`, `spatial/loop.py`, `routes_calibration.py` (`/apply` smoother reset), `routes_preview.py` (status), `cli.py` serve wiring, `code-review-2026-09-25-full-repo.md` CR-007
-**CONTEXT.md:** none (locked decisions from ROADMAP + RESEARCH + Brent 2026-10-08 CR-007 decision)
+**CONTEXT.md:** none (locked decisions from ROADMAP + RESEARCH + Brent 2026-10-08: strict horizon refuse, 1% commit deadband)
 
 **Overall verdict:** **PASS**
 
@@ -21,7 +21,8 @@
 4. Free-space smoother resets on auto-commit like wizard Apply
 5. Persist fingerprint refuse is unchanged
 6. Status distinguishes `online_draft` / `auto_committed` / `rejected` from `depth.kind` and persist status
-7. (new) Auto-commit refuses a candidate that puts the raw map's median at or past 3 m; wizard Apply unchanged
+7. (new) Auto-commit refuses a candidate that puts the raw map's median at or past 3 m (strict); wizard Apply unchanged
+8. (new) A safe candidate within 1% of the applied scale is skipped: no `apply_params`, no smoother reset, not `rejected`
 
 **Requirements:** ONL-05, ONL-07, ONL-09
 
@@ -36,14 +37,16 @@
 | ONL-07 smoother | SC4 | 21-02 reset spy | T1/T2 | Covered |
 | ONL-07 persist refuse | SC5 | 21-02 mismatch test; no persist edits | T1/T2 | Covered |
 | Status | SC6 | 21-01 writes; 21-02 `/api/status` | T1/T2 | Covered |
-| ONL-09 horizon | SC7 | 21-01 boundary + scale 1000 + wizard unchanged | T1/T2 | Covered |
+| ONL-09 horizon | SC7 | 21-01 boundary + scale 1000 + strict deep scene + wizard unchanged | T1/T2 | Covered |
+| ONL-05 deadband | SC8 | 21-01 0.5% / 1.5% / exact 1%; 21-02 reset spy | T1/T2 | Covered |
 
 ### Goal-backward truth map
 
 | Must be TRUE | Delivered by | Wiring |
 |--------------|--------------|--------|
 | Only gated commits go live | 21-01 `_commit_gate` | `apply_params(expect_applied=)` |
-| Horizon cannot be emptied by auto-commit | 21-01 `horizon_median_m` | `DEFAULT_METRIC_MID_CUT_M` import |
+| Horizon cannot be emptied by auto-commit | 21-01 `horizon_median_m` | `DEFAULT_METRIC_MID_CUT_M` import; strict |
+| No-op commits don't churn | 21-01 `within_deadband` | after all gates; `ONLINE_COMMIT_DEADBAND` |
 | Refuse keeps consented scale | 21-01 | applied `is` unchanged; draft cleared |
 | Clear/disable beat a commit | 21-01 | lock-held identity + online check |
 | Live frames reach gates | 21-02 `_consider_online` | raw map + live fingerprint |
@@ -88,10 +91,10 @@ No new module, route, snapshot field, YAML key, or dependency.
 Truths are observable on `CalibrationState`, `OnlineSampleResult`, the stored depth product, the smoother spy, and `/api/status`. Clocks injected.
 
 ### 7. Context Compliance — PASS
-Brent 2026-10-08: horizon refuse for auto-commit only, keep last consented calibration, wizard unchanged — RESEARCH lock #4/#5, 21-01 tables and tests. Carried locks: no gate edits, no `fit_affine_lstsq`, restart out of scope, version 0.1.0, Phase 19 honesty, CR-001..005.
+Brent 2026-10-08: horizon refuse for auto-commit only, strict even in deep scenes, keep last consented calibration, wizard unchanged — RESEARCH lock #4/#5, 21-01 tables and tests. Deadband 1% after safety gates, skip is not a refusal — RESEARCH lock #5b, 21-01 tables and tests. Carried locks: no gate edits, no `fit_affine_lstsq`, restart out of scope, version 0.1.0, Phase 19 honesty, CR-001..005.
 
 ### 7b. Scope Reduction — PASS
-Deferred and stated: YAML/persist policy and docs (Phase 22), wizard/YAML half of CR-007, deadband, relative horizon rule (open questions).
+Deferred and stated: YAML/persist policy and docs (Phase 22), wizard/YAML half of CR-007. Relative horizon rule rejected by Brent.
 
 ### 7c. Architectural Tier Compliance — PASS
 
@@ -107,12 +110,12 @@ Deferred and stated: YAML/persist policy and docs (Phase 22), wizard/YAML half o
 VALIDATION.md exists; every task has an automated pytest command; Wave 0 gaps listed; no hardware.
 
 ### 9. Cross-Plan Data Contracts — PASS
-Reason tokens listed once in RESEARCH (`committed`, `fit_rejected`, `gate_*`, `fingerprint_*`, `offset_not_zero`, `horizon_refused`, `horizon_unknown`, `commit_stale`). `OnlineSampleResult` gains no fields. `auto_commit=False` keeps the Phase 20 contract.
+Reason tokens listed once in RESEARCH (`committed`, `fit_rejected`, `gate_*`, `fingerprint_*`, `offset_not_zero`, `horizon_refused`, `horizon_unknown`, `within_deadband`, `commit_stale`). `OnlineSampleResult` gains no fields. `auto_commit=False` keeps the Phase 20 contract.
 
 ### 10. CLAUDE.md Compliance — SKIPPED (no repo-root CLAUDE.md)
 
 ### 11. Research Resolution — PASS
-CR-007 horizon question closed by Brent 2026-10-08; rule defined and justified. Two non-blocking open questions recorded.
+CR-007 horizon question closed by Brent 2026-10-08 (strict); deadband closed by Brent 2026-10-08 (1%, after gates). No open questions.
 
 ### 12. Pattern Compliance — PASS
 PATTERNS.md names the guarded commit, horizon helper, gate order, DepthLoop insertion, serve seam, and test list. Analogs: `/apply` + smoother reset, `refuse_if_mismatch`.
@@ -165,14 +168,12 @@ issues: []
 **Blockers:** 0
 **Warnings:** 0
 
-**Open questions for Brent (non-blocking, from RESEARCH):**
-1. Large scenes: strict-absolute horizon refuses every candidate when the true scene median is at least 3 m. Keep strict, or allow a relative rule?
-2. Deadband: commit (and smoother reset) every passing window, or skip when the new scale is within ~1% of applied?
+**Open questions for Brent:** none. Large-scene horizon (strict) and deadband (1%) answered 2026-10-08 and locked.
 
 ---
 
 ## Recommendation
 
-**Plans will achieve the phase goal.** Execute: `/gsd:execute-phase 21` starting with 21-01. If Brent answers either open question before 21-01 starts, fold it into 21-01 Task 1 tests. Do not implement Phase 21 in the planning PR.
+**Plans will achieve the phase goal.** Execute: `/gsd:execute-phase 21` starting with 21-01. Do not implement Phase 21 in the planning PR.
 
 ## VERIFICATION PASSED
