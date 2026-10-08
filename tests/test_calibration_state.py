@@ -886,3 +886,72 @@ def test_clear_applied_clears_consent_anchors() -> None:
     assert state.is_online() is False
     assert snap.online_status == "online_off"
     assert snap.scale is None
+
+
+# --- Phase 21-01: guarded apply_params / mark_online_rejected ---------------
+
+
+def _p21(scale: float = 2.0) -> CalibrationParams:
+    return CalibrationParams(
+        scale=scale,
+        offset=0.0,
+        sample_count=1,
+        fingerprint=CalibrationFingerprint(camera_id="cam0"),
+    )
+
+
+def _online21() -> CalibrationState:
+    state = CalibrationState()
+    state.apply_params(_p21(2.0))
+    state.set_online(True)
+    return state
+
+
+def test_apply_params_expect_applied_commits_and_sets_auto_committed() -> None:
+    state = _online21()
+    current = state.get_applied_params()
+    new = _p21(3.0)
+    snap = state.apply_params(new, expect_applied=current)
+    assert state.get_applied_params() is new
+    assert snap.online_status == "auto_committed"
+    assert state.is_online() is True
+
+
+def test_apply_params_expect_applied_stale_identity_raises() -> None:
+    state = _online21()
+    current = state.get_applied_params()
+    other = _p21(2.0)
+    with pytest.raises(ValueError, match="auto_commit_stale"):
+        state.apply_params(_p21(3.0), expect_applied=other)
+    assert state.get_applied_params() is current
+    assert state.snapshot().online_status == "online_draft"
+
+
+def test_apply_params_expect_applied_online_off_raises() -> None:
+    state = _online21()
+    current = state.get_applied_params()
+    state.set_online(False)
+    with pytest.raises(ValueError, match="auto_commit_stale"):
+        state.apply_params(_p21(3.0), expect_applied=current)
+    assert state.get_applied_params() is current
+    assert state.snapshot().online_status == "online_off"
+
+
+def test_apply_params_without_expect_leaves_online_status() -> None:
+    state = _online21()
+    state.set_online_status("rejected")
+    state.apply_params(_p21(3.0))
+    assert state.snapshot().online_status == "rejected"
+    assert state.is_online() is True
+
+
+def test_mark_online_rejected_only_while_online() -> None:
+    state = _online21()
+    assert state.mark_online_rejected() is True
+    assert state.snapshot().online_status == "rejected"
+    state.set_online(False)
+    assert state.mark_online_rejected() is False
+    assert state.snapshot().online_status == "online_off"
+    state.clear_applied()
+    assert state.mark_online_rejected() is False
+    assert state.snapshot().online_status == "online_off"
