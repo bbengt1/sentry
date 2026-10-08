@@ -41,7 +41,12 @@ class OnlineSampleResult:
 
 
 class OnlineSampler:
-    """Collect consented observations into draft samples. No fit in 20-01."""
+    """Collect consented observations into draft samples and fit a full window.
+
+    A full window runs ``fit_scale_median``. ``ok=True`` stages draft params
+    only. ``ok=False`` clears draft params and leaves the applied scale alone.
+    Never commits meters or sets the online status.
+    """
 
     def __init__(
         self,
@@ -68,7 +73,10 @@ class OnlineSampler:
     ) -> OnlineSampleResult:
         """Accept one frame into the draft window, or explain why not.
 
-        A full window still returns ``window_short``. Fit is 20-02.
+        A short window returns ``window_short``. A full window runs
+        ``fit_scale_median``: ``ok=True`` stages draft params only
+        (``draft_staged``); ``ok=False`` clears draft params and leaves the
+        applied params untouched (``fit_rejected``).
         """
         with self._lock:
             if frame_id is None:
