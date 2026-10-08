@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Online Re-calibration
 status: executing
-last_updated: "2026-10-05"
-last_activity: 2026-10-05
+last_updated: "2026-10-08"
+last_activity: 2026-10-08
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 4
+  total_plans: 6
   completed_plans: 4
   percent: 50
 ---
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-15)
 
 **Core value:** Reliable camera-only depth + obstacle awareness and object recognition that makers can run locally and plug into their robots — without proprietary sensors or cloud AI.  
-**Current focus:** v0.4 Phase 20 complete (draft window + fit/reject). Next: Phase 21 gated auto-commit, not started.
+**Current focus:** v0.4 Phase 21 planned (gated auto-commit + horizon refuse + DepthLoop hook). Next: execute 21-01.
 
 ## Current Position
 
-Phase: 20 of 22 complete (Online sample + fit/reject) — v0.4 phases 19–22  
-Plan: 20-02 done  
-Status: Phase 20 complete; Phase 21 not started  
-Last activity: 2026-10-05 — 20-02 implemented (draft fit / reject)
+Phase: 21 of 22 planned (Gated auto-commit + DepthLoop/status) — v0.4 phases 19–22  
+Plan: 21-01 next (wave 1), 21-02 (wave 2)  
+Status: Phase 20 complete; Phase 21 planned, not executed  
+Last activity: 2026-10-08 — Phase 21 research + plans (CR-007 horizon refuse locked)
 
 Progress: [█████░░░░░] 50%
 
@@ -43,6 +43,7 @@ Progress: [█████░░░░░] 50%
 |-------|-------|-------|----------|
 | 19. Online consent & honesty state | 2/2 | 2 | - |
 | 20. Online sample + fit/reject | 2/2 | 2 | - |
+| 21. Gated auto-commit + DepthLoop/status | 0/2 | 2 | - |
 
 *Updated after each plan completion*
 
@@ -116,13 +117,30 @@ Brent 2026-10-05: anchors only after a wizard `apply()` in the same process. The
 - `online_status` stays `online_draft`. This phase does not assign `auto_committed` or `rejected`
 - In-range scale 1000 may stage draft and does not replace the applied scale. Horizon refuse is still a Phase 21 question
 
+Brent 2026-10-08 (CR-007, LOCKED): auto-commit refuses any scale that passes the v0.3 gates but would push the raw map past the 3 m free-space horizon (`DEFAULT_METRIC_MID_CUT_M`) once applied. On refuse, keep the last consented calibration applied. Wizard Apply is the override and does not get this gate.
+
+Brent 2026-10-08 (LOCKED): horizon rule stays strict, so deep scenes are refused even when the consented scale already puts the median at or past 3 m. Commit deadband: a safe candidate within 1% of applied is skipped (no apply, no smoother reset, not rejected).
+
+Phase 21 plan locks (2026-10-08):
+- Commit only via `apply_params(candidate, expect_applied=applied)`; atomic online+identity check under the state lock; sets `auto_committed` there
+- Six conjuncts: online, applied, fit ok, residual, `fingerprints_match` (live frame), horizon
+- Horizon (ONL-09, strict): `scale * median(finite > 0 raw of the window-closing frame) + offset >= 3.0` → `horizon_refused`; no valid pixel → `horizon_unknown`; never consults the applied scale
+- Deadband (after all safety gates): `abs(candidate - applied) < ONLINE_COMMIT_DEADBAND * applied`, `ONLINE_COMMIT_DEADBAND = 0.01` in `online_sampler.py`; exactly 1% commits. Skip → `within_deadband`: no `apply_params`, no smoother reset, `clear_draft_params`, `online_status` unchanged, window kept
+- Online candidates scale-only (`offset_not_zero` refuse); commit the sampler's own fit, never `_draft_params`
+- Every refuse: applied unchanged, `clear_draft_params`, `mark_online_rejected` (only while online)
+- `online_status` = last commit-or-refuse decision; deadband skip / Cancel / wizard `apply()` do not change it
+- `OnlineSampler(auto_commit=False)` default keeps Phase 20 contract; `serve` wires `auto_commit=True` + `on_auto_commit=free_space_loop.reset_smoother`
+- DepthLoop hook after `refuse_if_mismatch`, before unchanged `promote_kind_unit` / `apply_map`; raw map; `time.monotonic()`
+- No YAML on auto-commit; no route / snapshot field / YAML key / dep; version 0.1.0; restart out of scope; fit gates untouched
+- 21-01 (wave 1): ONL-05 + ONL-09 control plane. 21-02 (wave 2): ONL-07 DepthLoop hook + serve wiring + status
+
 ### Pending Todos
 
-- Plan Phase 21 when asked. Do not auto-commit from the sampler
+- Execute 21-01 when asked, then 21-02. Do not start Phase 22
 
 ### Blockers/Concerns
 
-- CR-007 in-range scale (legal under v0.3 gates, still empties the 3 m horizon once applied) is a Phase 21 decision. 20-02 stages that draft and does not apply it
+- None. CR-007 horizon decision resolved 2026-10-08 (ONL-09). Wizard/YAML half of CR-007 stays open by design (wizard is the override)
 
 ## Deferred Items
 
@@ -140,7 +158,7 @@ See also: `milestones/v1.0-MILESTONE-AUDIT.md`, `milestones/v0.2-MILESTONE-AUDIT
 
 ## Session Continuity
 
-Last session: 2026-10-05 — 20-02 implemented (draft fit / reject)  
-Stopped at: `cursor/phase-20-02-fit-reject-b90b`  
-Resume file: `.planning/ROADMAP.md` (Phase 21 not planned yet)  
-Next: plan Phase 21
+Last session: 2026-10-08 — Phase 21 planned  
+Stopped at: `docs/phase-21-plan`  
+Resume file: `.planning/phases/21-gated-auto-commit-depthloop-status/21-01-PLAN.md`  
+Next: execute 21-01
