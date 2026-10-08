@@ -1,34 +1,74 @@
-"""Throttled draft-only online sampler (ONL-03, ONL-04).
+"""Throttled online sampler with gated auto-commit (ONL-03..05, ONL-09).
 
-Control plane over CalibrationState. A full window may stage draft fit
-params. It does not commit meters or read PerceptionStore. The depth loop
-stays the only map-transform site.
+Control plane over CalibrationState. By default a full window only stages
+draft fit params (Phase 20). With ``auto_commit=True`` a passed fit goes live
+through ``apply_params(expect_applied=...)`` only when every gate holds,
+including the strict free-space horizon refuse and the commit deadband. It
+never calls ``apply()`` or ``apply_map``, never writes YAML, and never reads
+PerceptionStore. The depth loop stays the only map-transform site.
 """
 
 from __future__ import annotations
 
+import logging
 import math
 import threading
 import time
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
 import numpy as np
 
+from sentry_ai.config.calibration_store import fingerprints_match
 from sentry_ai.control.calibration_state import CalibrationState, ConsentAnchor
-from sentry_ai.schemas.calibration import CalibrationParams, CalibrationSample
-from sentry_ai.spatial.calibration import fit_scale_median
+from sentry_ai.schemas.calibration import (
+    CalibrationFingerprint,
+    CalibrationParams,
+    CalibrationSample,
+)
+from sentry_ai.spatial.calibration import CalibrationFitResult, fit_scale_median
+from sentry_ai.spatial.free_space import DEFAULT_METRIC_MID_CUT_M
 
 __all__ = [
+    "ONLINE_COMMIT_DEADBAND",
     "ONLINE_MIN_INTERVAL_S",
     "ONLINE_WINDOW_N",
     "OnlineSampleResult",
     "OnlineSampler",
+    "horizon_median_m",
+    "within_deadband",
 ]
+
+logger = logging.getLogger(__name__)
 
 ONLINE_WINDOW_N = 8
 ONLINE_MIN_INTERVAL_S = 1.0
+# Relative commit deadband (Brent 2026-10-08). The only place the 1% lives.
+ONLINE_COMMIT_DEADBAND = 0.01
+
+
+def horizon_median_m(
+    raw_map: np.ndarray, scale: float, offset: float
+) -> float | None:
+    """``scale * median(finite > 0 raw) + offset``, or None with no valid pixel."""
+    arr = np.asarray(raw_map, dtype=np.float64)
+    valid = arr[np.isfinite(arr) & (arr > 0.0)]
+    if valid.size == 0:
+        return None
+    return float(scale) * float(np.median(valid)) + float(offset)
+
+
+def within_deadband(candidate_scale: float, applied_scale: float) -> bool:
+    """True when ``abs(candidate - applied) < ONLINE_COMMIT_DEADBAND * applied``.
+
+    Same as ``abs(candidate / applied - 1) < ONLINE_COMMIT_DEADBAND`` for a
+    positive applied scale. Exactly 1% is outside the band (commits).
+    """
+    return abs(float(candidate_scale) - float(applied_scale)) < (
+        ONLINE_COMMIT_DEADBAND * float(applied_scale)
+    )
 
 
 @dataclass(frozen=True)
@@ -43,9 +83,17 @@ class OnlineSampleResult:
 class OnlineSampler:
     """Collect consented observations into draft samples and fit a full window.
 
-    A full window runs ``fit_scale_median``. ``ok=True`` stages draft params
-    only. ``ok=False`` clears draft params and leaves the applied scale alone.
-    Never commits meters or sets the online status.
+    A full window runs ``fit_scale_median``.
+
+    ``auto_commit=False`` (default, Phase 20): ``ok=True`` stages draft params
+    only; ``ok=False`` clears draft params. Never commits or sets status.
+
+    ``auto_commit=True`` (Phase 21): a passed fit is checked against the
+    safety gates (online, applied, residual, live fingerprint, scale-only,
+    strict horizon). Any refuse keeps the applied params, clears draft params,
+    and marks ``rejected``. A safe candidate within the deadband is skipped
+    (status unchanged). Otherwise it commits via the guarded ``apply_params``,
+    clears the window, and calls ``on_auto_commit``.
     """
 
     def __init__(
@@ -54,10 +102,14 @@ class OnlineSampler:
         *,
         window_n: int = ONLINE_WINDOW_N,
         min_interval_s: float = ONLINE_MIN_INTERVAL_S,
+        auto_commit: bool = False,
+        on_auto_commit: Callable[[], None] | None = None,
     ) -> None:
         self._state = state
         self.window_n = window_n
         self.min_interval_s = min_interval_s
+        self.auto_commit = bool(auto_commit)
+        self._on_auto_commit = on_auto_commit
         self._lock = threading.Lock()
         self._window: deque[list[CalibrationSample]] = deque(maxlen=window_n)
         self._last_accept_s: float | None = None
@@ -70,13 +122,17 @@ class OnlineSampler:
         frame_id: int | None,
         now_s: float,
         map_space: Literal["raw", "applied"] = "raw",
+        live_fingerprint: CalibrationFingerprint | None = None,
     ) -> OnlineSampleResult:
         """Accept one frame into the draft window, or explain why not.
 
         A short window returns ``window_short``. A full window runs
-        ``fit_scale_median``: ``ok=True`` stages draft params only
-        (``draft_staged``); ``ok=False`` clears draft params and leaves the
-        applied params untouched (``fit_rejected``).
+        ``fit_scale_median``. Without auto-commit: ``ok=True`` stages draft
+        params only (``draft_staged``); ``ok=False`` clears draft params and
+        leaves the applied params untouched (``fit_rejected``). With
+        auto-commit the outcome is ``committed``, ``within_deadband``,
+        ``fit_rejected``, or a gate refuse token; ``live_fingerprint`` is the
+        frame's fingerprint and is required for a commit.
         """
         with self._lock:
             if frame_id is None:
@@ -136,10 +192,14 @@ class OnlineSampler:
                 return OnlineSampleResult(
                     accepted=True, reason="window_short", fit_ok=None
                 )
-            return self._fit_window()
+            return self._fit_window(raw_map, live_fingerprint)
 
-    def _fit_window(self) -> OnlineSampleResult:
-        """Stage a passed scale fit. A failed fit clears draft params only."""
+    def _fit_window(
+        self,
+        raw_map: np.ndarray,
+        live_fingerprint: CalibrationFingerprint | None,
+    ) -> OnlineSampleResult:
+        """Fit the full window, then stage (default) or gate and commit."""
         applied = self._state.get_applied_params()
         if applied is None:
             return OnlineSampleResult(accepted=False, reason="not_applied")
@@ -149,24 +209,106 @@ class OnlineSampler:
         result = fit_scale_median(observed, known, method="known_distance")
         if not result.ok:
             self._state.clear_draft_params()
+            if self.auto_commit:
+                self._state.mark_online_rejected()
             return OnlineSampleResult(
                 accepted=True, reason="fit_rejected", fit_ok=False
             )
         applied = self._state.get_applied_params()
         if applied is None:
             return OnlineSampleResult(accepted=False, reason="not_applied")
-        self._state.set_draft_params(
-            CalibrationParams(
-                scale=result.scale,
-                offset=result.offset,
-                method=result.method,
-                sample_count=result.sample_count,
-                residual_rms=result.residual_rms,
-                fingerprint=applied.fingerprint.model_copy(),
-                created_at=time.time(),
-            )
+        candidate = CalibrationParams(
+            scale=result.scale,
+            offset=result.offset,
+            method=result.method,
+            sample_count=result.sample_count,
+            residual_rms=result.residual_rms,
+            fingerprint=applied.fingerprint.model_copy(),
+            created_at=time.time(),
         )
-        return OnlineSampleResult(accepted=True, reason="draft_staged", fit_ok=True)
+        if not self.auto_commit:
+            self._state.set_draft_params(candidate)
+            return OnlineSampleResult(
+                accepted=True, reason="draft_staged", fit_ok=True
+            )
+        return self._auto_commit(candidate, result, live_fingerprint, raw_map)
+
+    def _auto_commit(
+        self,
+        candidate: CalibrationParams,
+        result: CalibrationFitResult,
+        live_fingerprint: CalibrationFingerprint | None,
+        raw_map: np.ndarray,
+    ) -> OnlineSampleResult:
+        """Safety gates, then deadband, then the guarded apply_params."""
+        refuse = self._commit_gate(candidate, result, live_fingerprint, raw_map)
+        if refuse is not None:
+            self._state.clear_draft_params()
+            self._state.mark_online_rejected()
+            return OnlineSampleResult(accepted=True, reason=refuse, fit_ok=True)
+        applied = self._state.get_applied_params()
+        if applied is None:
+            # Cleared between the gate and here; Clear wins, no status write.
+            return OnlineSampleResult(
+                accepted=True, reason="commit_stale", fit_ok=True
+            )
+        if within_deadband(candidate.scale, applied.scale):
+            # Safe but not worth a commit: not a refusal, status unchanged.
+            self._state.clear_draft_params()
+            return OnlineSampleResult(
+                accepted=True, reason="within_deadband", fit_ok=True
+            )
+        try:
+            self._state.apply_params(candidate, expect_applied=applied)
+        except ValueError:
+            self._state.mark_online_rejected()
+            return OnlineSampleResult(
+                accepted=True, reason="commit_stale", fit_ok=True
+            )
+        self._window.clear()
+        callback = self._on_auto_commit
+        if callback is not None:
+            try:
+                callback()
+            except Exception:  # noqa: BLE001 — commit stands; log only
+                logger.exception("online auto-commit callback failed")
+        return OnlineSampleResult(accepted=True, reason="committed", fit_ok=True)
+
+    def _commit_gate(
+        self,
+        candidate: CalibrationParams,
+        result: CalibrationFitResult,
+        live_fingerprint: CalibrationFingerprint | None,
+        raw_map: np.ndarray,
+    ) -> str | None:
+        """Return the first failing safety gate token, or None when all pass.
+
+        Order: online, applied, residual, fingerprint, scale-only, horizon.
+        Fit ok and the v0.3 absurd-scale / residual gates already passed in
+        ``fit_scale_median``; this re-checks them without editing them.
+        """
+        if not self._state.is_online():
+            return "gate_online_off"
+        applied = self._state.get_applied_params()
+        if applied is None:
+            return "gate_not_applied"
+        rms = result.residual_rms
+        if not result.ok or rms is None or not math.isfinite(float(rms)):
+            return "gate_residual"
+        if live_fingerprint is None:
+            return "fingerprint_unavailable"
+        match, _why = fingerprints_match(applied.fingerprint, live_fingerprint)
+        if not match:
+            return "fingerprint_mismatch"
+        if candidate.offset != 0.0 or candidate.method != "known_distance":
+            return "offset_not_zero"
+        # Strict (Brent 2026-10-08): never consult the applied scale.
+        d_med = horizon_median_m(raw_map, candidate.scale, candidate.offset)
+        if d_med is None:
+            return "horizon_unknown"
+        if d_med >= DEFAULT_METRIC_MID_CUT_M:
+            return "horizon_refused"
+        return None
 
     def _raw_map(
         self,

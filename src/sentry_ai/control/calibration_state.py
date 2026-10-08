@@ -219,11 +219,22 @@ class CalibrationState:
             self._draft_samples.clear()
             return self._snapshot_unlocked()
 
-    def apply_params(self, params: CalibrationParams) -> CalibrationSnapshot:
+    def apply_params(
+        self,
+        params: CalibrationParams,
+        *,
+        expect_applied: CalibrationParams | None = None,
+    ) -> CalibrationSnapshot:
         """Commit valid params as applied without a wizard draft.
 
         Raises ValueError if structurally invalid. Clears draft on success
         (same as apply()). Does not invent samples.
+
+        ``expect_applied`` is the online auto-commit guard (ONL-05). When set,
+        the commit happens only if online is still on and the applied params
+        are still that exact object; otherwise ``ValueError("auto_commit_stale")``
+        and nothing changes. On success it also sets ``auto_committed``. With
+        the default ``None`` (wizard / persist callers) behavior is unchanged.
         """
         with self._lock:
             ok, reason = is_valid_calibration_params(params)
@@ -231,9 +242,16 @@ class CalibrationState:
                 raise ValueError(
                     f"invalid calibration params: {reason or 'unknown'}"
                 )
+            if expect_applied is not None and (
+                not self._online_enabled
+                or self._applied_params is not expect_applied
+            ):
+                raise ValueError("auto_commit_stale")
             self._applied_params = params
             self._draft_params = None
             self._draft_samples.clear()
+            if expect_applied is not None:
+                self._online_status = "auto_committed"
             return self._snapshot_unlocked()
 
     def set_persist_status(
@@ -270,6 +288,18 @@ class CalibrationState:
             raise ValueError(f"invalid online status: {status}")
         with self._lock:
             self._online_status = status
+
+    def mark_online_rejected(self) -> bool:
+        """Set ``online_status="rejected"`` only while online is on.
+
+        Returns False (and changes nothing) after Clear or disable, so a
+        refused auto-commit never resurrects status.
+        """
+        with self._lock:
+            if not self._online_enabled:
+                return False
+            self._online_status = "rejected"
+            return True
 
     def set_online(self, enabled: bool) -> CalibrationSnapshot:
         """Enable or disable session online-recal.
