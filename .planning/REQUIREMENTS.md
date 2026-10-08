@@ -21,9 +21,9 @@ Requirements for this milestone. Each maps to roadmap phases (19+).
 
 ### Gated auto-commit
 
-- [ ] **ONL-05**: Auto-commit uses `apply_params` only when online is on AND already applied AND fit ok AND residual gate AND `fingerprints_match`; a candidate that passes but is within 1% of the applied scale (`abs(candidate - applied) < 0.01 * applied`) is skipped, not committed and not rejected
-- [ ] **ONL-07**: DepthLoop remains the sole `apply_map` site; free-space smoother resets on auto-commit like Apply; persist fingerprint refuse is unchanged
-- [ ] **ONL-09**: Auto-commit refuses a candidate that passes the v0.3 fit gates but would push the raw map past the 3 m free-space horizon once applied: `scale * median(finite, > 0 raw of the window-closing frame) + offset >= DEFAULT_METRIC_MID_CUT_M` (or no valid pixel) refuses, strictly (also when the consented scale already puts the median there); the last consented calibration stays applied; wizard Apply / `try_reapply` do not get this gate (Brent 2026-10-08, CR-007)
+- [x] **ONL-05**: Auto-commit uses `apply_params` only when online is on AND already applied AND fit ok AND residual gate AND `fingerprints_match`; a candidate that passes but is within 1% of the applied scale (`abs(candidate - applied) < 0.01 * applied`) is skipped, not committed and not rejected
+- [x] **ONL-07**: DepthLoop remains the sole `apply_map` site; free-space smoother resets on auto-commit like Apply; persist fingerprint refuse is unchanged
+- [x] **ONL-09**: Auto-commit refuses a candidate that passes the v0.3 fit gates but would push the raw map past the 3 m free-space horizon once applied: `scale * median(finite, > 0 raw of the window-closing frame) + offset >= DEFAULT_METRIC_MID_CUT_M` (or no valid pixel) refuses, strictly (also when the consented scale already puts the median there); the last consented calibration stays applied; wizard Apply / `try_reapply` do not get this gate (Brent 2026-10-08, CR-007)
 
 ### Operator surfaces
 
@@ -71,11 +71,11 @@ Which phases cover which requirements. Filled during roadmap creation.
 | ONL-02 | Phase 19 | Complete (19-01) |
 | ONL-03 | Phase 20 | Complete (20-02) |
 | ONL-04 | Phase 20 | Complete (20-02) |
-| ONL-05 | Phase 21 | Pending |
+| ONL-05 | Phase 21 | Complete (21-01, 21-02) |
 | ONL-06 | Phase 19 | Complete (19-02) |
-| ONL-07 | Phase 21 | Pending |
+| ONL-07 | Phase 21 | Complete (21-02) |
 | ONL-08 | Phase 22 | Pending |
-| ONL-09 | Phase 21 | Pending |
+| ONL-09 | Phase 21 | Complete (21-01) |
 
 **Coverage:**
 - v0.4 requirements: 9 total
@@ -91,4 +91,4 @@ Which phases cover which requirements. Filled during roadmap creation.
 
 ---
 *Requirements defined: 2026-08-15*  
-*Last updated: 2026-10-08 after Phase 21 planning (ONL-09 strict horizon refuse added; ONL-05 commit deadband)*
+*Last updated: 2026-10-08 after 21-02 (ONL-05, ONL-07, ONL-09 complete; Phase 21 done)*

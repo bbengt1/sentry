@@ -7,6 +7,11 @@ Calibration (CAL-03): optional CalibrationState. On the success path after
 worker.process, refuse_if_mismatch then promote_kind_unit then apply_map
 before set_depth. Single apply site — error/dependency products do not
 invent metric_calibrated meters.
+
+Online (ONL-07): an optional online sampler sees the pre-apply raw map, the
+live fingerprint, and ``time.monotonic()`` after refuse_if_mismatch and
+before promote/apply, so a commit on frame N is used by frame N. Sampler
+errors are contained; the frame still publishes with the last applied scale.
 """
 
 from __future__ import annotations
@@ -27,6 +32,8 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["DepthLoop"]
 
+_ONLINE_ERROR_LOG_CAP = 32
+
 
 class DepthLoop:
     """Daemon depth thread: FrameBus → ModelWorker → PerceptionStore."""
@@ -37,11 +44,14 @@ class DepthLoop:
         worker: Any,
         store: PerceptionStore,
         calibration: Any | None = None,
+        online_sampler: Any | None = None,
     ) -> None:
         self._bus = bus
         self._worker = worker
         self._store = store
         self._calibration = calibration
+        self._online_sampler = online_sampler
+        self._online_error_seen: set[str] = set()
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._enabled = threading.Event()
@@ -57,6 +67,34 @@ class DepthLoop:
     @property
     def store(self) -> PerceptionStore:
         return self._store
+
+    def set_online_sampler(self, sampler: Any | None) -> None:
+        """Attach (or detach with None) the online sampler. Thread-safe."""
+        with self._lock:
+            self._online_sampler = sampler
+
+    def _consider_online(self, frame: Any, depth_map: Any, live: Any) -> None:
+        """Feed the raw map to the sampler. Never raises into the loop."""
+        with self._lock:
+            sampler = self._online_sampler
+        if sampler is None:
+            return
+        try:
+            sampler.consider(
+                depth_map,
+                frame_id=frame.frame_id,
+                now_s=time.monotonic(),
+                live_fingerprint=live,
+            )
+        except Exception as exc:  # noqa: BLE001 — sampler must not stop depth
+            message = f"{type(exc).__name__}: {exc}"
+            # Log each distinct error once; bounded so odd messages can't grow it.
+            if (
+                message not in self._online_error_seen
+                and len(self._online_error_seen) < _ONLINE_ERROR_LOG_CAP
+            ):
+                self._online_error_seen.add(message)
+                logger.exception("Online sampler failed: %s", message)
 
     def is_enabled(self) -> bool:
         """Return True when the loop will process frames."""
@@ -224,6 +262,8 @@ class DepthLoop:
                     if depth_map is not None:
                         live = self._live_fingerprint(frame, depth_map)
                         refuse_if_mismatch(self._calibration, live)
+                        # Raw (pre-apply) map; a commit here applies to this frame.
+                        self._consider_online(frame, depth_map, live)
                     # Promote + apply together before set_depth (T-14-02).
                     kind, unit = self._calibration.promote_kind_unit(kind, unit)
                     depth_map = self._calibration.apply_map(depth_map)

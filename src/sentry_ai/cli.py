@@ -37,6 +37,30 @@ def _build_registry() -> PluginRegistry:
     return registry
 
 
+def _attach_online_sampler(
+    depth_loop: Any | None,
+    calibration_state: Any | None,
+    free_space_loop: Any | None,
+) -> None:
+    """Wire the online sampler into DepthLoop with auto-commit on (ONL-07).
+
+    A commit resets the free-space smoother like wizard Apply. No-op when
+    depth or calibration is unavailable. Online itself stays default off.
+    """
+    if depth_loop is None or calibration_state is None:
+        return
+    from sentry_ai.control.online_sampler import OnlineSampler
+
+    reset = getattr(free_space_loop, "reset_smoother", None)
+    depth_loop.set_online_sampler(
+        OnlineSampler(
+            calibration_state,
+            auto_commit=True,
+            on_auto_commit=reset if callable(reset) else None,
+        )
+    )
+
+
 def _build_serve_source(
     *,
     source: str,
@@ -673,6 +697,7 @@ def serve(
     from sentry_ai.spatial.loop import FreeSpaceLoop
 
     free_space_loop = FreeSpaceLoop(store)
+    _attach_online_sampler(depth_loop, calibration_state, free_space_loop)
     pipeline_state = PipelineState()
 
     app_asgi = create_app(
